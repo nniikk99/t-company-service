@@ -109,15 +109,29 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Text('Пользователь не авторизован'),
       );
     }
+
+    String firstName = '';
+    String? lastName;
+    String? username;
+
+    if (user is Map<String, String>) {
+      firstName = user['first_name'] ?? '';
+      lastName = user['last_name'];
+      username = user['username'];
+    } else if (user is User) {
+      firstName = user.companyName;
+      // Для User пока не используем lastName и username
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('Имя: ${user['first_name'] ?? ''}'),
-          if (user['last_name'] != null)
-            Text('Фамилия: ${user['last_name']}'),
-          if (user['username'] != null)
-            Text('Username: @${user['username']}'),
+          Text('Имя: $firstName'),
+          if (lastName != null)
+            Text('Фамилия: $lastName'),
+          if (username != null)
+            Text('Username: @$username'),
         ],
       ),
     );
