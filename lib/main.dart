@@ -110,30 +110,33 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
 
-    String firstName = '';
-    String? lastName;
-    String? username;
-
-    if (user is Map<String, String>) {
-      firstName = user['first_name'] ?? '';
-      lastName = user['last_name'];
-      username = user['username'];
-    } else if (user is User) {
-      firstName = user.companyName;
-      // Для User пока не используем lastName и username
+    if (user is User) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Компания: ${user.companyName}'),
+            Text('ИНН: ${user.inn}'),
+          ],
+        ),
+      );
+    } else if (user is Map<String, String>) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Имя: ${user['first_name'] ?? ''}'),
+            if (user['last_name'] != null)
+              Text('Фамилия: ${user['last_name']}'),
+            if (user['username'] != null)
+              Text('Username: @${user['username']}'),
+          ],
+        ),
+      );
     }
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('Имя: $firstName'),
-          if (lastName != null)
-            Text('Фамилия: $lastName'),
-          if (username != null)
-            Text('Username: @$username'),
-        ],
-      ),
+    return const Center(
+      child: Text('Неизвестный тип пользователя'),
     );
   }
 }
