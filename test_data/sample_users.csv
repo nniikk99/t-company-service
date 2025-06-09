@@ -1,0 +1,3 @@
+inn,company_name,equipment_list,manager_email,registration_date,status
+1234567890,ООО "Тестовая компания",[{"manufacturer":"HP","model":"LaserJet Pro","serial":"HP123"}],manager@t-company.ru,2024-03-20,active
+0987654321,ИП Иванов И.И.,[{"manufacturer":"Canon","model":"MF733Cdw","serial":"CN456"}],manager@t-company.ru,2024-03-20,active 

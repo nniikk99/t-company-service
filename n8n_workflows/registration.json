@@ -1,0 +1,109 @@
+{
+  "name": "User Registration Flow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "register",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetName": "Users",
+        "range": "A:Z"
+      },
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"inn\"]}}",
+              "operation": "existsIn",
+              "value2": "={{$node[\"Google Sheets\"].json[\"inn\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "IF",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "return Math.random().toString(36).slice(-8);"
+      },
+      "name": "Generate Password",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        850,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "to": "={{$json[\"managerEmail\"]}}",
+        "subject": "New User Registration",
+        "text": "=New user registered:\nINN: {{$json[\"inn\"]}}\nEmail: {{$json[\"email\"]}}\nPassword: {{$node[\"Generate Password\"].json}}",
+        "options": {}
+      },
+      "name": "Send Email to Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "users",
+        "columns": {
+          "values": [
+            {
+              "name": "inn",
+              "value": "={{$json[\"inn\"]}}"
+            },
+            {
+              "name": "email",
+              "value": "={{$json[\"email\"]}}"
+            },
+            {
+              "name": "password",
+              "value": "={{$node[\"Generate Password\"].json}}"
+            }
+          ]
+        }
+      },
+      "name": "Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    }
+  ]
+} 

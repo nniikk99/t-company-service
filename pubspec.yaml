@@ -1,0 +1,36 @@
+name: t_co_service
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.1
+  http: ^1.1.0
+  fl_chart: ^0.66.2
+  intl: ^0.19.0
+  table_calendar: ^3.0.9
+  js: ^0.6.7
+  universal_html: ^2.2.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/images/equipment/
+    - assets/images/equipment/gadlee/
+    - assets/images/equipment/gausium/
+    - assets/images/equipment/t-line/
+    - assets/images/equipment/ipc/
+    - assets/images/equipment/tennant/

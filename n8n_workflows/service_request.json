@@ -1,0 +1,130 @@
+{
+  "name": "Service Request Flow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "service-request",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "service_requests",
+        "columns": {
+          "values": [
+            {
+              "name": "equipment_id",
+              "value": "={{$json[\"equipmentId\"]}}"
+            },
+            {
+              "name": "type",
+              "value": "={{$json[\"type\"]}}"
+            },
+            {
+              "name": "message",
+              "value": "={{$json[\"message\"]}}"
+            },
+            {
+              "name": "status",
+              "value": "pending"
+            }
+          ]
+        }
+      },
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "to": "={{$json[\"userEmail\"]}}",
+        "subject": "New Service Request",
+        "text": "=Your service request has been received and is being processed.",
+        "options": {}
+      },
+      "name": "Email to User",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        650,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "to": "={{$json[\"managerEmail\"]}}",
+        "subject": "New Service Request",
+        "text": "=New service request received:\nEquipment: {{$json[\"equipmentTitle\"]}}\nType: {{$json[\"type\"]}}\nMessage: {{$json[\"message\"]}}",
+        "options": {}
+      },
+      "name": "Email to Manager",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        650,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[\"userTelegramId\"]}}",
+        "text": "=New service request received and is being processed.",
+        "options": {}
+      },
+      "name": "Telegram to User",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        850,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "users",
+        "columns": {
+          "values": [
+            {
+              "name": "inn",
+              "value": "={{$json[\"inn\"]}}"
+            },
+            {
+              "name": "email",
+              "value": "={{$json[\"email\"]}}"
+            },
+            {
+              "name": "password",
+              "value": "={{$node[\"Generate Password\"].json}}"
+            },
+            {
+              "name": "company_name",
+              "value": "={{$node[\"Check INN in Google Sheets\"].json[\"company_name\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "Save to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    }
+  ]
+} 
