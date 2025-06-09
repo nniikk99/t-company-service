@@ -10,20 +10,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0'
+          flutter-version: '3.x'
           channel: 'stable'
-          
-      - name: Install dependencies
+      
+      - name: Enable Flutter Web
+        run: flutter config --enable-web
+      
+      - name: Get dependencies
         run: flutter pub get
-        
-      - name: Build web
+      
+      - name: Build
         run: flutter build web --base-href "/t_co_service/"
-        
-      - name: Deploy to GitHub Pages
+      
+      - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
