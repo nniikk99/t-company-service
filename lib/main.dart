@@ -9,10 +9,12 @@ import 'models/service_request.dart';
 import 'services/telegram_webapp_service.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     // Инициализируем Telegram WebApp
@@ -21,14 +23,23 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'T-Company Service',
       theme: TelegramWebAppService.getTheme(),
-      home: MyHomePage(),
+      home: const MyHomePage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
+  final User? user;
+  final List<ServiceRequest> requests;
+
+  const MyHomePage({
+    super.key,
+    this.user,
+    this.requests = const [],
+  });
+
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
@@ -38,10 +49,10 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('T-Company Service'),
+        title: const Text('T-Company Service'),
         actions: [
           IconButton(
-            icon: Icon(Icons.close),
+            icon: const Icon(Icons.close),
             onPressed: () => TelegramWebAppService.close(),
           ),
         ],
@@ -61,7 +72,7 @@ class _MyHomePageState extends State<MyHomePage> {
             _selectedIndex = index;
           });
         },
-        destinations: [
+        destinations: const [
           NavigationDestination(
             icon: Icon(Icons.print),
             label: 'Оборудование',
@@ -92,19 +103,21 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildProfile() {
-    final user = TelegramWebAppService.user;
+    final user = widget.user ?? TelegramWebAppService.user;
+    if (user == null) {
+      return const Center(
+        child: Text('Пользователь не авторизован'),
+      );
+    }
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (user != null) ...[
-            Text('Имя: ${user['first_name']}'),
-            if (user['last_name'] != null)
-              Text('Фамилия: ${user['last_name']}'),
-            if (user['username'] != null)
-              Text('Username: @${user['username']}'),
-          ] else
-            Text('Пользователь не авторизован'),
+          Text('Имя: ${user['first_name'] ?? ''}'),
+          if (user['last_name'] != null)
+            Text('Фамилия: ${user['last_name']}'),
+          if (user['username'] != null)
+            Text('Username: @${user['username']}'),
         ],
       ),
     );
@@ -292,562 +305,6 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  final User user;
-  final List<ServiceRequest> requests;
-
-  const MyHomePage({
-    super.key,
-    required this.user,
-    this.requests = const [],
-  });
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _selectedIndex = 0;
-  late List<Equipment> _equipment;
-  DateTime _focusedDay = DateTime.now();
-  DateTime _selectedDay = DateTime.now();
-  final List<String> _periods = ['Неделя', 'Месяц', 'Квартал', 'Год'];
-  String _selectedPeriod = 'Месяц';
-  late List<ServiceRequest> _requests;
-
-  final Map<String, List<String>> manufacturerModels = {
-    'Tennant': [
-      'T1', 'T2', 'T3-43M', 'T3-50D', 'T5 D600', 'T5 D700',
-      'T500 D600', 'T500 D700', 'T7', 'T12', 'T15', 'T16',
-      'M17', 'T20', 'M20'
-    ],
-    'Gadlee': [
-      'GT30', 'GT50 С 50 (сетевая)', 'GT50 B50 (АКБ)', 'GT55 BT 50',
-      'GT70', 'GT 110', 'GT 180(75 RS)', 'GT 180(B 95)',
-      'GT260', 'GTS1200', 'GTS1450', 'GT19000'
-    ],
-    'IPC': [
-      'CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50',
-      'CT40C50', 'CT45B50', 'CT 51', 'CT71', 'CT80',
-      'CT90', 'CT110'
-    ],
-    'T-line': [
-      'TLO1500', 'T-Mop', 'T-vac'
-    ],
-    'Gausium': [
-      'ECOBOT Beetle', 'ECOBOT Omnie', 'ECOBOT Scrubber 50 Pro',
-      'ECOBOT Phantas', 'ECOBOT Scrubber 75', 'ECOBOT Vacuum 40',
-      'ECOBOT Vacuum 40 Diffuser', 'ECOBOT Scrubber 50'
-    ],
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    _equipment = List.from(widget.user.equipment);
-    _requests = List.from(widget.requests);
-  }
-
-  void _editEquipment(Equipment equipment) {
-    final addressController = TextEditingController(text: equipment.address);
-    final contactController = TextEditingController(text: equipment.contactPerson);
-    final phoneController = TextEditingController(text: equipment.phone);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Редактировать оборудование'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Производитель: ${equipment.manufacturer}'),
-              const SizedBox(height: 8),
-              Text('Модель: ${equipment.model}'),
-              const SizedBox(height: 8),
-              Text('Серийный номер: ${equipment.serialNumber}'),
-              const SizedBox(height: 8),
-              Text('Право собственности: ${equipment.ownership}'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Адрес',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: contactController,
-                decoration: const InputDecoration(
-                  labelText: 'Контактное лицо',
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Телефон',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (addressController.text.isNotEmpty &&
-                  contactController.text.isNotEmpty &&
-                  phoneController.text.isNotEmpty) {
-                final updatedEquipment = equipment.copyWith(
-                  address: addressController.text,
-                  contactPerson: contactController.text,
-                  phone: phoneController.text,
-                );
-                setState(() {
-                  final index = widget.user.equipment.indexWhere((e) => e.id == equipment.id);
-                  if (index != -1) {
-                    widget.user.equipment[index] = updatedEquipment;
-                  }
-                });
-                Navigator.pop(context);
-                Navigator.pop(context); // Закрываем диалог с деталями оборудования
-              }
-            },
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _deleteEquipment(Equipment equipment) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Удалить оборудование?'),
-        content: Text('Вы уверены, что хотите удалить ${equipment.manufacturer} ${equipment.model}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                widget.user.equipment.removeWhere((e) => e.id == equipment.id);
-              });
-              Navigator.pop(context);
-              Navigator.pop(context); // Закрываем диалог с деталями оборудования
-            },
-            child: const Text('Удалить'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddEquipmentDialog() {
-    String? selectedManufacturer;
-    String? selectedModel;
-    String? selectedOwnership;
-    final serialNumberController = TextEditingController();
-    final addressController = TextEditingController();
-    final contactController = TextEditingController();
-    final phoneController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Добавить оборудование'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedManufacturer,
-                  decoration: const InputDecoration(
-                    labelText: 'Производитель',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Gadlee', child: Text('Gadlee')),
-                    DropdownMenuItem(value: 'Gausium', child: Text('Gausium')),
-                    DropdownMenuItem(value: 'T-line', child: Text('T-line')),
-                    DropdownMenuItem(value: 'IPC', child: Text('IPC')),
-                    DropdownMenuItem(value: 'Tennant', child: Text('Tennant')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedManufacturer = value;
-                      selectedModel = null;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                if (selectedManufacturer != null)
-                  DropdownButtonFormField<String>(
-                    value: selectedModel,
-                    decoration: const InputDecoration(
-                      labelText: 'Модель',
-                    ),
-                    items: _getModelsForManufacturer(selectedManufacturer!),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedModel = value;
-                      });
-                    },
-                  ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: serialNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Серийный номер',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedOwnership,
-                  decoration: const InputDecoration(
-                    labelText: 'Право собственности',
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'В собственности', child: Text('В собственности')),
-                    DropdownMenuItem(value: 'В аренде', child: Text('В аренде')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedOwnership = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: addressController,
-                  decoration: const InputDecoration(
-                    labelText: 'Адрес',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: contactController,
-                  decoration: const InputDecoration(
-                    labelText: 'Контактное лицо',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Телефон',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Отмена'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (selectedManufacturer != null &&
-                    selectedModel != null &&
-                    selectedOwnership != null &&
-                    serialNumberController.text.isNotEmpty &&
-                    addressController.text.isNotEmpty &&
-                    contactController.text.isNotEmpty &&
-                    phoneController.text.isNotEmpty) {
-                  final newEquipment = Equipment(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    manufacturer: selectedManufacturer!,
-                    model: selectedModel!,
-                    serialNumber: serialNumberController.text,
-                    ownership: selectedOwnership!,
-                    address: addressController.text,
-                    contactPerson: contactController.text,
-                    phone: phoneController.text,
-                    status: 'Работает',
-                    lastMaintenance: DateTime.now(),
-                    nextMaintenance: DateTime.now().add(const Duration(days: 30)),
-                  );
-                  setState(() {
-                    widget.user.equipment.add(newEquipment);
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Добавить'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.user.companyName),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-      ),
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          _buildEquipmentList(),
-          _buildRequestsList(),
-          _buildProfile(),
-        ],
-      ),
-      floatingActionButton: _selectedIndex == 0
-          ? FloatingActionButton(
-              onPressed: _showAddEquipmentDialog,
-              child: const Icon(Icons.add),
-            )
-          : null,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.business),
-            label: 'Оборудование',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.list_alt),
-            label: 'Мои заявки',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person),
-            label: 'Профиль',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEquipmentList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: widget.user.equipment.length,
-      itemBuilder: (context, index) {
-        final equipment = widget.user.equipment[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: InkWell(
-            onTap: () => _showEquipmentDetails(equipment),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              equipment.manufacturer,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Модель: ${equipment.model}',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'С/н: ${equipment.serialNumber}',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Адрес: ${equipment.address}',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey[400],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showEquipmentDetails(Equipment equipment) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(equipment.manufacturer),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Модель: ${equipment.model}'),
-              const SizedBox(height: 8),
-              Text('Серийный номер: ${equipment.serialNumber}'),
-              const SizedBox(height: 8),
-              Text('Право собственности: ${equipment.ownership}'),
-              const SizedBox(height: 8),
-              Text('Адрес: ${equipment.address}'),
-              const SizedBox(height: 8),
-              Text('Контактное лицо: ${equipment.contactPerson}'),
-              const SizedBox(height: 8),
-              Text('Телефон: ${equipment.phone}'),
-              const SizedBox(height: 8),
-              Text('Статус: ${equipment.status}'),
-              const SizedBox(height: 8),
-              Text('Последнее обслуживание: ${DateFormat('dd.MM.yyyy').format(equipment.lastMaintenance)}'),
-              const SizedBox(height: 8),
-              Text('Следующее обслуживание: ${DateFormat('dd.MM.yyyy').format(equipment.nextMaintenance)}'),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _showServiceRequestDialog(equipment, 'service'),
-                    icon: const Icon(Icons.build),
-                    label: const Text('Вызвать инженера'),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _showServiceRequestDialog(equipment, 'parts'),
-                    icon: const Icon(Icons.inventory),
-                    label: const Text('Заказать запчасти'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => _editEquipment(equipment),
-            child: const Text('Редактировать'),
-          ),
-          TextButton(
-            onPressed: () => _deleteEquipment(equipment),
-            child: const Text('Удалить'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Закрыть'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showServiceRequestDialog(Equipment equipment, String type) {
-    final descriptionController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(type == 'service' ? 'Вызов инженера' : 'Заказ запчастей'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Оборудование: ${equipment.manufacturer} ${equipment.model}'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              decoration: InputDecoration(
-                labelText: type == 'service' 
-                    ? 'Опишите проблему'
-                    : 'Укажите необходимые запчасти',
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (descriptionController.text.isNotEmpty) {
-                final request = ServiceRequest(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  equipmentTitle: '${equipment.manufacturer} ${equipment.model}',
-                  type: type == 'service' ? 'Инженер' : 'Запчасти',
-                  message: descriptionController.text,
-                  date: DateTime.now(),
-                  status: 'Отправлено',
-                );
-                setState(() {
-                  _requests.add(request);
-                });
-                Navigator.pop(context);
-                Navigator.pop(context); // Закрываем диалог с деталями оборудования
-              }
-            },
-            child: const Text('Отправить'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRequestsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _requests.length,
-      itemBuilder: (context, index) {
-        final request = _requests[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: ListTile(
-            title: Text(request.equipmentTitle),
-            subtitle: Text(request.message),
-            trailing: Chip(
-              label: Text(request.status),
-              backgroundColor: request.status == 'В обработке'
-                  ? Colors.orange
-                  : request.status == 'Завершено'
-                      ? Colors.green
-                      : Colors.blue,
-              labelStyle: const TextStyle(color: Colors.white),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildProfile() {
-    return const Center(
-      child: Text('Профиль'),
     );
   }
 }
