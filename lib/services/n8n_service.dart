@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class N8nService {
-  static const String baseUrl = 'YOUR_N8N_WEBHOOK_URL';
+  static const String baseUrl = 'https://n8n.t-company-service.com/webhook';
   static const bool isTestMode = true; // Включаем тестовый режим
 
   // Регистрация пользователя

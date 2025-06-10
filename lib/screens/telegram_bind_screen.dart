@@ -18,12 +18,18 @@ class _TelegramBindScreenState extends State<TelegramBindScreen> {
     });
 
     try {
-      // Здесь будет логика привязки
-      // Пока просто имитация
-      await Future.delayed(Duration(seconds: 2));
+      final botUsername = _botUsernameController.text.trim();
+      if (botUsername.isEmpty) {
+        throw Exception('Введите имя бота');
+      }
+
+      final success = await TelegramService.bindBot(botUsername);
+      if (!success) {
+        throw Exception('Не удалось привязать бота');
+      }
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Telegram успешно привязан!')),
+        const SnackBar(content: Text('Telegram успешно привязан!')),
       );
       Navigator.of(context).pop();
     } catch (e) {

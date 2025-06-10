@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/equipment.dart';
 
 class ApiService {
-  static const String baseUrl = 'YOUR_API_BASE_URL'; // Replace with your actual API URL
+  static const String baseUrl = 'https://api.t-company-service.com'; // Replace with your actual API URL
 
   // Equipment endpoints
   Future<List<Equipment>> getEquipment() async {

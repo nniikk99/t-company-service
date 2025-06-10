@@ -112,7 +112,18 @@ class _MyHomePageState extends State<MyHomePage> {
                     width: 48,
                     height: 48,
                     fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => const Icon(Icons.precision_manufacturing, size: 40),
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading image: $error');
+                      return Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.precision_manufacturing, size: 40, color: Colors.grey),
+                      );
+                    },
                   ),
                 ),
                 title: Column(
