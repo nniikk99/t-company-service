@@ -23,7 +23,7 @@ URL приложения: `https://<username>.github.io/t_co_service/`
 
 ## Настройка в Telegram
 
-1. Создайте бота через @BotFather
+1. Создайте бота через @BotFatherъ
 2. Включите Mini Apps в настройках бота
 3. Добавьте URL вашего приложения в настройках бота
 4. Используйте команду `/mybots` -> Ваш бот -> Bot Settings -> Menu Button для добавления кнопки меню
