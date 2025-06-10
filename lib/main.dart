@@ -172,10 +172,10 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     if (user is User) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
             Text('Компания: ${user.companyName}'),
             Text('ИНН: ${user.inn}'),
           ],
@@ -347,25 +347,22 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                   return;
                 }
-                setState(() {
-                  (widget.user as User).equipment.add(
-                    Equipment(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      manufacturer: selectedManufacturer!,
-                      model: selectedModel! +
-                          (selectedModification != null ? ' ${selectedModification!}' : ''),
-                      serialNumber: serialController.text,
-                      address: addressController.text,
-                      contactPerson: contactController.text,
-                      phone: phoneController.text,
-                      status: 'Работает',
-                      ownership: 'В собственности',
-                      lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
-                      nextMaintenance: DateTime.now().add(const Duration(days: 30)),
-                    ),
-                  );
-                });
+                final newEquipment = Equipment(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  manufacturer: selectedManufacturer!,
+                  model: selectedModel! +
+                      (selectedModification != null ? ' ${selectedModification!}' : ''),
+                  serialNumber: serialController.text,
+                  address: addressController.text,
+                  contactPerson: contactController.text,
+                  phone: phoneController.text,
+                  status: 'Работает',
+                  ownership: 'В собственности',
+                  lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
+                  nextMaintenance: DateTime.now().add(const Duration(days: 30)),
+                );
                 Navigator.pop(context);
+                _addEquipment(newEquipment);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -378,6 +375,14 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
     );
+  }
+
+  void _addEquipment(Equipment equipment) {
+    setState(() {
+      if (widget.user is User) {
+        (widget.user as User).equipment.add(equipment);
+      }
+    });
   }
 }
 
