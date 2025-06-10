@@ -144,7 +144,7 @@ class _MyHomePageState extends State<MyHomePage> {
           },
         ),
         Positioned(
-          left: 24,
+          right: 24,
           bottom: 24,
           child: FloatingActionButton(
             heroTag: 'add_equipment',
@@ -223,6 +223,7 @@ class _MyHomePageState extends State<MyHomePage> {
     String? selectedManufacturer;
     String? selectedModel;
     String? selectedModification;
+    final serialController = TextEditingController();
     final addressController = TextEditingController();
     final contactController = TextEditingController();
     final phoneController = TextEditingController();
@@ -281,6 +282,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 const SizedBox(height: 12),
                 TextFormField(
+                  controller: serialController,
+                  decoration: const InputDecoration(labelText: 'Серийный номер'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
                   controller: addressController,
                   decoration: const InputDecoration(labelText: 'Адрес'),
                 ),
@@ -294,6 +300,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   controller: phoneController,
                   decoration: const InputDecoration(labelText: 'Телефон'),
                   keyboardType: TextInputType.phone,
+                  maxLength: 18,
+                  validator: (value) {
+                    final phoneReg = RegExp(r'^[+0-9\s\-\(\)]{7,18}$');
+                    if (value == null || !phoneReg.hasMatch(value)) {
+                      return 'Введите корректный номер';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 8),
                 if (!showEmail)
@@ -324,6 +338,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 if (selectedManufacturer == null ||
                     selectedModel == null ||
+                    serialController.text.isEmpty ||
                     addressController.text.isEmpty ||
                     contactController.text.isEmpty ||
                     phoneController.text.isEmpty) {
@@ -332,7 +347,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   );
                   return;
                 }
-                // Добавить оборудование в список (пример)
                 setState(() {
                   (widget.user as User).equipment.add(
                     Equipment(
@@ -340,7 +354,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       manufacturer: selectedManufacturer!,
                       model: selectedModel! +
                           (selectedModification != null ? ' ${selectedModification!}' : ''),
-                      serialNumber: 'SN${DateTime.now().millisecondsSinceEpoch}',
+                      serialNumber: serialController.text,
                       address: addressController.text,
                       contactPerson: contactController.text,
                       phone: phoneController.text,
