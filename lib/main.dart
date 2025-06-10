@@ -91,8 +91,71 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildEquipmentList() {
-    return Center(
-      child: Text('Список оборудования'),
+    final user = widget.user;
+    final equipmentList = (user != null && user is User) ? user.equipment : <Equipment>[];
+    return Stack(
+      children: [
+        ListView.builder(
+          padding: const EdgeInsets.only(bottom: 80, top: 16),
+          itemCount: equipmentList.length,
+          itemBuilder: (context, index) {
+            final eq = equipmentList[index];
+            final imgPath = 'assets/images/equipment/${eq.manufacturer.toLowerCase()}/${eq.model}.PNG';
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: ListTile(
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    imgPath,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => const Icon(Icons.precision_manufacturing, size: 40),
+                  ),
+                ),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${eq.model}  |  ${eq.serialNumber}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    Text(
+                      eq.manufacturer,
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                    Text(
+                      eq.address,
+                      style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 13),
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EquipmentDetailPage(equipment: eq),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+        Positioned(
+          left: 24,
+          bottom: 24,
+          child: FloatingActionButton(
+            heroTag: 'add_equipment',
+            backgroundColor: Colors.black.withOpacity(0.8),
+            onPressed: () {
+              // TODO: реализовать добавление оборудования
+            },
+            child: const Icon(Icons.add, size: 32),
+          ),
+        ),
+      ],
     );
   }
 
@@ -730,4 +793,108 @@ List<DropdownMenuItem<String>> _getModelsForManufacturer(String manufacturer) {
   return (models[manufacturer] ?? [])
       .map((m) => DropdownMenuItem(value: m, child: Text(m)))
       .toList();
+}
+
+class EquipmentDetailPage extends StatelessWidget {
+  final Equipment equipment;
+  const EquipmentDetailPage({super.key, required this.equipment});
+
+  @override
+  Widget build(BuildContext context) {
+    final manualPath = 'assets/manuals/${equipment.model}.pdf';
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('${equipment.model} — ${equipment.serialNumber}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: 'Редактировать',
+            onPressed: () {
+              // TODO: реализовать редактирование
+            },
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/${equipment.model}.PNG',
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                  errorBuilder: (c, e, s) => const Icon(Icons.precision_manufacturing, size: 60),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(equipment.manufacturer, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(equipment.model, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('Серийный номер: ${equipment.serialNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(equipment.address, style: const TextStyle(fontStyle: FontStyle.italic)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              title: const Text('Контактное лицо'),
+              subtitle: Text(equipment.contactPerson),
+              trailing: Icon(Icons.phone, color: Colors.blue.shade700),
+              onTap: () {
+                // TODO: реализовать звонок
+              },
+            ),
+          ),
+          Card(
+            child: ListTile(
+              title: const Text('Телефон'),
+              subtitle: Text(equipment.phone),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              title: const Text('Гарантия'),
+              subtitle: Text('Информация о гарантии (не редактируется)'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ExpansionTile(
+            title: const Text('Техническое обслуживание'),
+            children: [
+              ListTile(
+                title: const Text('Последнее ТО'),
+                subtitle: Text('${equipment.lastMaintenance.toLocal()}'),
+              ),
+              ListTile(
+                title: const Text('Следующее ТО'),
+                subtitle: Text('${equipment.nextMaintenance.toLocal()}'),
+              ),
+              // TODO: добавить таблицу прошлых и будущих ТО
+            ],
+          ),
+          ExpansionTile(
+            title: const Text('Инструкция по эксплуатации (PDF)'),
+            children: [
+              ListTile(
+                title: const Text('Открыть инструкцию'),
+                onTap: () {
+                  // TODO: реализовать открытие PDF
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
