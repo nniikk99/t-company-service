@@ -149,9 +149,7 @@ class _MyHomePageState extends State<MyHomePage> {
           child: FloatingActionButton(
             heroTag: 'add_equipment',
             backgroundColor: Colors.black.withOpacity(0.8),
-            onPressed: () {
-              // TODO: реализовать добавление оборудования
-            },
+            onPressed: _showAddEquipmentDialog,
             child: const Icon(Icons.add, size: 32),
           ),
         ),
@@ -200,6 +198,171 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return const Center(
       child: Text('Неизвестный тип пользователя'),
+    );
+  }
+
+  void _showAddEquipmentDialog() {
+    final manufacturers = {
+      'Tennant': [
+        'T1', 'T2', 'T3', 'T5', 'T500', 'T7', 'T12', 'T15', 'T16', 'M17', 'T20', 'M20'
+      ],
+      'Gadlee': [
+        'GT 30', 'GT 50 с 50 (сетевая)', 'GT 50 B50 (АКБ)', 'GT 55 BT50', 'GT 70', 'GT 110', 'GT 180 (75 RS)', 'GT 180(B 95)', 'GT 260', 'GTS 920', 'GTS 1200', 'GTS 1450', 'GTS1900'
+      ],
+      'IPC': [
+        'CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'
+      ],
+      'T-line': [
+        'TLO1500', 'T-Mop', 'T-vac'
+      ],
+      'Gausium': [
+        'ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'
+      ],
+    };
+
+    String? selectedManufacturer;
+    String? selectedModel;
+    String? selectedModification;
+    final addressController = TextEditingController();
+    final contactController = TextEditingController();
+    final phoneController = TextEditingController();
+    final emailController = TextEditingController();
+    bool showEmail = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Добавить оборудование'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  value: selectedManufacturer,
+                  decoration: const InputDecoration(labelText: 'Производитель'),
+                  items: manufacturers.keys
+                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      selectedManufacturer = value;
+                      selectedModel = null;
+                      selectedModification = null;
+                    });
+                  },
+                ),
+                if (selectedManufacturer != null)
+                  DropdownButtonFormField<String>(
+                    value: selectedModel,
+                    decoration: const InputDecoration(labelText: 'Модель'),
+                    items: manufacturers[selectedManufacturer]!
+                        .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedModel = value;
+                        selectedModification = null;
+                      });
+                    },
+                  ),
+                if (selectedManufacturer == 'Tennant' &&
+                    (selectedModel == 'T3' || selectedModel == 'T5' || selectedModel == 'T500'))
+                  DropdownButtonFormField<String>(
+                    value: selectedModification,
+                    decoration: const InputDecoration(labelText: 'Модификация'),
+                    items: (selectedModel == 'T3'
+                            ? ['43M', '50D']
+                            : ['D600', 'D700'])
+                        .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                        .toList(),
+                    onChanged: (value) => setState(() => selectedModification = value),
+                  ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: addressController,
+                  decoration: const InputDecoration(labelText: 'Адрес'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: contactController,
+                  decoration: const InputDecoration(labelText: 'Контактное лицо (ФИО)'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'Телефон'),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 8),
+                if (!showEmail)
+                  TextButton(
+                    onPressed: () => setState(() => showEmail = true),
+                    child: const Text('Добавить почту'),
+                  ),
+                if (showEmail)
+                  TextFormField(
+                    controller: emailController,
+                    decoration: const InputDecoration(labelText: 'Email'),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+                backgroundColor: Colors.grey[200],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Отменить'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (selectedManufacturer == null ||
+                    selectedModel == null ||
+                    addressController.text.isEmpty ||
+                    contactController.text.isEmpty ||
+                    phoneController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Заполните все обязательные поля!')),
+                  );
+                  return;
+                }
+                // Добавить оборудование в список (пример)
+                setState(() {
+                  (widget.user as User).equipment.add(
+                    Equipment(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      manufacturer: selectedManufacturer!,
+                      model: selectedModel! +
+                          (selectedModification != null ? ' ${selectedModification!}' : ''),
+                      serialNumber: 'SN${DateTime.now().millisecondsSinceEpoch}',
+                      address: addressController.text,
+                      contactPerson: contactController.text,
+                      phone: phoneController.text,
+                      status: 'Работает',
+                      ownership: 'В собственности',
+                      lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
+                      nextMaintenance: DateTime.now().add(const Duration(days: 30)),
+                    ),
+                  );
+                });
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Добавить'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -889,6 +1052,78 @@ class EquipmentDetailPage extends StatelessWidget {
                 title: const Text('Открыть инструкцию'),
                 onTap: () {
                   // TODO: реализовать открытие PDF
+                },
+              ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.engineering),
+                label: const Text('Сервис'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Вызов инженера'),
+                      content: TextFormField(
+                        decoration: const InputDecoration(labelText: 'Опишите проблему'),
+                        maxLines: 3,
+                      ),
+                      actions: [
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Отправить'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.build),
+                label: const Text('Запчасти'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Заказ запчастей'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          DropdownButtonFormField<String>(
+                            items: [
+                              DropdownMenuItem(value: 'part1', child: Text('Запчасть 1')),
+                              DropdownMenuItem(value: 'part2', child: Text('Запчасть 2')),
+                            ],
+                            onChanged: (_) {},
+                            decoration: const InputDecoration(labelText: 'Выберите запчасть'),
+                          ),
+                          TextFormField(
+                            decoration: const InputDecoration(labelText: 'Описание/комментарий'),
+                            maxLines: 2,
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Отправить'),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ],
