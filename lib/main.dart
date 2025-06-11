@@ -160,7 +160,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildEquipmentCard(Equipment equipment) {
-    final imgPath = 'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/${equipment.model}.PNG';
+    // Исправляем путь к изображению - убираем пробелы и специальные символы
+    String cleanModel = equipment.model
+        .replaceAll(' ', '')
+        .replaceAll('(', '')
+        .replaceAll(')', '')
+        .replaceAll('-', '');
+    
+    final imgPath = 'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/$cleanModel.PNG';
     
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -197,11 +204,14 @@ class _MyHomePageState extends State<MyHomePage> {
                     width: 50,
                     height: 50,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.precision_manufacturing,
-                      color: Colors.blue,
-                      size: 28,
-                    ),
+                    errorBuilder: (context, error, stackTrace) {
+                      print('❌ Не найдено изображение: $imgPath');
+                      return const Icon(
+                        Icons.precision_manufacturing,
+                        color: Colors.blue,
+                        size: 28,
+                      );
+                    },
                   ),
                 ),
               ),
@@ -256,8 +266,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _showAddEquipmentDialog() {
     final manufacturers = {
-      'Tennant': ['T1', 'T2', 'T3', 'T5', 'T500', 'T7', 'T12', 'T15', 'T16', 'M17', 'T20', 'M20'],
-      'Gadlee': ['GT 30', 'GT 50 с 50 (сетевая)', 'GT 50 B50 (АКБ)', 'GT 55 BT50', 'GT 70', 'GT 110', 'GT 180 (75 RS)', 'GT 180(B 95)', 'GT 260', 'GTS 920', 'GTS 1200', 'GTS 1450', 'GTS1900'],
+      'Tennant': ['T2', 'T7', 'T12', 'T16', 'T17', 'T20', 'T300', 'T500', 'M17', 'M20', 'M30', 'S30'],
+      'Gadlee': ['GT 30', 'GT50', 'GT55', 'GT70', 'GT85', 'GT110', 'GT 180 (75 RS)', 'GT180 B95', 'GTS920', 'GTS 1200', 'GTS1450', 'GTS 1900'],
       'IPC': ['CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'],
       'T-line': ['TLO1500', 'T-Mop', 'T-vac'],
       'Gausium': ['ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'],
@@ -1149,7 +1159,7 @@ class EquipmentDetailPage extends StatelessWidget {
                   height: 80,
                   color: Colors.blue[50],
                   child: Image.asset(
-                    'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/${equipment.model}.PNG',
+                    'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/${equipment.model.replaceAll(' ', '').replaceAll('(', '').replaceAll(')', '').replaceAll('-', '')}.PNG',
                     width: 80,
                     height: 80,
                     fit: BoxFit.cover,
@@ -1232,8 +1242,8 @@ class EquipmentDetailPage extends StatelessWidget {
 
   void _showEditEquipmentDialog(BuildContext context) {
     final manufacturers = {
-      'Tennant': ['T1', 'T2', 'T3', 'T5', 'T500', 'T7', 'T12', 'T15', 'T16', 'M17', 'T20', 'M20'],
-      'Gadlee': ['GT 30', 'GT 50 с 50 (сетевая)', 'GT 50 B50 (АКБ)', 'GT 55 BT50', 'GT 70', 'GT 110', 'GT 180 (75 RS)', 'GT 180(B 95)', 'GT 260', 'GTS 920', 'GTS 1200', 'GTS 1450', 'GTS1900'],
+      'Tennant': ['T2', 'T7', 'T12', 'T16', 'T17', 'T20', 'T300', 'T500', 'M17', 'M20', 'M30', 'S30'],
+      'Gadlee': ['GT 30', 'GT50', 'GT55', 'GT70', 'GT85', 'GT110', 'GT 180 (75 RS)', 'GT180 B95', 'GTS920', 'GTS 1200', 'GTS1450', 'GTS 1900'],
       'IPC': ['CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'],
       'T-line': ['TLO1500', 'T-Mop', 'T-vac'],
       'Gausium': ['ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'],
