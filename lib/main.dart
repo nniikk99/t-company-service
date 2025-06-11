@@ -101,55 +101,72 @@ class _MyHomePageState extends State<MyHomePage> {
           itemBuilder: (context, index) {
             final eq = equipmentList[index];
             final imgPath = 'assets/images/equipment/${eq.manufacturer.toLowerCase()}/${eq.model}.PNG';
-            return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: ListTile(
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
-                    imgPath,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      print('Error loading image: $error');
-                      return Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.precision_manufacturing, size: 40, color: Colors.grey),
-                      );
-                    },
+            return InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => EquipmentDetailPage(equipment: eq),
                   ),
-                ),
-                title: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${eq.model}  |  ${eq.serialNumber}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    Text(
-                      eq.manufacturer,
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    Text(
-                      eq.address,
-                      style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 13),
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => EquipmentDetailPage(equipment: eq),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        imgPath,
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 54,
+                          height: 54,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.precision_manufacturing, size: 36, color: Colors.grey),
+                        ),
+                      ),
                     ),
-                  );
-                },
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${eq.manufacturer} ${eq.model}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            eq.serialNumber,
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            eq.address,
+                            style: const TextStyle(fontSize: 13, color: Colors.black54),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: Colors.grey),
+                  ],
+                ),
               ),
             );
           },
@@ -159,7 +176,7 @@ class _MyHomePageState extends State<MyHomePage> {
           bottom: 24,
           child: FloatingActionButton(
             heroTag: 'add_equipment',
-            backgroundColor: Colors.black.withOpacity(0.8),
+            backgroundColor: Colors.blue,
             onPressed: _showAddEquipmentDialog,
             child: const Icon(Icons.add, size: 32),
           ),
@@ -214,177 +231,114 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _showAddEquipmentDialog() {
     final manufacturers = {
-      'Tennant': [
-        'T1', 'T2', 'T3', 'T5', 'T500', 'T7', 'T12', 'T15', 'T16', 'M17', 'T20', 'M20'
-      ],
-      'Gadlee': [
-        'GT 30', 'GT 50 с 50 (сетевая)', 'GT 50 B50 (АКБ)', 'GT 55 BT50', 'GT 70', 'GT 110', 'GT 180 (75 RS)', 'GT 180(B 95)', 'GT 260', 'GTS 920', 'GTS 1200', 'GTS 1450', 'GTS1900'
-      ],
-      'IPC': [
-        'CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'
-      ],
-      'T-line': [
-        'TLO1500', 'T-Mop', 'T-vac'
-      ],
-      'Gausium': [
-        'ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'
-      ],
+      'Tennant': ['T1', 'T2', 'T3', 'T5', 'T500', 'T7', 'T12', 'T15', 'T16', 'M17', 'T20', 'M20'],
+      'Gadlee': ['GT 30', 'GT 50 с 50 (сетевая)', 'GT 50 B50 (АКБ)', 'GT 55 BT50', 'GT 70', 'GT 110', 'GT 180 (75 RS)', 'GT 180(B 95)', 'GT 260', 'GTS 920', 'GTS 1200', 'GTS 1450', 'GTS1900'],
+      'IPC': ['CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'],
+      'T-line': ['TLO1500', 'T-Mop', 'T-vac'],
+      'Gausium': ['ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'],
     };
 
     String? selectedManufacturer;
     String? selectedModel;
-    String? selectedModification;
     final serialController = TextEditingController();
     final addressController = TextEditingController();
-    final contactController = TextEditingController();
-    final phoneController = TextEditingController();
-    final emailController = TextEditingController();
-    bool showEmail = false;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Добавить оборудование'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedManufacturer,
-                  decoration: const InputDecoration(labelText: 'Производитель'),
-                  items: manufacturers.keys
-                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                      .toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      selectedManufacturer = value;
-                      selectedModel = null;
-                      selectedModification = null;
-                    });
-                  },
-                ),
-                if (selectedManufacturer != null)
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setState) => SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Добавить оборудование', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                  const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedModel,
-                    decoration: const InputDecoration(labelText: 'Модель'),
-                    items: manufacturers[selectedManufacturer]!
+                    value: selectedManufacturer,
+                    decoration: const InputDecoration(labelText: 'Производитель'),
+                    items: manufacturers.keys
                         .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
-                        selectedModel = value;
-                        selectedModification = null;
+                        selectedManufacturer = value;
+                        selectedModel = null;
                       });
                     },
                   ),
-                if (selectedManufacturer == 'Tennant' &&
-                    (selectedModel == 'T3' || selectedModel == 'T5' || selectedModel == 'T500'))
-                  DropdownButtonFormField<String>(
-                    value: selectedModification,
-                    decoration: const InputDecoration(labelText: 'Модификация'),
-                    items: (selectedModel == 'T3'
-                            ? ['43M', '50D']
-                            : ['D600', 'D700'])
-                        .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                        .toList(),
-                    onChanged: (value) => setState(() => selectedModification = value),
+                  if (selectedManufacturer != null)
+                    DropdownButtonFormField<String>(
+                      value: selectedModel,
+                      decoration: const InputDecoration(labelText: 'Модель'),
+                      items: manufacturers[selectedManufacturer]!
+                          .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedModel = value;
+                        });
+                      },
+                    ),
+                  TextField(
+                    controller: serialController,
+                    decoration: const InputDecoration(labelText: 'Серийный номер'),
                   ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: serialController,
-                  decoration: const InputDecoration(labelText: 'Серийный номер'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: addressController,
-                  decoration: const InputDecoration(labelText: 'Адрес'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: contactController,
-                  decoration: const InputDecoration(labelText: 'Контактное лицо (ФИО)'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(labelText: 'Телефон'),
-                  keyboardType: TextInputType.phone,
-                  maxLength: 18,
-                  validator: (value) {
-                    final phoneReg = RegExp(r'^[+0-9\s\-\(\)]{7,18}$');
-                    if (value == null || !phoneReg.hasMatch(value)) {
-                      return 'Введите корректный номер';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                if (!showEmail)
-                  TextButton(
-                    onPressed: () => setState(() => showEmail = true),
-                    child: const Text('Добавить почту'),
+                  TextField(
+                    controller: addressController,
+                    decoration: const InputDecoration(labelText: 'Адрес установки'),
                   ),
-                if (showEmail)
-                  TextFormField(
-                    controller: emailController,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    keyboardType: TextInputType.emailAddress,
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (selectedManufacturer == null ||
+                          selectedModel == null ||
+                          serialController.text.isEmpty ||
+                          addressController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Заполните все поля!')),
+                        );
+                        return;
+                      }
+                      final newEquipment = Equipment(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        manufacturer: selectedManufacturer!,
+                        model: selectedModel!,
+                        serialNumber: serialController.text,
+                        address: addressController.text,
+                        contactPerson: '', // Можно добавить поле если нужно
+                        phone: '',
+                        status: 'Работает',
+                        ownership: 'В собственности',
+                        lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
+                        nextMaintenance: DateTime.now().add(const Duration(days: 30)),
+                      );
+                      Navigator.pop(context);
+                      _addEquipment(newEquipment);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Добавить'),
                   ),
-              ],
+                ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-                backgroundColor: Colors.grey[200],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Отменить'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (selectedManufacturer == null ||
-                    selectedModel == null ||
-                    serialController.text.isEmpty ||
-                    addressController.text.isEmpty ||
-                    contactController.text.isEmpty ||
-                    phoneController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Заполните все обязательные поля!')),
-                  );
-                  return;
-                }
-                final newEquipment = Equipment(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  manufacturer: selectedManufacturer!,
-                  model: selectedModel! +
-                      (selectedModification != null ? ' ${selectedModification!}' : ''),
-                  serialNumber: serialController.text,
-                  address: addressController.text,
-                  contactPerson: contactController.text,
-                  phone: phoneController.text,
-                  status: 'Работает',
-                  ownership: 'В собственности',
-                  lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
-                  nextMaintenance: DateTime.now().add(const Duration(days: 30)),
-                );
-                Navigator.pop(context);
-                _addEquipment(newEquipment);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Добавить'),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
