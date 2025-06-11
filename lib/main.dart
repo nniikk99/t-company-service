@@ -7,6 +7,7 @@ import 'models/equipment.dart';
 import 'models/user.dart';
 import 'models/service_request.dart';
 import 'services/telegram_webapp_service.dart';
+import 'services/storage_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -45,11 +46,17 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
   late List<Equipment> _equipmentList;
+  late Map<String, User> _allUsers;
 
   @override
   void initState() {
     super.initState();
     _equipmentList = List<Equipment>.from(widget.user.equipment);
+    _loadAllUsers();
+  }
+
+  Future<void> _loadAllUsers() async {
+    _allUsers = await StorageService.loadUsers();
   }
 
   @override
@@ -462,16 +469,20 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _addEquipment(Equipment equipment) {
+  void _addEquipment(Equipment equipment) async {
     setState(() {
       _equipmentList.add(equipment);
       widget.user.equipment.add(equipment);
     });
+    
+    // Сохраняем данные
+    await StorageService.saveUser(widget.user, _allUsers);
+    
     print('✅ Оборудование добавлено: ${equipment.manufacturer} ${equipment.model}');
     print('📊 Всего оборудования: ${_equipmentList.length}');
   }
 
-  void _updateEquipment(Equipment oldEquipment, Equipment newEquipment) {
+  void _updateEquipment(Equipment oldEquipment, Equipment newEquipment) async {
     setState(() {
       // Находим индекс в локальном списке
       final index = _equipmentList.indexWhere((eq) => eq.id == oldEquipment.id);
@@ -485,6 +496,10 @@ class _MyHomePageState extends State<MyHomePage> {
         widget.user.equipment[userIndex] = newEquipment;
       }
     });
+    
+    // Сохраняем данные
+    await StorageService.saveUser(widget.user, _allUsers);
+    
     print('✅ Оборудование обновлено: ${newEquipment.manufacturer} ${newEquipment.model}');
   }
 
@@ -512,8 +527,26 @@ class _MyHomePageState extends State<MyHomePage> {
           Text('Компания: ${widget.user.companyName}', style: const TextStyle(fontSize: 18)),
           const SizedBox(height: 8),
           Text('ИНН: ${widget.user.inn}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout),
+            label: const Text('Выйти'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  void _logout() async {
+    await StorageService.clearCurrentUser();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const AuthPage()),
     );
   }
 }
@@ -530,41 +563,58 @@ class _AuthPageState extends State<AuthPage> {
   final _innController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  Map<String, User> _users = {};
 
-  // Временное хранилище пользователей
-  static final Map<String, User> _users = {
-    '1234567890': User(
-      inn: '1234567890',
-      companyName: 'T-company',
-      password: 'test123',
-      equipment: <Equipment>[],
-    ),
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+    _checkAutoLogin();
+  }
 
-  void _login() {
+  Future<void> _loadUsers() async {
+    _users = await StorageService.loadUsers();
+    setState(() {});
+  }
+
+  Future<void> _checkAutoLogin() async {
+    final currentUserInn = await StorageService.loadCurrentUser();
+    if (currentUserInn != null && _users.containsKey(currentUserInn)) {
+      final user = _users[currentUserInn]!;
+      _navigateToHome(user);
+    }
+  }
+
+  void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       
-      Future.delayed(const Duration(seconds: 1), () {
-        final user = _users[_innController.text];
-        
-        if (user != null && user.password == _passwordController.text) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => MyHomePage(user: user),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Неверный ИНН или пароль'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        setState(() => _isLoading = false);
-      });
+      await Future.delayed(const Duration(seconds: 1));
+      
+      final user = _users[_innController.text];
+      
+      if (user != null && user.password == _passwordController.text) {
+        // Сохраняем текущего пользователя
+        await StorageService.saveCurrentUser(user.inn);
+        _navigateToHome(user);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Неверный ИНН или пароль'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      setState(() => _isLoading = false);
     }
+  }
+
+  void _navigateToHome(User user) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => MyHomePage(user: user),
+      ),
+    );
   }
 
   @override
