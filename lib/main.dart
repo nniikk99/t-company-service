@@ -242,6 +242,10 @@ class _MyHomePageState extends State<MyHomePage> {
     String? selectedModel;
     final serialController = TextEditingController();
     final addressController = TextEditingController();
+    final contactController = TextEditingController();
+    final phoneController = TextEditingController();
+    final emailController = TextEditingController();
+    bool showEmail = false;
 
     showModalBottomSheet(
       context: context,
@@ -296,7 +300,29 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   TextField(
                     controller: addressController,
-                    decoration: const InputDecoration(labelText: 'Адрес установки'),
+                    decoration: const InputDecoration(labelText: 'Адрес'),
+                  ),
+                  TextField(
+                    controller: contactController,
+                    decoration: const InputDecoration(labelText: 'Контактное лицо'),
+                  ),
+                  TextField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(labelText: 'Телефон'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  if (showEmail)
+                    TextField(
+                      controller: emailController,
+                      decoration: const InputDecoration(labelText: 'Email'),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () => setState(() => showEmail = !showEmail),
+                      child: Text(showEmail ? 'Убрать email' : 'Добавить email'),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   ElevatedButton(
@@ -304,7 +330,9 @@ class _MyHomePageState extends State<MyHomePage> {
                       if (selectedManufacturer == null ||
                           selectedModel == null ||
                           serialController.text.isEmpty ||
-                          addressController.text.isEmpty) {
+                          addressController.text.isEmpty ||
+                          contactController.text.isEmpty ||
+                          phoneController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Заполните все поля!')),
                         );
@@ -316,8 +344,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         model: selectedModel!,
                         serialNumber: serialController.text,
                         address: addressController.text,
-                        contactPerson: '', // Можно добавить поле если нужно
-                        phone: '',
+                        contactPerson: contactController.text,
+                        phone: phoneController.text,
                         status: 'Работает',
                         ownership: 'В собственности',
                         lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
