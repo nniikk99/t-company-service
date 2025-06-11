@@ -23,18 +23,18 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'T-Company Service',
       theme: TelegramWebAppService.getTheme(),
-      home: const MyHomePage(),
+      home: const AuthPage(),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  final User? user;
+  final User user;
   final List<ServiceRequest> requests;
 
   const MyHomePage({
     super.key,
-    this.user,
+    required this.user,
     this.requests = const [],
   });
 
@@ -44,12 +44,21 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
+  late List<Equipment> _equipmentList;
+
+  @override
+  void initState() {
+    super.initState();
+    _equipmentList = List<Equipment>.from(widget.user.equipment);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('T-Company Service'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.close),
@@ -74,7 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.print),
+            icon: Icon(Icons.precision_manufacturing),
             label: 'Оборудование',
           ),
           NavigationDestination(
@@ -91,141 +100,145 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildEquipmentList() {
-    final user = widget.user;
-    final equipmentList = (user != null && user is User) ? user.equipment : <Equipment>[];
-    return Stack(
-      children: [
-        ListView.builder(
-          padding: const EdgeInsets.only(bottom: 80, top: 16),
-          itemCount: equipmentList.length,
-          itemBuilder: (context, index) {
-            final eq = equipmentList[index];
-            final imgPath = 'assets/images/equipment/${eq.manufacturer.toLowerCase()}/${eq.model}.PNG';
-            return InkWell(
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => EquipmentDetailPage(equipment: eq),
-                  ),
-                );
-              },
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      body: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Row(
+              children: [
+                const Icon(Icons.precision_manufacturing, color: Colors.blue, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  'Оборудование (${_equipmentList.length})',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                child: Row(
+              ],
+            ),
+          ),
+          // Equipment List
+          Expanded(
+            child: _equipmentList.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.precision_manufacturing, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text('Нет оборудования', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                        Text('Нажмите + чтобы добавить', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: _equipmentList.length,
+                    itemBuilder: (context, index) {
+                      final equipment = _equipmentList[index];
+                      return _buildEquipmentCard(equipment);
+                    },
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddEquipmentDialog,
+        backgroundColor: Colors.blue,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildEquipmentCard(Equipment equipment) {
+    final imgPath = 'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/${equipment.model}.PNG';
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EquipmentDetailPage(equipment: equipment),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Avatar/Icon
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  color: Colors.blue[50],
+                  child: Image.asset(
+                    imgPath,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.precision_manufacturing,
+                      color: Colors.blue,
+                      size: 28,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.asset(
-                        imgPath,
-                        width: 54,
-                        height: 54,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 54,
-                          height: 54,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.precision_manufacturing, size: 36, color: Colors.grey),
-                        ),
+                    // Title
+                    Text(
+                      '${equipment.manufacturer} ${equipment.model}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${eq.manufacturer} ${eq.model}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            eq.serialNumber,
-                            style: const TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            eq.address,
-                            style: const TextStyle(fontSize: 13, color: Colors.black54),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                    const SizedBox(height: 2),
+                    // Subtitle
+                    Text(
+                      'S/N: ${equipment.serialNumber}',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
+                    const SizedBox(height: 2),
+                    // Address
+                    Text(
+                      equipment.address,
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
-            );
-          },
-        ),
-        Positioned(
-          right: 24,
-          bottom: 24,
-          child: FloatingActionButton(
-            heroTag: 'add_equipment',
-            backgroundColor: Colors.blue,
-            onPressed: _showAddEquipmentDialog,
-            child: const Icon(Icons.add, size: 32),
+              // Arrow
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey[400],
+              ),
+            ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildRequestsList() {
-    return Center(
-      child: Text('Мои заявки'),
-    );
-  }
-
-  Widget _buildProfile() {
-    final user = widget.user ?? TelegramWebAppService.user;
-    if (user == null) {
-      return const Center(
-        child: Text('Пользователь не авторизован'),
-      );
-    }
-
-    if (user is User) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-            Text('Компания: ${user.companyName}'),
-            Text('ИНН: ${user.inn}'),
-          ],
-        ),
-      );
-    } else if (user is Map<String, String>) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Имя: ${user['first_name'] ?? ''}'),
-            if (user['last_name'] != null)
-              Text('Фамилия: ${user['last_name']}'),
-            if (user['username'] != null)
-              Text('Username: @${user['username']}'),
-          ],
-        ),
-      );
-    }
-
-    return const Center(
-      child: Text('Неизвестный тип пользователя'),
+      ),
     );
   }
 
@@ -262,104 +275,178 @@ class _MyHomePageState extends State<MyHomePage> {
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: StatefulBuilder(
-            builder: (context, setState) => SingleChildScrollView(
+            builder: (context, setModalState) => SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Добавить оборудование', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-                  const SizedBox(height: 16),
+                  const Center(
+                    child: Text(
+                      'Добавить оборудование',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Производитель
                   DropdownButtonFormField<String>(
                     value: selectedManufacturer,
-                    decoration: const InputDecoration(labelText: 'Производитель'),
+                    decoration: InputDecoration(
+                      labelText: 'Производитель *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                     items: manufacturers.keys
                         .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                         .toList(),
                     onChanged: (value) {
-                      setState(() {
+                      setModalState(() {
                         selectedManufacturer = value;
                         selectedModel = null;
                       });
                     },
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Модель
                   if (selectedManufacturer != null)
                     DropdownButtonFormField<String>(
                       value: selectedModel,
-                      decoration: const InputDecoration(labelText: 'Модель'),
+                      decoration: InputDecoration(
+                        labelText: 'Модель *',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
                       items: manufacturers[selectedManufacturer]!
                           .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                           .toList(),
                       onChanged: (value) {
-                        setState(() {
+                        setModalState(() {
                           selectedModel = value;
                         });
                       },
                     ),
+                  if (selectedManufacturer != null) const SizedBox(height: 16),
+                  
+                  // Серийный номер
                   TextField(
                     controller: serialController,
-                    decoration: const InputDecoration(labelText: 'Серийный номер'),
+                    decoration: InputDecoration(
+                      labelText: 'Серийный номер *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Адрес
                   TextField(
                     controller: addressController,
-                    decoration: const InputDecoration(labelText: 'Адрес'),
+                    decoration: InputDecoration(
+                      labelText: 'Адрес *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Контактное лицо
                   TextField(
                     controller: contactController,
-                    decoration: const InputDecoration(labelText: 'Контактное лицо'),
+                    decoration: InputDecoration(
+                      labelText: 'Контактное лицо *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Телефон
                   TextField(
                     controller: phoneController,
-                    decoration: const InputDecoration(labelText: 'Телефон'),
+                    decoration: InputDecoration(
+                      labelText: 'Телефон *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                     keyboardType: TextInputType.phone,
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // Email (опционально)
                   if (showEmail)
                     TextField(
                       controller: emailController,
-                      decoration: const InputDecoration(labelText: 'Email'),
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
                       keyboardType: TextInputType.emailAddress,
                     ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () => setState(() => showEmail = !showEmail),
-                      child: Text(showEmail ? 'Убрать email' : 'Добавить email'),
-                    ),
+                  if (showEmail) const SizedBox(height: 16),
+                  
+                  // Кнопка добавить email
+                  TextButton.icon(
+                    onPressed: () => setModalState(() => showEmail = !showEmail),
+                    icon: Icon(showEmail ? Icons.remove : Icons.add),
+                    label: Text(showEmail ? 'Убрать email' : 'Добавить email'),
                   ),
                   const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (selectedManufacturer == null ||
-                          selectedModel == null ||
-                          serialController.text.isEmpty ||
-                          addressController.text.isEmpty ||
-                          contactController.text.isEmpty ||
-                          phoneController.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Заполните все поля!')),
+                  
+                  // Кнопка добавить
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // Проверка обязательных полей
+                        if (selectedManufacturer == null ||
+                            selectedModel == null ||
+                            serialController.text.trim().isEmpty ||
+                            addressController.text.trim().isEmpty ||
+                            contactController.text.trim().isEmpty ||
+                            phoneController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Заполните все обязательные поля!'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        
+                        // Создание нового оборудования
+                        final newEquipment = Equipment(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          manufacturer: selectedManufacturer!,
+                          model: selectedModel!,
+                          serialNumber: serialController.text.trim(),
+                          address: addressController.text.trim(),
+                          contactPerson: contactController.text.trim(),
+                          phone: phoneController.text.trim(),
+                          status: 'Работает',
+                          ownership: 'В собственности',
+                          lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
+                          nextMaintenance: DateTime.now().add(const Duration(days: 30)),
                         );
-                        return;
-                      }
-                      final newEquipment = Equipment(
-                        id: DateTime.now().millisecondsSinceEpoch.toString(),
-                        manufacturer: selectedManufacturer!,
-                        model: selectedModel!,
-                        serialNumber: serialController.text,
-                        address: addressController.text,
-                        contactPerson: contactController.text,
-                        phone: phoneController.text,
-                        status: 'Работает',
-                        ownership: 'В собственности',
-                        lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
-                        nextMaintenance: DateTime.now().add(const Duration(days: 30)),
-                      );
-                      Navigator.pop(context);
-                      _addEquipment(newEquipment);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        
+                        // Закрыть модальное окно
+                        Navigator.pop(context);
+                        
+                        // Добавить оборудование
+                        _addEquipment(newEquipment);
+                        
+                        // Показать сообщение об успехе
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Оборудование "${newEquipment.manufacturer} ${newEquipment.model}" добавлено!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Добавить', style: TextStyle(fontSize: 16)),
                     ),
-                    child: const Text('Добавить'),
                   ),
                 ],
               ),
@@ -372,12 +459,40 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _addEquipment(Equipment equipment) {
     setState(() {
-      if (widget.user is User) {
-        (widget.user as User).equipment.add(equipment);
-        print('Добавлено оборудование: ${equipment.model}');
-        print('Всего: ${(widget.user as User).equipment.length}');
-      }
+      _equipmentList.add(equipment);
+      widget.user.equipment.add(equipment);
     });
+    print('✅ Оборудование добавлено: ${equipment.manufacturer} ${equipment.model}');
+    print('📊 Всего оборудования: ${_equipmentList.length}');
+  }
+
+  Widget _buildRequestsList() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.assignment, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text('Мои заявки', style: TextStyle(fontSize: 18)),
+          Text('Здесь будут отображаться ваши заявки', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfile() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.business, size: 80, color: Colors.blue),
+          const SizedBox(height: 16),
+          Text('Компания: ${widget.user.companyName}', style: const TextStyle(fontSize: 18)),
+          const SizedBox(height: 8),
+          Text('ИНН: ${widget.user.inn}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+        ],
+      ),
+    );
   }
 }
 
@@ -394,7 +509,7 @@ class _AuthPageState extends State<AuthPage> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  // Временное хранилище пользователей (в реальном приложении это будет база данных)
+  // Временное хранилище пользователей
   static final Map<String, User> _users = {
     '1234567890': User(
       inn: '1234567890',
@@ -408,14 +523,13 @@ class _AuthPageState extends State<AuthPage> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       
-      // Имитация задержки сети
       Future.delayed(const Duration(seconds: 1), () {
         final user = _users[_innController.text];
         
         if (user != null && user.password == _passwordController.text) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => MyHomePage(user: user, requests: []),
+              builder: (context) => MyHomePage(user: user),
             ),
           );
         } else {
@@ -439,10 +553,7 @@ class _AuthPageState extends State<AuthPage> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue.shade900,
-              Colors.blue.shade700,
-            ],
+            colors: [Colors.blue.shade900, Colors.blue.shade700],
           ),
         ),
         child: SafeArea(
@@ -451,9 +562,7 @@ class _AuthPageState extends State<AuthPage> {
               padding: const EdgeInsets.all(24),
               child: Card(
                 elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Form(
@@ -468,47 +577,27 @@ class _AuthPageState extends State<AuthPage> {
                             color: Colors.blue.shade50,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(
-                            Icons.business,
-                            size: 48,
-                            color: Colors.blue,
-                          ),
+                          child: const Icon(Icons.business, size: 48, color: Colors.blue),
                         ),
                         const SizedBox(height: 24),
                         const Text(
                           'T-Company Service',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Вход в систему',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                          ),
-                        ),
+                        const Text('Вход в систему', style: TextStyle(fontSize: 16, color: Colors.grey)),
                         const SizedBox(height: 24),
                         TextFormField(
                           controller: _innController,
                           decoration: InputDecoration(
                             labelText: 'ИНН',
                             prefixIcon: const Icon(Icons.numbers),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           keyboardType: TextInputType.number,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Пожалуйста, введите ИНН';
-                            }
-                            if (value.length != 10 && value.length != 12) {
-                              return 'ИНН должен содержать 10 или 12 цифр';
-                            }
+                            if (value == null || value.isEmpty) return 'Пожалуйста, введите ИНН';
+                            if (value.length != 10 && value.length != 12) return 'ИНН должен содержать 10 или 12 цифр';
                             return null;
                           },
                         ),
@@ -518,15 +607,11 @@ class _AuthPageState extends State<AuthPage> {
                           decoration: InputDecoration(
                             labelText: 'Пароль',
                             prefixIcon: const Icon(Icons.lock),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           obscureText: true,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Пожалуйста, введите пароль';
-                            }
+                            if (value == null || value.isEmpty) return 'Пожалуйста, введите пароль';
                             return null;
                           },
                         ),
@@ -538,19 +623,11 @@ class _AuthPageState extends State<AuthPage> {
                             onPressed: _isLoading ? null : _login,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: _isLoading
                                 ? const CircularProgressIndicator(color: Colors.white)
-                                : const Text(
-                                    'Войти',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                                : const Text('Войти', style: TextStyle(fontSize: 16, color: Colors.white)),
                           ),
                         ),
                       ],
@@ -575,10 +652,7 @@ class SparePartsPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            'Контакты менеджера по сервису:',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          Text('Контакты менеджера по сервису:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           SizedBox(height: 8),
           Text('Басалыгин Михаил Сергеевич'),
           Text('Mob: +79817467395'),
@@ -982,6 +1056,8 @@ class EquipmentDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('${equipment.model} — ${equipment.serialNumber}'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
