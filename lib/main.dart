@@ -391,10 +391,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _addEquipment(Equipment equipment) {
     setState(() {
       if (widget.user is User) {
-        final user = widget.user as User;
-        user.equipment.add(equipment);
-        // Force rebuild
-        widget.user = user;
+        (widget.user as User).equipment.add(equipment);
       }
     });
   }
