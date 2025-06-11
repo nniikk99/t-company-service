@@ -10,6 +10,6 @@ class User {
     required this.inn,
     required this.companyName,
     required this.password,
-    this.equipment = const [],
-  });
+    List<Equipment>? equipment,
+  }) : equipment = equipment ?? <Equipment>[];
 } 

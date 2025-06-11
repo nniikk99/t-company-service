@@ -374,6 +374,8 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       if (widget.user is User) {
         (widget.user as User).equipment.add(equipment);
+        print('Добавлено оборудование: ${equipment.model}');
+        print('Всего: ${(widget.user as User).equipment.length}');
       }
     });
   }
@@ -398,7 +400,7 @@ class _AuthPageState extends State<AuthPage> {
       inn: '1234567890',
       companyName: 'T-company',
       password: 'test123',
-      equipment: [],
+      equipment: <Equipment>[],
     ),
   };
 
