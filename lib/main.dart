@@ -160,13 +160,18 @@ class _MyHomePageState extends State<MyHomePage> {
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          final updatedEquipment = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => EquipmentDetailPage(equipment: equipment),
             ),
           );
+          
+          // Если получили обновленное оборудование, обновляем список
+          if (updatedEquipment != null && updatedEquipment is Equipment) {
+            _updateEquipment(equipment, updatedEquipment);
+          }
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -464,6 +469,23 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     print('✅ Оборудование добавлено: ${equipment.manufacturer} ${equipment.model}');
     print('📊 Всего оборудования: ${_equipmentList.length}');
+  }
+
+  void _updateEquipment(Equipment oldEquipment, Equipment newEquipment) {
+    setState(() {
+      // Находим индекс в локальном списке
+      final index = _equipmentList.indexWhere((eq) => eq.id == oldEquipment.id);
+      if (index != -1) {
+        _equipmentList[index] = newEquipment;
+      }
+      
+      // Находим индекс в списке пользователя
+      final userIndex = widget.user.equipment.indexWhere((eq) => eq.id == oldEquipment.id);
+      if (userIndex != -1) {
+        widget.user.equipment[userIndex] = newEquipment;
+      }
+    });
+    print('✅ Оборудование обновлено: ${newEquipment.manufacturer} ${newEquipment.model}');
   }
 
   Widget _buildRequestsList() {
@@ -1052,7 +1074,6 @@ class EquipmentDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final manualPath = 'assets/manuals/${equipment.model}.pdf';
     return Scaffold(
       appBar: AppBar(
         title: Text('${equipment.model} — ${equipment.serialNumber}'),
@@ -1062,9 +1083,7 @@ class EquipmentDetailPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit),
             tooltip: 'Редактировать',
-            onPressed: () {
-              // TODO: реализовать редактирование
-            },
+            onPressed: () => _showEditEquipmentDialog(context),
           ),
         ],
       ),
@@ -1075,12 +1094,17 @@ class EquipmentDetailPage extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/${equipment.model}.PNG',
+                child: Container(
                   width: 80,
                   height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => const Icon(Icons.precision_manufacturing, size: 60),
+                  color: Colors.blue[50],
+                  child: Image.asset(
+                    'assets/images/equipment/${equipment.manufacturer.toLowerCase()}/${equipment.model}.PNG',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (c, e, s) => const Icon(Icons.precision_manufacturing, size: 60, color: Colors.blue),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -1102,124 +1126,285 @@ class EquipmentDetailPage extends StatelessWidget {
             child: ListTile(
               title: const Text('Контактное лицо'),
               subtitle: Text(equipment.contactPerson),
-              trailing: Icon(Icons.phone, color: Colors.blue.shade700),
-              onTap: () {
-                // TODO: реализовать звонок
-              },
+              trailing: const Icon(Icons.person, color: Colors.blue),
             ),
           ),
           Card(
             child: ListTile(
               title: const Text('Телефон'),
               subtitle: Text(equipment.phone),
+              trailing: const Icon(Icons.phone, color: Colors.blue),
             ),
           ),
           Card(
             child: ListTile(
-              title: const Text('Гарантия'),
-              subtitle: Text('Информация о гарантии (не редактируется)'),
+              title: const Text('Статус'),
+              subtitle: Text(equipment.status),
+              trailing: Icon(Icons.check_circle, color: equipment.status == 'Работает' ? Colors.green : Colors.orange),
             ),
           ),
           const SizedBox(height: 16),
-          ExpansionTile(
-            title: const Text('Техническое обслуживание'),
-            children: [
-              ListTile(
-                title: const Text('Последнее ТО'),
-                subtitle: Text('${equipment.lastMaintenance.toLocal()}'),
-              ),
-              ListTile(
-                title: const Text('Следующее ТО'),
-                subtitle: Text('${equipment.nextMaintenance.toLocal()}'),
-              ),
-              // TODO: добавить таблицу прошлых и будущих ТО
-            ],
-          ),
-          ExpansionTile(
-            title: const Text('Инструкция по эксплуатации (PDF)'),
-            children: [
-              ListTile(
-                title: const Text('Открыть инструкцию'),
-                onTap: () {
-                  // TODO: реализовать открытие PDF
-                },
-              ),
-            ],
-          ),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.engineering),
-                label: const Text('Сервис'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // TODO: Открыть форму заявки на сервис
+                  },
+                  icon: const Icon(Icons.build),
+                  label: const Text('Сервис'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Вызов инженера'),
-                      content: TextFormField(
-                        decoration: const InputDecoration(labelText: 'Опишите проблему'),
-                        maxLines: 3,
-                      ),
-                      actions: [
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Отправить'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
               ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.build),
-                label: const Text('Запчасти'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // TODO: Открыть форму заказа запчастей
+                  },
+                  icon: const Icon(Icons.shopping_cart),
+                  label: const Text('Запчасти'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Заказ запчастей'),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          DropdownButtonFormField<String>(
-                            items: [
-                              DropdownMenuItem(value: 'part1', child: Text('Запчасть 1')),
-                              DropdownMenuItem(value: 'part2', child: Text('Запчасть 2')),
-                            ],
-                            onChanged: (_) {},
-                            decoration: const InputDecoration(labelText: 'Выберите запчасть'),
-                          ),
-                          TextFormField(
-                            decoration: const InputDecoration(labelText: 'Описание/комментарий'),
-                            maxLines: 2,
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Отправить'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  void _showEditEquipmentDialog(BuildContext context) {
+    final manufacturers = {
+      'Tennant': ['T1', 'T2', 'T3', 'T5', 'T500', 'T7', 'T12', 'T15', 'T16', 'M17', 'T20', 'M20'],
+      'Gadlee': ['GT 30', 'GT 50 с 50 (сетевая)', 'GT 50 B50 (АКБ)', 'GT 55 BT50', 'GT 70', 'GT 110', 'GT 180 (75 RS)', 'GT 180(B 95)', 'GT 260', 'GTS 920', 'GTS 1200', 'GTS 1450', 'GTS1900'],
+      'IPC': ['CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'],
+      'T-line': ['TLO1500', 'T-Mop', 'T-vac'],
+      'Gausium': ['ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'],
+    };
+
+    // Предзаполняем поля данными оборудования
+    String? selectedManufacturer = equipment.manufacturer;
+    String? selectedModel = equipment.model;
+    final serialController = TextEditingController(text: equipment.serialNumber);
+    final addressController = TextEditingController(text: equipment.address);
+    final contactController = TextEditingController(text: equipment.contactPerson);
+    final phoneController = TextEditingController(text: equipment.phone);
+    final emailController = TextEditingController();
+    bool showEmail = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: StatefulBuilder(
+            builder: (context, setModalState) => SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Center(
+                    child: Text(
+                      'Редактировать оборудование',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Производитель
+                  DropdownButtonFormField<String>(
+                    value: selectedManufacturer,
+                    decoration: InputDecoration(
+                      labelText: 'Производитель *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: manufacturers.keys
+                        .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                        .toList(),
+                    onChanged: (value) {
+                      setModalState(() {
+                        selectedManufacturer = value;
+                        if (value != equipment.manufacturer) {
+                          selectedModel = null; // Сбрасываем модель если изменился производитель
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Модель
+                  if (selectedManufacturer != null)
+                    DropdownButtonFormField<String>(
+                      value: selectedModel,
+                      decoration: InputDecoration(
+                        labelText: 'Модель *',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      items: manufacturers[selectedManufacturer]!
+                          .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                          .toList(),
+                      onChanged: (value) {
+                        setModalState(() {
+                          selectedModel = value;
+                        });
+                      },
+                    ),
+                  if (selectedManufacturer != null) const SizedBox(height: 16),
+                  
+                  // Серийный номер
+                  TextField(
+                    controller: serialController,
+                    decoration: InputDecoration(
+                      labelText: 'Серийный номер *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Адрес
+                  TextField(
+                    controller: addressController,
+                    decoration: InputDecoration(
+                      labelText: 'Адрес *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Контактное лицо
+                  TextField(
+                    controller: contactController,
+                    decoration: InputDecoration(
+                      labelText: 'Контактное лицо *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Телефон
+                  TextField(
+                    controller: phoneController,
+                    decoration: InputDecoration(
+                      labelText: 'Телефон *',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Email (опционально)
+                  if (showEmail)
+                    TextField(
+                      controller: emailController,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  if (showEmail) const SizedBox(height: 16),
+                  
+                  // Кнопка добавить email
+                  TextButton.icon(
+                    onPressed: () => setModalState(() => showEmail = !showEmail),
+                    icon: Icon(showEmail ? Icons.remove : Icons.add),
+                    label: Text(showEmail ? 'Убрать email' : 'Добавить email'),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Кнопки
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.grey),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Отмена'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            // Проверка обязательных полей
+                            if (selectedManufacturer == null ||
+                                selectedModel == null ||
+                                serialController.text.trim().isEmpty ||
+                                addressController.text.trim().isEmpty ||
+                                contactController.text.trim().isEmpty ||
+                                phoneController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Заполните все обязательные поля!'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                            
+                            // Создаем обновленное оборудование
+                            final updatedEquipment = equipment.copyWith(
+                              manufacturer: selectedManufacturer!,
+                              model: selectedModel!,
+                              serialNumber: serialController.text.trim(),
+                              address: addressController.text.trim(),
+                              contactPerson: contactController.text.trim(),
+                              phone: phoneController.text.trim(),
+                            );
+                            
+                            // Закрыть модальное окно
+                            Navigator.pop(context);
+                            
+                            // Закрыть страницу деталей и вернуть обновленные данные
+                            Navigator.pop(context, updatedEquipment);
+                            
+                            // Показать сообщение об успехе
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Оборудование "${updatedEquipment.manufacturer} ${updatedEquipment.model}" обновлено!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Сохранить'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
