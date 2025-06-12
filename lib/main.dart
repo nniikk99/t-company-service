@@ -59,6 +59,27 @@ class _MyHomePageState extends State<MyHomePage> {
     _allUsers = await StorageService.loadUsers();
   }
 
+  String _formatPhoneNumber(String value) {
+    // Убираем все символы кроме цифр
+    String digits = value.replaceAll(RegExp(r'[^\d]'), '');
+    
+    // Ограничиваем до 10 цифр (после +7)
+    if (digits.length > 10) {
+      digits = digits.substring(0, 10);
+    }
+    
+    // Форматируем номер
+    if (digits.length <= 3) {
+      return digits;
+    } else if (digits.length <= 6) {
+      return '${digits.substring(0, 3)} ${digits.substring(3)}';
+    } else if (digits.length <= 8) {
+      return '${digits.substring(0, 3)} ${digits.substring(3, 6)}-${digits.substring(6)}';
+    } else {
+      return '${digits.substring(0, 3)} ${digits.substring(3, 6)}-${digits.substring(6, 8)}-${digits.substring(8)}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -390,8 +411,20 @@ class _MyHomePageState extends State<MyHomePage> {
                     decoration: InputDecoration(
                       labelText: 'Телефон *',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      prefixText: '+7 ',
+                      hintText: '999 123-45-67',
                     ),
                     keyboardType: TextInputType.phone,
+                    onChanged: (value) {
+                      // Форматируем номер телефона
+                      String formatted = _formatPhoneNumber(value);
+                      if (formatted != value) {
+                        phoneController.value = TextEditingValue(
+                          text: formatted,
+                          selection: TextSelection.collapsed(offset: formatted.length),
+                        );
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
                   
@@ -445,7 +478,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           serialNumber: serialController.text.trim(),
                           address: addressController.text.trim(),
                           contactPerson: contactController.text.trim(),
-                          phone: phoneController.text.trim(),
+                          phone: '+7 ${phoneController.text.trim()}',
                           status: 'Работает',
                           ownership: 'В собственности',
                           lastMaintenance: DateTime.now().subtract(const Duration(days: 30)),
@@ -1282,7 +1315,16 @@ class EquipmentDetailPage extends StatelessWidget {
           Card(
             child: ListTile(
               title: const Text('Телефон'),
-              subtitle: Text(equipment.phone),
+                              subtitle: GestureDetector(
+                  onTap: () => _makePhoneCall(equipment.phone),
+                  child: Text(
+                    equipment.phone,
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
               trailing: const Icon(Icons.phone, color: Colors.blue),
             ),
           ),
@@ -1345,7 +1387,11 @@ class EquipmentDetailPage extends StatelessWidget {
     final serialController = TextEditingController(text: equipment.serialNumber);
     final addressController = TextEditingController(text: equipment.address);
     final contactController = TextEditingController(text: equipment.contactPerson);
-    final phoneController = TextEditingController(text: equipment.phone);
+            final phoneController = TextEditingController(
+          text: equipment.phone.startsWith('+7 ') 
+              ? equipment.phone.substring(3) 
+              : equipment.phone
+        );
     final emailController = TextEditingController();
     bool showEmail = false;
 
@@ -1453,8 +1499,20 @@ class EquipmentDetailPage extends StatelessWidget {
                     decoration: InputDecoration(
                       labelText: 'Телефон *',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      prefixText: '+7 ',
+                      hintText: '999 123-45-67',
                     ),
                     keyboardType: TextInputType.phone,
+                    onChanged: (value) {
+                      // Форматируем номер телефона
+                      String formatted = _formatPhoneNumber(value);
+                      if (formatted != value) {
+                        phoneController.value = TextEditingValue(
+                          text: formatted,
+                          selection: TextSelection.collapsed(offset: formatted.length),
+                        );
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
                   
@@ -1520,7 +1578,7 @@ class EquipmentDetailPage extends StatelessWidget {
                               serialNumber: serialController.text.trim(),
                               address: addressController.text.trim(),
                               contactPerson: contactController.text.trim(),
-                              phone: phoneController.text.trim(),
+                              phone: '+7 ${phoneController.text.trim()}',
                             );
                             
                             // Закрыть модальное окно
@@ -1556,6 +1614,36 @@ class EquipmentDetailPage extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _makePhoneCall(String phoneNumber) async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+    try {
+      // В веб-версии просто показываем номер для копирования
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Номер телефона'),
+          content: SelectableText(
+            phoneNumber,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Закрыть'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Не удалось совершить звонок: $phoneNumber'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showDeleteConfirmDialog(BuildContext context) {
