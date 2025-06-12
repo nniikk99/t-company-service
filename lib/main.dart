@@ -554,7 +554,31 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _logout() async {
+    // Показываем диалог с выбором
+    final shouldClearRememberMe = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Выход'),
+        content: const Text('Забыть данные для автовхода?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Нет, запомнить'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Да, забыть'),
+          ),
+        ],
+      ),
+    );
+    
     await StorageService.clearCurrentUser();
+    
+    if (shouldClearRememberMe == true) {
+      await StorageService.clearRememberMe();
+    }
+    
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const AuthPage()),
     );
@@ -573,6 +597,7 @@ class _AuthPageState extends State<AuthPage> {
   final _innController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _rememberMe = true; // По умолчанию включено для удобства
   Map<String, User> _users = {};
 
   @override
@@ -588,6 +613,23 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   Future<void> _checkAutoLogin() async {
+    // Сначала проверяем сохраненные данные для автовхода
+    final rememberData = await StorageService.loadRememberMe();
+    if (rememberData != null) {
+      final inn = rememberData['inn']!;
+      final password = rememberData['password']!;
+      
+      if (_users.containsKey(inn)) {
+        final user = _users[inn]!;
+        if (user.password == password) {
+          print('🔐 Автовход по сохраненным данным');
+          _navigateToHome(user);
+          return;
+        }
+      }
+    }
+    
+    // Если автовход не сработал, проверяем текущего пользователя
     final currentUserInn = await StorageService.loadCurrentUser();
     if (currentUserInn != null && _users.containsKey(currentUserInn)) {
       final user = _users[currentUserInn]!;
@@ -606,6 +648,12 @@ class _AuthPageState extends State<AuthPage> {
       if (user != null && user.password == _passwordController.text) {
         // Сохраняем текущего пользователя
         await StorageService.saveCurrentUser(user.inn);
+        
+        // Если включено "Запомнить меня", сохраняем данные для автовхода
+        if (_rememberMe) {
+          await StorageService.saveRememberMe(user.inn, user.password);
+        }
+        
         _navigateToHome(user);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -696,6 +744,20 @@ class _AuthPageState extends State<AuthPage> {
                             if (value == null || value.isEmpty) return 'Пожалуйста, введите пароль';
                             return null;
                           },
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberMe = value ?? false;
+                                });
+                              },
+                            ),
+                            const Text('Запомнить меня'),
+                          ],
                         ),
                         const SizedBox(height: 24),
                         SizedBox(

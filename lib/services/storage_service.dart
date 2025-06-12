@@ -108,4 +108,45 @@ class StorageService {
     await prefs.clear();
     print('🗑️ Все данные очищены');
   }
+
+  // Сохранить данные для автовхода (запомнить меня)
+  static Future<void> saveRememberMe(String inn, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('remember_inn', inn);
+    await prefs.setString('remember_password', password);
+    await prefs.setBool('remember_me', true);
+    print('💾 Данные для автовхода сохранены');
+  }
+
+  // Загрузить данные для автовхода
+  static Future<Map<String, String>?> loadRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rememberMe = prefs.getBool('remember_me') ?? false;
+    
+    if (!rememberMe) return null;
+    
+    final inn = prefs.getString('remember_inn');
+    final password = prefs.getString('remember_password');
+    
+    if (inn != null && password != null) {
+      return {'inn': inn, 'password': password};
+    }
+    
+    return null;
+  }
+
+  // Очистить данные автовхода
+  static Future<void> clearRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('remember_inn');
+    await prefs.remove('remember_password');
+    await prefs.setBool('remember_me', false);
+    print('🗑️ Данные автовхода очищены');
+  }
+
+  // Проверить, включен ли автовход
+  static Future<bool> isRememberMeEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('remember_me') ?? false;
+  }
 } 
