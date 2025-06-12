@@ -182,9 +182,15 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           );
           
-          // Если получили обновленное оборудование, обновляем список
-          if (updatedEquipment != null && updatedEquipment is Equipment) {
-            _updateEquipment(equipment, updatedEquipment);
+          // Обрабатываем результат
+          if (updatedEquipment != null) {
+            if (updatedEquipment == 'DELETE') {
+              // Удаляем оборудование
+              _deleteEquipment(equipment);
+            } else if (updatedEquipment is Equipment) {
+              // Обновляем оборудование
+              _updateEquipment(equipment, updatedEquipment);
+            }
           }
         },
         borderRadius: BorderRadius.circular(12),
@@ -511,6 +517,22 @@ class _MyHomePageState extends State<MyHomePage> {
     await StorageService.saveUser(widget.user, _allUsers);
     
     print('✅ Оборудование обновлено: ${newEquipment.manufacturer} ${newEquipment.model}');
+  }
+
+  void _deleteEquipment(Equipment equipment) async {
+    setState(() {
+      // Удаляем из локального списка
+      _equipmentList.removeWhere((eq) => eq.id == equipment.id);
+      
+      // Удаляем из списка пользователя
+      widget.user.equipment.removeWhere((eq) => eq.id == equipment.id);
+    });
+    
+    // Сохраняем изменения
+    await StorageService.saveUser(widget.user, _allUsers);
+    
+    print('🗑️ Оборудование удалено: ${equipment.manufacturer} ${equipment.model}');
+    print('📊 Осталось оборудования: ${_equipmentList.length}');
   }
 
   Widget _buildRequestsList() {
@@ -1207,6 +1229,12 @@ class EquipmentDetailPage extends StatelessWidget {
             tooltip: 'Редактировать',
             onPressed: () => _showEditEquipmentDialog(context),
           ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            tooltip: 'Удалить',
+            color: Colors.red,
+            onPressed: () => _showDeleteConfirmDialog(context),
+          ),
         ],
       ),
       body: ListView(
@@ -1525,6 +1553,92 @@ class EquipmentDetailPage extends StatelessWidget {
               ),
             ),
           ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirmDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red, size: 28),
+              const SizedBox(width: 8),
+              const Text('Удалить оборудование?'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Вы действительно хотите удалить это оборудование?',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${equipment.manufacturer} ${equipment.model}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    Text('S/N: ${equipment.serialNumber}'),
+                    Text('Адрес: ${equipment.address}'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Это действие нельзя отменить!',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context); // Закрыть диалог
+                Navigator.pop(context, 'DELETE'); // Вернуться на главную с сигналом удаления
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Оборудование "${equipment.manufacturer} ${equipment.model}" удалено'),
+                    backgroundColor: Colors.red,
+                    action: SnackBarAction(
+                      label: 'Отменить',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        // TODO: Можно добавить функцию восстановления
+                      },
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Удалить'),
+            ),
+          ],
         );
       },
     );
