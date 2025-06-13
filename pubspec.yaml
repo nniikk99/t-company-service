@@ -27,7 +27,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/
     - assets/images/equipment/
@@ -36,3 +36,4 @@ flutter:
     - assets/images/equipment/t-line/
     - assets/images/equipment/ipc/
     - assets/images/equipment/tennant/
+    - assets/manuals/
