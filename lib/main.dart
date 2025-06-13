@@ -1387,9 +1387,8 @@ class EquipmentDetailPage extends StatelessWidget {
           // Кнопка инструкции
           ElevatedButton.icon(
             onPressed: () {
-              final manualPath = 'assets/manuals/${equipment.model.replaceAll(' ', '').replaceAll('(', '').replaceAll(')', '').replaceAll('-', '')}.pdf';
-              // В веб-версии открываем PDF в новом окне
-              final url = Uri.parse(manualPath);
+              final manualPath = 'assets/assets/manuals/${equipment.model}.pdf';
+              final manualUrl = '${Uri.base.origin}/t-company-service/assets/assets/manuals/${equipment.model}.pdf';
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -1410,7 +1409,7 @@ class EquipmentDetailPage extends StatelessWidget {
                     ElevatedButton(
                       onPressed: () {
                         // Открываем PDF в новом окне
-                        html.window.open(url.toString(), '_blank');
+                        html.window.open(manualUrl, '_blank');
                         Navigator.pop(context);
                       },
                       child: const Text('Открыть'),
