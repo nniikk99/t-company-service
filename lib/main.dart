@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'dart:math' as math;
+import 'dart:html' as html;
 import 'models/equipment.dart';
 import 'models/user.dart';
 import 'models/service_request.dart';
@@ -294,10 +295,10 @@ class _MyHomePageState extends State<MyHomePage> {
   void _showAddEquipmentDialog() {
     final manufacturers = {
       'Tennant': ['T2', 'T7', 'T12', 'T16', 'T17', 'T20', 'T300', 'T500', 'M17', 'M20', 'M30', 'S30'],
-      'Gadlee': ['GT 30', 'GT50', 'GT55', 'GT70', 'GT85', 'GT110', 'GT 180 (75 RS)', 'GT180 B95', 'GTS920', 'GTS 1200', 'GTS1450', 'GTS 1900'],
-      'IPC': ['CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'],
-      'T-line': ['TLO1500', 'T-Mop', 'T-vac'],
-      'Gausium': ['ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'],
+      'Gadlee': ['GT30', 'GT50', 'GT55', 'GT70', 'GT85', 'GT110', 'GT180(75RS)', 'GT180 B95', 'GTS920', 'GTS 1200', 'GTS1450', 'GTS 1900'],
+      'IPC': ['CT30', 'CT51 BТ55', 'CT70 BТ55', 'CT45 B50'],
+      'T-line': ['TLO-1500', 'T-mop', 'T-line'],
+      'Gausium': ['Beetle', 'Omnie', 'Phantas', 'Scrubber 50 Pro', 'Scrubber 50', 'Scrubber 75', 'Vacuum 40'],
     };
 
     String? selectedManufacturer;
@@ -1336,17 +1337,11 @@ class EquipmentDetailPage extends StatelessWidget {
           Card(
             child: ListTile(
               title: const Text('Телефон'),
-                              subtitle: GestureDetector(
-                  onTap: () => _makePhoneCall(context, equipment.phone),
-                  child: Text(
-                    equipment.phone,
-                    style: const TextStyle(
-                      color: Colors.blue,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              trailing: const Icon(Icons.phone, color: Colors.blue),
+              subtitle: Text(equipment.phone),
+              trailing: GestureDetector(
+                onTap: () => _makePhoneCall(context, equipment.phone),
+                child: const Icon(Icons.phone, color: Colors.blue),
+              ),
             ),
           ),
           Card(
@@ -1388,6 +1383,50 @@ class EquipmentDetailPage extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          // Кнопка инструкции
+          ElevatedButton.icon(
+            onPressed: () {
+              final manualPath = 'assets/manuals/${equipment.model.replaceAll(' ', '').replaceAll('(', '').replaceAll(')', '').replaceAll('-', '')}.pdf';
+              // В веб-версии открываем PDF в новом окне
+              final url = Uri.parse(manualPath);
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Инструкция по эксплуатации'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.description, size: 48, color: Colors.blue),
+                      const SizedBox(height: 16),
+                      Text('Инструкция для ${equipment.manufacturer} ${equipment.model}'),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Закрыть'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        // Открываем PDF в новом окне
+                        html.window.open(url.toString(), '_blank');
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Открыть'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            icon: const Icon(Icons.menu_book),
+            label: const Text('Инструкция'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 45),
+            ),
+          ),
         ],
       ),
     );
@@ -1396,10 +1435,10 @@ class EquipmentDetailPage extends StatelessWidget {
   void _showEditEquipmentDialog(BuildContext context) {
     final manufacturers = {
       'Tennant': ['T2', 'T7', 'T12', 'T16', 'T17', 'T20', 'T300', 'T500', 'M17', 'M20', 'M30', 'S30'],
-      'Gadlee': ['GT 30', 'GT50', 'GT55', 'GT70', 'GT85', 'GT110', 'GT 180 (75 RS)', 'GT180 B95', 'GTS920', 'GTS 1200', 'GTS1450', 'GTS 1900'],
-      'IPC': ['CT15B35', 'CT15C35', 'CT40B50', 'CT40 BT 50', 'CT40C50', 'CT45B50', 'CT51', 'CT71', 'CT80', 'CT90', 'CT110'],
-      'T-line': ['TLO1500', 'T-Mop', 'T-vac'],
-      'Gausium': ['ALLYBOT-C2','ECOBOT Phantas', 'ECOBOT Beetle', 'ECOBOT Omnie','ECOBOT Scrubber 50 Pro', 'ECOBOT Scrubber 75', 'ECOBOT Scrubber 50', 'ECOBOT Vacuum 40 Diffuser'],
+      'Gadlee': ['GT30', 'GT50', 'GT55', 'GT70', 'GT85', 'GT110', 'GT180(75RS)', 'GT180 B95', 'GTS920', 'GTS 1200', 'GTS1450', 'GTS 1900'],
+      'IPC': ['CT30', 'CT51 BТ55', 'CT70 BТ55', 'CT45 B50'],
+      'T-line': ['TLO-1500', 'T-mop', 'T-line'],
+      'Gausium': ['Beetle', 'Omnie', 'Phantas', 'Scrubber 50 Pro', 'Scrubber 50', 'Scrubber 75', 'Vacuum 40'],
     };
 
     // Предзаполняем поля данными оборудования
@@ -1638,21 +1677,50 @@ class EquipmentDetailPage extends StatelessWidget {
   }
 
   void _makePhoneCall(BuildContext context, String phoneNumber) async {
-    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+    // Очищаем номер от всех символов кроме цифр
+    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+    final Uri phoneUri = Uri(scheme: 'tel', path: cleanNumber);
+    
     try {
-      // В веб-версии просто показываем номер для копирования
+      // В веб-версии показываем диалог с возможностью копирования
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Номер телефона'),
-          content: SelectableText(
-            phoneNumber,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          title: const Text('Позвонить'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.phone, size: 48, color: Colors.blue),
+              const SizedBox(height: 16),
+              SelectableText(
+                phoneNumber,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Нажмите "Позвонить" чтобы начать звонок',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Закрыть'),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Открываем звонок в новом окне
+                html.window.open(phoneUri.toString(), '_blank');
+                Navigator.pop(context);
+              },
+              icon: const Icon(Icons.phone),
+              label: const Text('Позвонить'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
