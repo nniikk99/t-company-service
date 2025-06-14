@@ -597,7 +597,7 @@ class _MyHomePageState extends State<MyHomePage> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
+              builder: (_) => ServiceRequestDetailPage(request: req, currentUser: null),
             ),
           ),
         );
@@ -2380,7 +2380,7 @@ class _EngineerHomePageState extends State<EngineerHomePage> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
+                    builder: (_) => ServiceRequestDetailPage(request: req, currentUser: null),
                   ),
                 ),
               );
@@ -2515,7 +2515,7 @@ class _EngineerHomePageState extends State<EngineerHomePage> {
 
   void _addServiceRequest(ServiceRequest request) async {
     setState(() {
-      serviceRequests.add(request);
+      engineerRequests.add(request);
     });
     // Если нужно — сохрани в SharedPreferences
   }
@@ -2683,7 +2683,7 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
+              builder: (_) => ServiceRequestDetailPage(request: req, currentUser: null),
             ),
           ),
         );
@@ -2773,9 +2773,8 @@ class AdminPanelPage extends StatelessWidget {
 
 class ServiceRequestDetailPage extends StatefulWidget {
   final ServiceRequest request;
-  final AppUser currentUser;
-  const ServiceRequestDetailPage({super.key, required this.request, required this.currentUser});
-
+  final AppUser? currentUser; // теперь nullable
+  const ServiceRequestDetailPage({super.key, required this.request, this.currentUser});
   @override
   State<ServiceRequestDetailPage> createState() => _ServiceRequestDetailPageState();
 }
