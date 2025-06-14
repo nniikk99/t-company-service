@@ -9,6 +9,8 @@ import 'models/user.dart';
 import 'models/service_request.dart';
 import 'services/telegram_webapp_service.dart';
 import 'services/storage_service.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 void main() {
   runApp(const MyApp());
@@ -48,6 +50,7 @@ class _MyHomePageState extends State<MyHomePage> {
   int _selectedIndex = 0;
   late List<Equipment> _equipmentList;
   late Map<String, User> _allUsers;
+  List<ServiceRequest> serviceRequests = [];
 
   @override
   void initState() {
@@ -570,16 +573,29 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildRequestsList() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.assignment, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('Мои заявки', style: TextStyle(fontSize: 18)),
-          Text('Здесь будут отображаться ваши заявки', style: TextStyle(color: Colors.grey)),
-        ],
-      ),
+    if (serviceRequests.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.assignment, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('Мои заявки', style: TextStyle(fontSize: 18)),
+            Text('Здесь будут отображаться ваши заявки', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+    return ListView.builder(
+      itemCount: serviceRequests.length,
+      itemBuilder: (context, index) {
+        final req = serviceRequests[index];
+        return ListTile(
+          title: Text(req.title),
+          subtitle: Text(req.description),
+          // и т.д.
+        );
+      },
     );
   }
 
@@ -638,6 +654,93 @@ class _MyHomePageState extends State<MyHomePage> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const AuthPage()),
     );
+  }
+
+  void _showServiceRequestDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Заявка на сервис'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: 'Опишите проблему',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final problem = controller.text.trim();
+              if (problem.isNotEmpty) {
+                // Добавь в свой список заявок:
+                final newRequest = ServiceRequest(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  equipmentTitle: '${widget.user.companyName} - ${widget.user.equipment.first.model}',
+                  type: 'Инженер',
+                  message: problem,
+                  date: DateTime.now(),
+                  status: 'Отправлено',
+                );
+                setState(() {
+                  serviceRequests.add(newRequest);
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: Text('Отправить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPartsRequestDialog(BuildContext context) {
+    final controller = TextEditingController();
+    // Можно добавить выпадающий список, если будет список запчастей
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Заявка на запчасти'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: 'Какие запчасти нужны?',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final parts = controller.text.trim();
+              if (parts.isNotEmpty) {
+                // Добавь в свой список заявок:
+                // partsRequests.add(PartsRequest(...));
+                // setState(() {});
+                Navigator.pop(context);
+              }
+            },
+            child: Text('Отправить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addServiceRequest(ServiceRequest request) async {
+    setState(() {
+      serviceRequests.add(request);
+    });
+    // Если нужно — сохрани в SharedPreferences
   }
 }
 
@@ -1357,7 +1460,7 @@ class EquipmentDetailPage extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Открыть форму заявки на сервис
+                    _showServiceRequestDialog(context);
                   },
                   icon: const Icon(Icons.build),
                   label: const Text('Сервис'),
@@ -1371,7 +1474,7 @@ class EquipmentDetailPage extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Открыть форму заказа запчастей
+                    _showPartsRequestDialog(context);
                   },
                   icon: const Icon(Icons.shopping_cart),
                   label: const Text('Запчасти'),
@@ -1387,36 +1490,8 @@ class EquipmentDetailPage extends StatelessWidget {
           // Кнопка инструкции
           ElevatedButton.icon(
             onPressed: () {
-              final manualPath = 'assets/assets/manuals/${equipment.model}.pdf';
               final manualUrl = '${Uri.base.origin}/t-company-service/assets/assets/manuals/${equipment.model}.pdf';
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Инструкция по эксплуатации'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.description, size: 48, color: Colors.blue),
-                      const SizedBox(height: 16),
-                      Text('Инструкция для ${equipment.manufacturer} ${equipment.model}'),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Закрыть'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        // Открываем PDF в новом окне
-                        html.window.open(manualUrl, '_blank');
-                        Navigator.pop(context);
-                      },
-                      child: const Text('Открыть'),
-                    ),
-                  ],
-                ),
-              );
+              html.window.open(manualUrl, '_blank');
             },
             icon: const Icon(Icons.menu_book),
             label: const Text('Инструкция'),
@@ -1425,6 +1500,32 @@ class EquipmentDetailPage extends StatelessWidget {
               foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 45),
             ),
+          ),
+          FutureBuilder<List<WarrantyInfo>>(
+            future: fetchWarrantyData(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return SizedBox();
+              WarrantyInfo? warranty;
+              try {
+                warranty = snapshot.data!.firstWhere((w) => w.serial == equipment.serialNumber);
+              } catch (_) {
+                warranty = null;
+              }
+              if (warranty == null) return SizedBox();
+              return Card(
+                child: ListTile(
+                  title: Text('Гарантия'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Клиент: ${warranty.client}'),
+                      Text('Документ: ${warranty.document}'),
+                      Text('Срок: ${warranty.warrantyStart} — ${warranty.warrantyEnd}'),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -1818,5 +1919,122 @@ class EquipmentDetailPage extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _showServiceRequestDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Заявка на сервис'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: 'Опишите проблему',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final problem = controller.text.trim();
+              if (problem.isNotEmpty) {
+                // Добавь в свой список заявок:
+                final newRequest = ServiceRequest(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  equipmentTitle: '${widget.user.companyName} - ${widget.user.equipment.first.model}',
+                  type: 'Инженер',
+                  message: problem,
+                  date: DateTime.now(),
+                  status: 'Отправлено',
+                );
+                setState(() {
+                  serviceRequests.add(newRequest);
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: Text('Отправить'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPartsRequestDialog(BuildContext context) {
+    final controller = TextEditingController();
+    // Можно добавить выпадающий список, если будет список запчастей
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Заявка на запчасти'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: 'Какие запчасти нужны?',
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final parts = controller.text.trim();
+              if (parts.isNotEmpty) {
+                // Добавь в свой список заявок:
+                // partsRequests.add(PartsRequest(...));
+                // setState(() {});
+                Navigator.pop(context);
+              }
+            },
+            child: Text('Отправить'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Модель гарантии
+class WarrantyInfo {
+  final String serial;
+  final String document;
+  final String client;
+  final String warrantyStart;
+  final String warrantyEnd;
+
+  WarrantyInfo({
+    required this.serial,
+    required this.document,
+    required this.client,
+    required this.warrantyStart,
+    required this.warrantyEnd,
+  });
+
+  factory WarrantyInfo.fromJson(Map<String, dynamic> json) => WarrantyInfo(
+    serial: json['Серийный номер'] ?? '',
+    document: json['Документ'] ?? '',
+    client: json['Клиент'] ?? '',
+    warrantyStart: json['Дата начала гарантии'] ?? '',
+    warrantyEnd: json['Дата окончания гарантии'] ?? '',
+  );
+}
+
+// Получение данных из Google Sheets
+Future<List<WarrantyInfo>> fetchWarrantyData() async {
+  final url = 'https://opensheet.elk.sh/1e2m9SXC9-sVQWtYcdKwU9ONBMgeK9N8d/Лист_1';
+  final response = await http.get(Uri.parse(url));
+  if (response.statusCode == 200) {
+    final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
+    return data.map((e) => WarrantyInfo.fromJson(e)).toList();
+  } else {
+    throw Exception('Failed to load warranty data');
   }
 }
