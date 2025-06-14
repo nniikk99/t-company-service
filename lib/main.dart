@@ -12,7 +12,6 @@ import 'services/storage_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await supabase.Supabase.initialize(
@@ -583,53 +582,102 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildRequestsList() {
-    if (serviceRequests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.assignment, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('Мои заявки', style: TextStyle(fontSize: 18)),
-            Text('Здесь будут отображаться ваши заявки', style: TextStyle(color: Colors.grey)),
-          ],
+    String _statusFilter = 'Все';
+    final statuses = ['Все', 'Создана', 'Назначен специалист', 'В работе', 'Выполнена'];
+    List<ServiceRequest> filtered = _statusFilter == 'Все' ? engineerRequests : engineerRequests.where((r) => r.status == _statusFilter).toList();
+    return Column(
+      children: [
+        DropdownButton<String>(
+          value: _statusFilter,
+          items: statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+          onChanged: (v) => setState(() => _statusFilter = v!),
         ),
-      );
-    }
-    return ListView.builder(
-      itemCount: serviceRequests.length,
-      itemBuilder: (context, index) {
-        final req = serviceRequests[index];
-        return ListTile(
-          title: Text(req.equipmentTitle),
-          subtitle: Text(req.message),
-          // и т.д.
-        );
-      },
+        Expanded(
+          child: ListView.builder(
+            itemCount: filtered.length,
+            itemBuilder: (context, i) {
+              final req = filtered[i];
+              return ListTile(
+                title: Text(req.equipmentTitle),
+                subtitle: Text('Статус: ${req.status}'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildProfile() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    bool isEditing = false;
+    final _formKey = GlobalKey<FormState>();
+    final _lastNameController = TextEditingController(text: widget.user.lastName);
+    final _firstNameController = TextEditingController(text: widget.user.firstName);
+    final _middleNameController = TextEditingController(text: widget.user.middleName);
+    final _phoneController = TextEditingController(text: widget.user.phone);
+    final _emailController = TextEditingController(text: widget.user.email);
+    String _department = widget.user.position;
+    final _departments = [
+      'Сервис МСК',
+      'Сервис СПБ',
+      'Сервис ЕКБ',
+      'Сервис Краснодар',
+      'Другие регионы',
+    ];
+    return StatefulBuilder(
+      builder: (context, setModalState) => Column(
         children: [
-          const Icon(Icons.business, size: 80, color: Colors.blue),
-          const SizedBox(height: 16),
-          Text('Компания: ${widget.user.companyName}', style: const TextStyle(fontSize: 18)),
-          const SizedBox(height: 8),
-          Text('ИНН: ${widget.user.inn}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: _logout,
-            icon: const Icon(Icons.logout),
-            label: const Text('Выйти'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Профиль', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () => setModalState(() => isEditing = !isEditing),
+              ),
+            ],
           ),
+          if (isEditing)
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(controller: _lastNameController, decoration: InputDecoration(labelText: 'Фамилия'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
+                  TextFormField(controller: _firstNameController, decoration: InputDecoration(labelText: 'Имя'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
+                  TextFormField(controller: _middleNameController, decoration: InputDecoration(labelText: 'Отчество')),
+                  TextFormField(controller: _phoneController, decoration: InputDecoration(labelText: 'Телефон'), keyboardType: TextInputType.phone),
+                  TextFormField(controller: _emailController, decoration: InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
+                  DropdownButtonFormField<String>(
+                    value: _department,
+                    items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                    onChanged: (v) => setModalState(() => _department = v!),
+                    decoration: InputDecoration(labelText: 'Подразделение'),
+                  ),
+                  SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        // TODO: сохранить в Supabase
+                        setModalState(() => isEditing = false);
+                      }
+                    },
+                    child: Text('Сохранить'),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            ListTile(title: Text('${widget.user.lastName} ${widget.user.firstName} ${widget.user.middleName}')),
+            ListTile(title: Text(widget.user.phone)),
+            ListTile(title: Text(widget.user.email)),
+            ListTile(title: Text(_department)),
+          ],
         ],
       ),
     );
@@ -733,37 +781,45 @@ class _AuthPageState extends State<AuthPage> {
   void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      
-      await Future.delayed(const Duration(seconds: 1));
-      
-      final user = _users[_innController.text];
-      
-      if (user != null && user.password == _passwordController.text) {
-        // Сохраняем текущего пользователя
-        await StorageService.saveCurrentUser(user.inn);
-        
-        // Если включено "Запомнить меня", сохраняем данные для автовхода
-        if (_rememberMe) {
-          await StorageService.saveRememberMe(user.inn, user.password);
+      try {
+        final user = await loginUser(_innController.text.trim(), _passwordController.text.trim());
+        if (user != null) {
+          // Сохраняем текущего пользователя (если нужно)
+          // await StorageService.saveCurrentUser(user.inn); // Можно убрать, если не используешь локальный storage
+          if (_rememberMe) {
+            await StorageService.saveRememberMe(user.inn, user.password);
+          }
+          handleLogin(context, user);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Неверный ИНН или пароль'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
-        
-        _navigateToHome(user);
-      } else {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Неверный ИНН или пароль'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Ошибка входа: $e'), backgroundColor: Colors.red),
         );
+      } finally {
+        setState(() => _isLoading = false);
       }
-      setState(() => _isLoading = false);
     }
   }
 
   void _navigateToHome(User user) {
-    Navigator.of(context).pushReplacement(
+    Navigator.pushReplacement(
+      context,
       MaterialPageRoute(
-        builder: (context) => MyHomePage(user: user),
+        builder: (_) => MyHomePage(
+          user: User(
+            inn: user.inn,
+            companyName: user.companyName,
+            password: user.password,
+            equipment: [], // или user.equipment, если есть
+          ),
+        ),
       ),
     );
   }
@@ -875,6 +931,21 @@ class _AuthPageState extends State<AuthPage> {
                                 : const Text('Войти', style: TextStyle(fontSize: 16, color: Colors.white)),
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => RegisterPage(),
+                                ),
+                              );
+                            },
+                            child: const Text('Регистрация'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -889,19 +960,7 @@ class _AuthPageState extends State<AuthPage> {
 }
 
 class RegisterPage extends StatefulWidget {
-  final void Function({
-    required String companyName,
-    required String inn,
-    required String lastName,
-    required String firstName,
-    required String middleName,
-    required String position,
-    required String email,
-    required String phone,
-    required String password,
-  }) onRegister;
-
-  const RegisterPage({super.key, required this.onRegister});
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -919,6 +978,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -976,8 +1036,8 @@ class _RegisterPageState extends State<RegisterPage> {
                   labelText: 'Пароль',
                   suffixIcon: IconButton(
                     icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                    onPressed: () {
-                      setState(() {
+            onPressed: () {
+                setState(() {
                         _obscurePassword = !_obscurePassword;
                       });
                     },
@@ -987,11 +1047,13 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () {
+                onPressed: _isLoading ? null : () async {
                   if (_formKey.currentState!.validate()) {
-                    widget.onRegister(
-                      companyName: _companyController.text.trim(),
+                    setState(() => _isLoading = true);
+                    final user = AppUser(
+                      id: '', // Supabase сгенерит uuid
                       inn: _innController.text.trim(),
+                      companyName: _companyController.text.trim(),
                       lastName: _lastNameController.text.trim(),
                       firstName: _firstNameController.text.trim(),
                       middleName: _middleNameController.text.trim(),
@@ -999,13 +1061,29 @@ class _RegisterPageState extends State<RegisterPage> {
                       email: _emailController.text.trim(),
                       phone: _phoneController.text.trim(),
                       password: _passwordController.text.trim(),
+                      role: 'client',
                     );
+                    try {
+                      await registerUser(user);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Регистрация успешна!')),
+                        );
+                        Navigator.of(context).pop();
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Ошибка регистрации: $e')),
+                      );
+                    } finally {
+                      setState(() => _isLoading = false);
+                    }
                   }
                 },
-                child: const Text('Зарегистрироваться'),
+                child: _isLoading ? const CircularProgressIndicator() : const Text('Зарегистрироваться'),
+                  ),
+                ],
               ),
-            ],
-          ),
         ),
       ),
     );
@@ -1030,92 +1108,6 @@ class SparePartsPage extends StatelessWidget {
       ),
     );
   }
-}
-
-class ServiceRequestPage extends StatelessWidget {
-  final List<ServiceRequest> requests;
-  const ServiceRequestPage({super.key, required this.requests});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F5),
-      body: requests.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.list_alt, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Нет заявок',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: requests.length,
-              itemBuilder: (context, index) {
-                final req = requests[requests.length - 1 - index]; // новые сверху
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  child: ListTile(
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: req.type == 'Запчасти' 
-                            ? Colors.orange.withOpacity(0.2)
-                            : Colors.blue.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          req.type == 'Запчасти' 
-                              ? Icons.build
-                              : Icons.engineering,
-                          color: req.type == 'Запчасти' 
-                              ? Colors.orange
-                              : Colors.blue,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    title: Text('${req.type} — ${req.equipmentTitle}'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Дата: ${req.date.toString().split(' ')[0]}'),
-                        Text('Сообщение: ${req.message}'),
-                        Text('Статус: ${req.status}'),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
-  }
-}
-
-class ServiceRequest {
-  final String id;
-  final String equipmentTitle;
-  final String type; // 'Запчасти' или 'Инженер'
-  final String message;
-  final DateTime date;
-  String status; // 'Отправлено', 'В обработке', 'Завершено'
-
-  ServiceRequest({
-    required this.id,
-    required this.equipmentTitle,
-    required this.type,
-    required this.message,
-    required this.date,
-    this.status = 'Отправлено',
-  });
 }
 
 class StatisticsPage extends StatefulWidget {
@@ -2184,11 +2176,24 @@ Future<AppUser?> loginUser(String inn, String password) async {
 
 void handleLogin(BuildContext context, AppUser user) {
   if (user.role == 'admin') {
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => AdminHomePage(user: user)));
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => UniversalHomePage(user: user)));
   } else if (user.role == 'engineer') {
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => EngineerHomePage(user: user)));
   } else {
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ClientHomePage(user: user)));
+    // Конвертация AppUser -> User для MyHomePage
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MyHomePage(
+          user: User(
+            inn: user.inn,
+            companyName: user.companyName,
+            password: user.password,
+            equipment: [], // или user.equipment, если есть
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -2204,26 +2209,122 @@ Future<void> updateUserRole(String userId, String newRole) async {
     .eq('id', userId);
 }
 
-class AdminHomePage extends StatelessWidget {
+class AdminHomePage extends StatefulWidget {
   final AppUser user;
   const AdminHomePage({super.key, required this.user});
 
   @override
+  State<AdminHomePage> createState() => _AdminHomePageState();
+}
+
+class _AdminHomePageState extends State<AdminHomePage> {
+  int _selectedIndex = 0; // 0 - профиль, 1 - админ-панель
+  AppUser? _impersonatedUser; // если не null — показываем профиль другого пользователя
+
+  @override
   Widget build(BuildContext context) {
+    if (_impersonatedUser != null) {
+      // Показываем профиль выбранного пользователя с кнопкой "Вернуться в админку"
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Профиль: ${_impersonatedUser!.companyName}'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => setState(() => _impersonatedUser = null),
+          ),
+        ),
+        body: _buildUserProfile(_impersonatedUser!),
+      );
+    }
     return Scaffold(
-      appBar: AppBar(title: Text('Админ-панель')),
-      body: FutureBuilder<List<AppUser>>(
-        future: getAllUsers(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
-          final users = snapshot.data!;
-          return ListView.builder(
-            itemCount: users.length,
-            itemBuilder: (context, i) {
-              final u = users[i];
-              return ListTile(
+      appBar: AppBar(title: const Text('T-Company Service — Админ')),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            DrawerHeader(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.admin_panel_settings, size: 48, color: Colors.blue),
+                  const SizedBox(height: 8),
+                  Text(widget.user.companyName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(widget.user.email, style: const TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Профиль'),
+              selected: _selectedIndex == 0,
+              onTap: () {
+                setState(() => _selectedIndex = 0);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.supervisor_account),
+              title: const Text('Админ-панель'),
+              selected: _selectedIndex == 1,
+              onTap: () {
+                setState(() => _selectedIndex = 1);
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Выйти'),
+              onTap: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const AuthPage()),
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      body: _selectedIndex == 0
+          ? _buildUserProfile(widget.user)
+          : _buildAdminPanel(),
+    );
+  }
+
+  Widget _buildUserProfile(AppUser user) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.business, size: 80, color: Colors.blue),
+          const SizedBox(height: 16),
+          Text('Компания: ${user.companyName}', style: const TextStyle(fontSize: 18)),
+          const SizedBox(height: 8),
+          Text('ИНН: ${user.inn}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text('Email: ${user.email}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text('Роль: ${user.role}', style: const TextStyle(fontSize: 16, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminPanel() {
+    return FutureBuilder<List<AppUser>>(
+      future: getAllUsers(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final users = snapshot.data!;
+        return ListView.builder(
+          itemCount: users.length,
+          itemBuilder: (context, i) {
+            final u = users[i];
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: ListTile(
+                leading: const Icon(Icons.account_circle, color: Colors.blue),
                 title: Text('${u.companyName} (${u.role})'),
-                subtitle: Text('${u.lastName} ${u.firstName} (${u.inn})'),
+                subtitle: Text('${u.lastName} ${u.firstName} — ИНН: ${u.inn}'),
                 trailing: DropdownButton<String>(
                   value: u.role,
                   items: ['admin', 'client', 'engineer']
@@ -2234,18 +2335,13 @@ class AdminHomePage extends StatelessWidget {
                   },
                 ),
                 onTap: () {
-                  // Имитация входа как пользователь
-                  if (u.role == 'client') {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ClientHomePage(user: u)));
-                  } else if (u.role == 'engineer') {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => EngineerHomePage(user: u)));
-                  }
+                  setState(() => _impersonatedUser = u);
                 },
-              );
-            },
-          );
-        },
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -2263,15 +2359,539 @@ class ClientHomePage extends StatelessWidget {
   }
 }
 
-class EngineerHomePage extends StatelessWidget {
+class EngineerHomePage extends StatefulWidget {
   final AppUser user;
   const EngineerHomePage({super.key, required this.user});
 
   @override
+  State<EngineerHomePage> createState() => _EngineerHomePageState();
+}
+
+class _EngineerHomePageState extends State<EngineerHomePage> {
+  int _selectedIndex = 0;
+  List<ServiceRequest> engineerRequests = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequests();
+  }
+
+  Future<void> _loadRequests() async {
+    // TODO: Загрузить заявки, где engineer_id == widget.user.id
+    setState(() => _loading = false);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Инженер: ${user.lastName}')),
-      body: Center(child: Text('Здесь список заявок инженера')),
+      appBar: AppBar(title: Text('Инженер: ${widget.user.lastName}')),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : IndexedStack(
+              index: _selectedIndex,
+              children: [
+                _buildRequestsList(),
+                _buildAnalytics(),
+                _buildProfile(),
+              ],
+            ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.assignment),
+            label: 'Мои заявки',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart),
+            label: 'Аналитика',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person),
+            label: 'Профиль',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestsList() {
+    String _statusFilter = 'Все';
+    final statuses = ['Все', 'Создана', 'Назначен специалист', 'В работе', 'Выполнена'];
+    List<ServiceRequest> filtered = _statusFilter == 'Все' ? engineerRequests : engineerRequests.where((r) => r.status == _statusFilter).toList();
+    return Column(
+      children: [
+        DropdownButton<String>(
+          value: _statusFilter,
+          items: statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+          onChanged: (v) => setState(() => _statusFilter = v!),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: filtered.length,
+            itemBuilder: (context, i) {
+              final req = filtered[i];
+              return ListTile(
+                title: Text(req.equipmentTitle),
+                subtitle: Text('Статус: ${req.status}'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAnalytics() {
+    final total = engineerRequests.length;
+    final closed = engineerRequests.where((r) => r.status == 'Выполнена').length;
+    final inProgress = engineerRequests.where((r) => r.status == 'В работе').length;
+    return Card(
+      margin: EdgeInsets.all(16),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Аналитика', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            SizedBox(height: 12),
+            Text('Всего заявок: $total'),
+            Text('Закрыто: $closed'),
+            Text('В работе: $inProgress'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfile() {
+    bool isEditing = false;
+    final _formKey = GlobalKey<FormState>();
+    final _lastNameController = TextEditingController(text: widget.user.lastName);
+    final _firstNameController = TextEditingController(text: widget.user.firstName);
+    final _middleNameController = TextEditingController(text: widget.user.middleName);
+    final _phoneController = TextEditingController(text: widget.user.phone);
+    final _emailController = TextEditingController(text: widget.user.email);
+    String _department = widget.user.position;
+    final _departments = [
+      'Сервис МСК',
+      'Сервис СПБ',
+      'Сервис ЕКБ',
+      'Сервис Краснодар',
+      'Другие регионы',
+    ];
+    return StatefulBuilder(
+      builder: (context, setModalState) => Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Профиль', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () => setModalState(() => isEditing = !isEditing),
+              ),
+            ],
+          ),
+          if (isEditing)
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(controller: _lastNameController, decoration: InputDecoration(labelText: 'Фамилия'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
+                  TextFormField(controller: _firstNameController, decoration: InputDecoration(labelText: 'Имя'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
+                  TextFormField(controller: _middleNameController, decoration: InputDecoration(labelText: 'Отчество')),
+                  TextFormField(controller: _phoneController, decoration: InputDecoration(labelText: 'Телефон'), keyboardType: TextInputType.phone),
+                  TextFormField(controller: _emailController, decoration: InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
+                  DropdownButtonFormField<String>(
+                    value: _department,
+                    items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                    onChanged: (v) => setModalState(() => _department = v!),
+                    decoration: InputDecoration(labelText: 'Подразделение'),
+                  ),
+                  SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        // TODO: сохранить в Supabase
+                        setModalState(() => isEditing = false);
+                      }
+                    },
+                    child: Text('Сохранить'),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            ListTile(title: Text('${widget.user.lastName} ${widget.user.firstName} ${widget.user.middleName}')),
+            ListTile(title: Text(widget.user.phone)),
+            ListTile(title: Text(widget.user.email)),
+            ListTile(title: Text(_department)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _logout() async {
+    // Показываем диалог с выбором
+    final shouldClearRememberMe = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Выход'),
+        content: const Text('Забыть данные для автовхода?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Нет, запомнить'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Да, забыть'),
+          ),
+        ],
+      ),
+    );
+    
+    await StorageService.clearCurrentUser();
+    
+    if (shouldClearRememberMe == true) {
+      await StorageService.clearRememberMe();
+    }
+    
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const AuthPage()),
+    );
+  }
+
+  void _addServiceRequest(ServiceRequest request) async {
+    setState(() {
+      serviceRequests.add(request);
+    });
+    // Если нужно — сохрани в SharedPreferences
+  }
+}
+
+// --- Новый универсальный HomePage для всех ролей ---
+class UniversalHomePage extends StatefulWidget {
+  final AppUser user;
+  final AppUser? adminUser; // если не null — имитация пользователя
+  const UniversalHomePage({super.key, required this.user, this.adminUser});
+
+  @override
+  State<UniversalHomePage> createState() => _UniversalHomePageState();
+}
+
+class _UniversalHomePageState extends State<UniversalHomePage> {
+  int _selectedIndex = 0;
+  List<ServiceRequest> serviceRequests = [];
+  List<Equipment> equipmentList = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    // TODO: тут можно добавить загрузку оборудования и заявок из Supabase
+    setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAdmin = widget.user.role == 'admin';
+    final isEngineer = widget.user.role == 'engineer';
+    final isClient = widget.user.role == 'client';
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isAdmin ? 'T-Company Service — Админ' : 'T-Company Service'),
+        actions: [
+          if (widget.adminUser != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(backgroundColor: Colors.white),
+                onPressed: () {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => UniversalHomePage(user: widget.adminUser!)),
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.admin_panel_settings, color: Colors.blue),
+                label: const Text('Вернуться в админку', style: TextStyle(color: Colors.blue)),
+              ),
+            ),
+        ],
+      ),
+      drawer: isAdmin ? _buildAdminDrawer(context) : null,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : IndexedStack(
+              index: _selectedIndex,
+              children: [
+                if (!isEngineer) _buildEquipmentList(),
+                _buildRequestsList(),
+                _buildStatistics(),
+                _buildProfile(),
+              ],
+            ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        destinations: [
+          if (!isEngineer)
+            const NavigationDestination(
+              icon: Icon(Icons.precision_manufacturing),
+              label: 'Оборудование',
+            ),
+          const NavigationDestination(
+            icon: Icon(Icons.assignment),
+            label: 'Заявки',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.bar_chart),
+            label: 'Аналитика',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.person),
+            label: 'Профиль',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminDrawer(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        children: [
+          DrawerHeader(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.admin_panel_settings, size: 48, color: Colors.blue),
+                const SizedBox(height: 8),
+                Text(widget.user.companyName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(widget.user.email, style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.supervisor_account),
+            title: const Text('Админ-панель'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => AdminPanelPage(onImpersonate: (user) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => UniversalHomePage(user: user, adminUser: widget.user)),
+                    (route) => false,
+                  );
+                })),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text('Выйти'),
+            onTap: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const AuthPage()),
+                (route) => false,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEquipmentList() {
+    // TODO: восстановить карточки оборудования, добавление и т.д.
+    return Center(child: Text('Оборудование (заглушка)'));
+  }
+
+  Widget _buildRequestsList() {
+    if (serviceRequests.isEmpty) {
+      return Center(
+        child: Text('Заявок нет'),
+      );
+    }
+    return ListView.builder(
+      itemCount: serviceRequests.length,
+      itemBuilder: (context, index) {
+        final req = serviceRequests[index];
+        return ListTile(
+          title: Text(req.equipmentTitle),
+          subtitle: Text('Статус: ${req.status}'),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatistics() {
+    // TODO: восстановить аналитику
+    return Center(child: Text('Аналитика (заглушка)'));
+  }
+
+  Widget _buildProfile() {
+    return Column(
+      children: [
+        // Информация о компании
+        ListTile(
+          leading: Icon(Icons.business),
+          title: Text(widget.user.companyName),
+          subtitle: Text('ИНН: ${widget.user.inn}'),
+        ),
+        // Список сотрудников (если есть)
+        Expanded(
+          child: FutureBuilder<List<AppUser>>(
+            future: getAllUsers(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return SizedBox();
+              final staff = snapshot.data!.where((u) => u.inn == widget.user.inn).toList();
+              return ListView(
+                children: staff.map((u) => ListTile(
+                  leading: Icon(Icons.person),
+                  title: Text('${u.lastName} ${u.firstName}'),
+                  subtitle: Text(u.email),
+                )).toList(),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// --- Админ-панель ---
+class AdminPanelPage extends StatelessWidget {
+  final void Function(AppUser user) onImpersonate;
+  const AdminPanelPage({super.key, required this.onImpersonate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Админ-панель')),
+      body: FutureBuilder<List<AppUser>>(
+        future: getAllUsers(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final users = snapshot.data!;
+          return ListView.builder(
+            itemCount: users.length,
+            itemBuilder: (context, i) {
+              final u = users[i];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: ListTile(
+                  leading: const Icon(Icons.account_circle, color: Colors.blue),
+                  title: Text('${u.companyName} (${u.role})'),
+                  subtitle: Text('${u.lastName} ${u.firstName} — ИНН: ${u.inn}'),
+                  trailing: DropdownButton<String>(
+                    value: u.role,
+                    items: ['admin', 'client', 'engineer']
+                        .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                        .toList(),
+                    onChanged: (role) {
+                      if (role != null) updateUserRole(u.id, role);
+                    },
+                  ),
+                  onTap: () => onImpersonate(u),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ServiceRequestDetailPage extends StatefulWidget {
+  final ServiceRequest request;
+  final AppUser currentUser;
+  const ServiceRequestDetailPage({super.key, required this.request, required this.currentUser});
+
+  @override
+  State<ServiceRequestDetailPage> createState() => _ServiceRequestDetailPageState();
+}
+
+class _ServiceRequestDetailPageState extends State<ServiceRequestDetailPage> {
+  final _commentController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    final req = widget.request;
+    return Scaffold(
+      appBar: AppBar(title: Text('Заявка')), 
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Оборудование: ${req.equipmentTitle}', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('Контактное лицо: ...'), // подставить из данных
+            Text('Адрес: ...'), // подставить из данных
+            Text('Описание: ${req.message}'),
+            Text('Статус: ${req.status}'),
+            if (req.engineerId != null) Text('Инженер: ${req.engineerId}'),
+            const Divider(),
+            Text('Комментарии:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Expanded(
+              child: ListView(
+                children: req.comments.map((c) => ListTile(
+                  title: Text(c.text),
+                  subtitle: Text('${c.authorRole} — ${c.timestamp}'),
+                )).toList(),
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    decoration: InputDecoration(hintText: 'Комментарий...'),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.send),
+                  onPressed: () {
+                    // Добавить комментарий (логика сохранения)
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -5,6 +5,8 @@ class ServiceRequest {
   final String message;
   final DateTime date;
   String status; // 'Отправлено', 'В обработке', 'Завершено'
+  final String? engineerId; // id инженера, если назначен
+  final List<Comment> comments; // чат по заявке
 
   ServiceRequest({
     required this.id,
@@ -13,5 +15,21 @@ class ServiceRequest {
     required this.message,
     required this.date,
     this.status = 'Отправлено',
+    this.engineerId,
+    this.comments = const [],
+  });
+}
+
+class Comment {
+  final String authorId;
+  final String authorRole;
+  final String text;
+  final DateTime timestamp;
+
+  Comment({
+    required this.authorId,
+    required this.authorRole,
+    required this.text,
+    required this.timestamp,
   });
 } 
