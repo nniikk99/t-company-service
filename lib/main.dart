@@ -591,6 +591,10 @@ class _MyHomePageState extends State<MyHomePage> {
       itemCount: serviceRequests.length,
       itemBuilder: (context, index) {
         final req = serviceRequests[index];
+        final equipment = _equipmentList.firstWhere(
+          (eq) => req.equipmentTitle.contains(eq.model),
+          orElse: () => null,
+        );
         return ListTile(
           title: Text(req.equipmentTitle),
           subtitle: Text('Статус: ${req.status}'),
@@ -606,16 +610,49 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildProfile() {
-    return Column(
-      children: [
-        ListTile(
-          leading: Icon(Icons.business),
-          title: Text(widget.user.companyName),
-          subtitle: Text('ИНН: ${widget.user.inn}'),
-        ),
-        // Список пользователей с доступом (если есть)
-        // ... (оставить FutureBuilder, если реализовано)
-      ],
+    // ... (инициализация контроллеров и переменных)
+    return StatefulBuilder(
+      builder: (context, setModalState) => Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Профиль', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () => setModalState(() => isEditing = !isEditing),
+              ),
+            ],
+          ),
+          if (isEditing)
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  // ... поля с OutlineInputBorder
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (_formKey.currentState!.validate()) {
+                        await updateEngineerProfile(...); // функция для Supabase
+                        setModalState(() => isEditing = false);
+                        setState(() {
+                          // обнови поля widget.user
+                        });
+                      }
+                    },
+                    child: Text('Сохранить'),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            ListTile(leading: Icon(Icons.person), title: Text('${widget.user.lastName} ${widget.user.firstName} ${widget.user.middleName}')),
+            ListTile(leading: Icon(Icons.phone), title: Text(widget.user.phone)),
+            ListTile(leading: Icon(Icons.email), title: Text(widget.user.email)),
+            ListTile(leading: Icon(Icons.business), title: Text(widget.user.position)),
+          ],
+        ],
+      ),
     );
   }
 
@@ -2447,23 +2484,15 @@ class _EngineerHomePageState extends State<EngineerHomePage> {
               key: _formKey,
               child: Column(
                 children: [
-                  TextFormField(controller: _lastNameController, decoration: InputDecoration(labelText: 'Фамилия'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
-                  TextFormField(controller: _firstNameController, decoration: InputDecoration(labelText: 'Имя'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
-                  TextFormField(controller: _middleNameController, decoration: InputDecoration(labelText: 'Отчество')),
-                  TextFormField(controller: _phoneController, decoration: InputDecoration(labelText: 'Телефон'), keyboardType: TextInputType.phone),
-                  TextFormField(controller: _emailController, decoration: InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
-                  DropdownButtonFormField<String>(
-                    value: _department,
-                    items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-                    onChanged: (v) => setModalState(() => _department = v!),
-                    decoration: InputDecoration(labelText: 'Подразделение'),
-                  ),
-                  SizedBox(height: 12),
+                  // ... поля с OutlineInputBorder
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (_formKey.currentState!.validate()) {
-                        // TODO: сохранить в Supabase
+                        await updateEngineerProfile(...); // функция для Supabase
                         setModalState(() => isEditing = false);
+                        setState(() {
+                          // обнови поля widget.user
+                        });
                       }
                     },
                     child: Text('Сохранить'),
@@ -2472,10 +2501,10 @@ class _EngineerHomePageState extends State<EngineerHomePage> {
               ),
             )
           else ...[
-            ListTile(title: Text('${widget.user.lastName} ${widget.user.firstName} ${widget.user.middleName}')),
-            ListTile(title: Text(widget.user.phone)),
-            ListTile(title: Text(widget.user.email)),
-            ListTile(title: Text(_department)),
+            ListTile(leading: Icon(Icons.person), title: Text('${widget.user.lastName} ${widget.user.firstName} ${widget.user.middleName}')),
+            ListTile(leading: Icon(Icons.phone), title: Text(widget.user.phone)),
+            ListTile(leading: Icon(Icons.email), title: Text(widget.user.email)),
+            ListTile(leading: Icon(Icons.business), title: Text(widget.user.position)),
           ],
         ],
       ),
@@ -2820,10 +2849,44 @@ class _ServiceRequestDetailPageState extends State<ServiceRequestDetailPage> {
                   icon: Icon(Icons.send),
                   onPressed: () {
                     // Добавить комментарий (логика сохранения)
+                    final text = _commentController.text.trim();
+                    if (text.isNotEmpty) {
+                      setState(() {
+                        req.comments.add(Comment(
+                          authorId: 'client', // или id пользователя
+                          authorRole: 'client',
+                          text: text,
+                          timestamp: DateTime.now(),
+                        ));
+                      });
+                      _commentController.clear();
+                    }
                   },
                 ),
               ],
             ),
+            if (req.engineerId != null) ...[
+              const Divider(),
+              Text('Инженер:', style: TextStyle(fontWeight: FontWeight.bold)),
+              FutureBuilder<AppUser?>(
+                future: getEngineerById(req.engineerId!),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return SizedBox();
+                  final eng = snapshot.data!;
+                  return Card(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(leading: Icon(Icons.person), title: Text('${eng.lastName} ${eng.firstName} ${eng.middleName}')),
+                        ListTile(leading: Icon(Icons.phone), title: Text(eng.phone)),
+                        ListTile(leading: Icon(Icons.email), title: Text(eng.email)),
+                        ListTile(leading: Icon(Icons.business), title: Text(eng.position)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
           ],
         ),
       ),
