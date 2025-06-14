@@ -13,7 +13,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await supabase.Supabase.initialize(
+    url: "https://kwunhuzfnjpcoeusnxzy.supabase.co",
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDA0MzYxOSwiZXhwIjoyMDU5NjE5NjE5fQ.JAn2aQ4dCcA64HHExVCDzaKOv1MtSTmlF7pPEn0CUlU",
+  );
   runApp(const MyApp());
 }
 
@@ -58,6 +63,7 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _equipmentList = List<Equipment>.from(widget.user.equipment);
     _loadAllUsers();
+    _ensureTestUserExists();
   }
 
   Future<void> _loadAllUsers() async {
@@ -667,6 +673,21 @@ class _MyHomePageState extends State<MyHomePage> {
     });
     // Если нужно — сохрани в SharedPreferences
   }
+
+  void _ensureTestUserExists() async {
+    // Проверь, есть ли пользователь с ИНН 1234567890
+    final testInn = '1234567890';
+    final testPassword = 'test123';
+    final exists = await checkUserExists(testInn);
+    if (!exists) {
+      await addUser(
+        inn: testInn,
+        companyName: 'Тестовая компания',
+        password: testPassword,
+        // остальные поля по желанию
+      );
+    }
+  }
 }
 
 class AuthPage extends StatefulWidget {
@@ -683,6 +704,7 @@ class _AuthPageState extends State<AuthPage> {
   bool _isLoading = false;
   bool _rememberMe = true; // По умолчанию включено для удобства
   Map<String, User> _users = {};
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -821,12 +843,20 @@ class _AuthPageState extends State<AuthPage> {
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
+                          obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             labelText: 'Пароль',
                             prefixIcon: const Icon(Icons.lock),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
                           ),
-                          obscureText: true,
                           validator: (value) {
                             if (value == null || value.isEmpty) return 'Пожалуйста, введите пароль';
                             return null;
@@ -867,6 +897,130 @@ class _AuthPageState extends State<AuthPage> {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class RegisterPage extends StatefulWidget {
+  final void Function({
+    required String companyName,
+    required String inn,
+    required String lastName,
+    required String firstName,
+    required String middleName,
+    required String position,
+    required String email,
+    required String phone,
+    required String password,
+  }) onRegister;
+
+  const RegisterPage({super.key, required this.onRegister});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _companyController = TextEditingController();
+  final _innController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _middleNameController = TextEditingController();
+  final _positionController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Регистрация')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              TextFormField(
+                controller: _companyController,
+                decoration: const InputDecoration(labelText: 'Название организации'),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              TextFormField(
+                controller: _innController,
+                decoration: const InputDecoration(labelText: 'ИНН организации'),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              TextFormField(
+                controller: _lastNameController,
+                decoration: const InputDecoration(labelText: 'Фамилия'),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              TextFormField(
+                controller: _firstNameController,
+                decoration: const InputDecoration(labelText: 'Имя'),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              TextFormField(
+                controller: _middleNameController,
+                decoration: const InputDecoration(labelText: 'Отчество (необязательно)'),
+              ),
+              TextFormField(
+                controller: _positionController,
+                decoration: const InputDecoration(labelText: 'Должность'),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(labelText: 'Телефон'),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  labelText: 'Пароль',
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+                validator: (v) => v!.isEmpty ? 'Обязательное поле' : null,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    widget.onRegister(
+                      companyName: _companyController.text.trim(),
+                      inn: _innController.text.trim(),
+                      lastName: _lastNameController.text.trim(),
+                      firstName: _firstNameController.text.trim(),
+                      middleName: _middleNameController.text.trim(),
+                      position: _positionController.text.trim(),
+                      email: _emailController.text.trim(),
+                      phone: _phoneController.text.trim(),
+                      password: _passwordController.text.trim(),
+                    );
+                  }
+                },
+                child: const Text('Зарегистрироваться'),
+              ),
+            ],
           ),
         ),
       ),
@@ -1969,5 +2123,171 @@ Future<List<WarrantyInfo>> fetchWarrantyData() async {
     return data.map((e) => WarrantyInfo.fromJson(e)).toList();
   } else {
     throw Exception('Failed to load warranty data');
+  }
+}
+
+class AppUser {
+  final String id;
+  final String inn;
+  final String companyName;
+  final String lastName;
+  final String firstName;
+  final String middleName;
+  final String position;
+  final String email;
+  final String phone;
+  final String password;
+  final String role;
+
+  AppUser({
+    required this.id,
+    required this.inn,
+    required this.companyName,
+    required this.lastName,
+    required this.firstName,
+    required this.middleName,
+    required this.position,
+    required this.email,
+    required this.phone,
+    required this.password,
+    required this.role,
+  });
+
+  factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
+    id: json['id'] ?? '',
+    inn: json['inn'] ?? '',
+    companyName: json['company_name'] ?? '',
+    lastName: json['last_name'] ?? '',
+    firstName: json['first_name'] ?? '',
+    middleName: json['middle_name'] ?? '',
+    position: json['position'] ?? '',
+    email: json['email'] ?? '',
+    phone: json['phone'] ?? '',
+    password: json['password'] ?? '',
+    role: json['role'] ?? 'client',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'inn': inn,
+    'company_name': companyName,
+    'last_name': lastName,
+    'first_name': firstName,
+    'middle_name': middleName,
+    'position': position,
+    'email': email,
+    'phone': phone,
+    'password': password,
+    'role': role,
+  };
+}
+
+Future<void> registerUser(AppUser user) async {
+  await supabase.Supabase.instance.client.from('users').insert(user.toJson());
+}
+
+Future<AppUser?> loginUser(String inn, String password) async {
+  final response = await supabase.Supabase.instance.client
+      .from('users')
+      .select()
+      .eq('inn', inn)
+      .eq('password', password)
+      .maybeSingle();
+
+  if (response == null) return null;
+  return AppUser.fromJson(response);
+}
+
+void handleLogin(BuildContext context, AppUser user) {
+  if (user.role == 'admin') {
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => AdminHomePage(user: user)));
+  } else if (user.role == 'engineer') {
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => EngineerHomePage(user: user)));
+  } else {
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ClientHomePage(user: user)));
+  }
+}
+
+Future<List<AppUser>> getAllUsers() async {
+  final response = await supabase.Supabase.instance.client.from('users').select();
+  return (response as List).map((e) => AppUser.fromJson(e)).toList();
+}
+
+Future<void> updateUserRole(String userId, String newRole) async {
+  await supabase.Supabase.instance.client
+    .from('users')
+    .update({'role': newRole})
+    .eq('id', userId);
+}
+
+class AdminHomePage extends StatelessWidget {
+  final AppUser user;
+  const AdminHomePage({super.key, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Админ-панель')),
+      body: FutureBuilder<List<AppUser>>(
+        future: getAllUsers(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return Center(child: CircularProgressIndicator());
+          final users = snapshot.data!;
+          return ListView.builder(
+            itemCount: users.length,
+            itemBuilder: (context, i) {
+              final u = users[i];
+              return ListTile(
+                title: Text('${u.companyName} (${u.role})'),
+                subtitle: Text('${u.lastName} ${u.firstName} (${u.inn})'),
+                trailing: DropdownButton<String>(
+                  value: u.role,
+                  items: ['admin', 'client', 'engineer']
+                      .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                      .toList(),
+                  onChanged: (role) {
+                    if (role != null) updateUserRole(u.id, role);
+                  },
+                ),
+                onTap: () {
+                  // Имитация входа как пользователь
+                  if (u.role == 'client') {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => ClientHomePage(user: u)));
+                  } else if (u.role == 'engineer') {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => EngineerHomePage(user: u)));
+                  }
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ClientHomePage extends StatelessWidget {
+  final AppUser user;
+  const ClientHomePage({super.key, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Клиент: ${user.companyName}')),
+      body: Center(child: Text('Здесь список оборудования и заявок клиента')),
+    );
+  }
+}
+
+class EngineerHomePage extends StatelessWidget {
+  final AppUser user;
+  const EngineerHomePage({super.key, required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Инженер: ${user.lastName}')),
+      body: Center(child: Text('Здесь список заявок инженера')),
+    );
   }
 }

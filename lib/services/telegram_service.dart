@@ -3,7 +3,7 @@ import 'dart:convert';
 
 class TelegramService {
   static const String _baseUrl = 'https://api.telegram.org/bot';
-  static const String _botToken = 'YOUR_BOT_TOKEN'; // Замени на свой токен
+  static const String _botToken = '7819515456:AAEtWiR6A0ujxIpTgHlMpsqZw6fk0OLTYZY'; // Замени на свой токен
 
   // Отправка сообщения
   static Future<bool> sendMessage({
