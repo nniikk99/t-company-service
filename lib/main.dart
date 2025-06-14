@@ -11,7 +11,7 @@ import 'services/telegram_webapp_service.dart';
 import 'services/storage_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 void main() {
   runApp(const MyApp());
@@ -61,7 +61,10 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _loadAllUsers() async {
-    _allUsers = await StorageService.loadUsers();
+    final Map<String, dynamic> usersMap = await StorageService.loadUsers();
+    _allUsers = (usersMap as Map<String, dynamic>).map(
+      (k, v) => MapEntry(k as String, User.fromJson(v)),
+    );
   }
 
   String _formatPhoneNumber(String value) {
@@ -689,7 +692,10 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   Future<void> _loadUsers() async {
-    _users = await StorageService.loadUsers();
+    final Map<String, dynamic> usersMap = await StorageService.loadUsers();
+    _users = (usersMap as Map<String, dynamic>).map(
+      (k, v) => MapEntry(k as String, User.fromJson(v)),
+    );
     setState(() {});
   }
 

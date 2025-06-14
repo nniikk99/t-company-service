@@ -54,17 +54,21 @@ class Equipment {
 
   factory Equipment.fromJson(Map<String, dynamic> json) {
     return Equipment(
-      id: json['id'],
-      manufacturer: json['manufacturer'],
-      model: json['model'],
-      serialNumber: json['serialNumber'],
-      address: json['address'],
-      contactPerson: json['contactPerson'],
-      phone: json['phone'],
-      status: json['status'],
-      ownership: json['ownership'],
-      lastMaintenance: DateTime.parse(json['lastMaintenance']),
-      nextMaintenance: DateTime.parse(json['nextMaintenance']),
+      id: json['id'] ?? '',
+      manufacturer: json['manufacturer'] ?? '',
+      model: json['model'] ?? '',
+      serialNumber: json['serialNumber'] ?? '',
+      address: json['address'] ?? '',
+      contactPerson: json['contactPerson'] ?? '',
+      phone: json['phone'] ?? '',
+      status: json['status'] ?? '',
+      ownership: json['ownership'] ?? '',
+      lastMaintenance: json['lastMaintenance'] != null
+          ? DateTime.parse(json['lastMaintenance'])
+          : DateTime.now(),
+      nextMaintenance: json['nextMaintenance'] != null
+          ? DateTime.parse(json['nextMaintenance'])
+          : DateTime.now(),
     );
   }
 
@@ -83,4 +87,4 @@ class Equipment {
       'nextMaintenance': nextMaintenance.toIso8601String(),
     };
   }
-} 
+}

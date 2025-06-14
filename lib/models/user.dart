@@ -1,4 +1,4 @@
-import 'equipment.dart';
+import 'equipment.dart'; // <-- обязательно!
 
 class User {
   final String inn;
@@ -10,6 +10,24 @@ class User {
     required this.inn,
     required this.companyName,
     required this.password,
-    List<Equipment>? equipment,
-  }) : equipment = equipment ?? <Equipment>[];
-} 
+    required this.equipment,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      inn: json['inn'] ?? '',
+      companyName: json['companyName'] ?? '',
+      password: json['password'] ?? '',
+      equipment: (json['equipment'] as List<dynamic>? ?? [])
+          .map((e) => Equipment.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'inn': inn,
+    'companyName': companyName,
+    'password': password,
+    'equipment': equipment.map((e) => e.toJson()).toList(),
+  };
+}
