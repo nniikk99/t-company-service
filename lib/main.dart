@@ -63,7 +63,6 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     _equipmentList = List<Equipment>.from(widget.user.equipment);
     _loadAllUsers();
-    _ensureTestUserExists();
   }
 
   Future<void> _loadAllUsers() async {
@@ -672,21 +671,6 @@ class _MyHomePageState extends State<MyHomePage> {
       serviceRequests.add(request);
     });
     // Если нужно — сохрани в SharedPreferences
-  }
-
-  void _ensureTestUserExists() async {
-    // Проверь, есть ли пользователь с ИНН 1234567890
-    final testInn = '1234567890';
-    final testPassword = 'test123';
-    final exists = await checkUserExists(testInn);
-    if (!exists) {
-      await addUser(
-        inn: testInn,
-        companyName: 'Тестовая компания',
-        password: testPassword,
-        // остальные поля по желанию
-      );
-    }
   }
 }
 

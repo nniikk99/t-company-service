@@ -59,4 +59,13 @@ class TelegramService {
       return false;
     }
   }
+
+  Future<bool> checkUserExists(String inn) async {
+    // TODO: реализуй или убери
+    return false;
+  }
+
+  Future<void> addUser({required String inn, required String companyName, required String password}) async {
+    // TODO: реализуй или убери
+  }
 } 
