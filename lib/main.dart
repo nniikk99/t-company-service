@@ -11,6 +11,7 @@ import 'services/telegram_webapp_service.dart';
 import 'services/storage_service.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   runApp(const MyApp());
@@ -103,6 +104,7 @@ class _MyHomePageState extends State<MyHomePage> {
         children: [
           _buildEquipmentList(),
           _buildRequestsList(),
+          StatisticsPage(equipment: _equipmentList, requests: serviceRequests),
           _buildProfile(),
         ],
       ),
@@ -115,7 +117,7 @@ class _MyHomePageState extends State<MyHomePage> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.precision_manufacturing),
+            icon: ImageIcon(AssetImage('assets/icons/equipment.png')),
             label: 'Оборудование',
           ),
           NavigationDestination(

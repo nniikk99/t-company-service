@@ -29,6 +29,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/icons/
     - assets/images/
     - assets/images/equipment/
     - assets/images/equipment/gadlee/
