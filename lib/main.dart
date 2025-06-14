@@ -582,104 +582,40 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildRequestsList() {
-    String _statusFilter = 'Все';
-    final statuses = ['Все', 'Создана', 'Назначен специалист', 'В работе', 'Выполнена'];
-    List<ServiceRequest> filtered = _statusFilter == 'Все' ? engineerRequests : engineerRequests.where((r) => r.status == _statusFilter).toList();
-    return Column(
-      children: [
-        DropdownButton<String>(
-          value: _statusFilter,
-          items: statuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-          onChanged: (v) => setState(() => _statusFilter = v!),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: filtered.length,
-            itemBuilder: (context, i) {
-              final req = filtered[i];
-              return ListTile(
-                title: Text(req.equipmentTitle),
-                subtitle: Text('Статус: ${req.status}'),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
-                  ),
-                ),
-              );
-            },
+    if (serviceRequests.isEmpty) {
+      return Center(
+        child: Text('Заявок нет'),
+      );
+    }
+    return ListView.builder(
+      itemCount: serviceRequests.length,
+      itemBuilder: (context, index) {
+        final req = serviceRequests[index];
+        return ListTile(
+          title: Text(req.equipmentTitle),
+          subtitle: Text('Статус: ${req.status}'),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ServiceRequestDetailPage(request: req, currentUser: widget.user),
+            ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildProfile() {
-    bool isEditing = false;
-    final _formKey = GlobalKey<FormState>();
-    final _lastNameController = TextEditingController(text: widget.user.lastName);
-    final _firstNameController = TextEditingController(text: widget.user.firstName);
-    final _middleNameController = TextEditingController(text: widget.user.middleName);
-    final _phoneController = TextEditingController(text: widget.user.phone);
-    final _emailController = TextEditingController(text: widget.user.email);
-    String _department = widget.user.position;
-    final _departments = [
-      'Сервис МСК',
-      'Сервис СПБ',
-      'Сервис ЕКБ',
-      'Сервис Краснодар',
-      'Другие регионы',
-    ];
-    return StatefulBuilder(
-      builder: (context, setModalState) => Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Профиль', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () => setModalState(() => isEditing = !isEditing),
-              ),
-            ],
-          ),
-          if (isEditing)
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(controller: _lastNameController, decoration: InputDecoration(labelText: 'Фамилия'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
-                  TextFormField(controller: _firstNameController, decoration: InputDecoration(labelText: 'Имя'), validator: (v) => v!.isEmpty ? 'Обязательное поле' : null),
-                  TextFormField(controller: _middleNameController, decoration: InputDecoration(labelText: 'Отчество')),
-                  TextFormField(controller: _phoneController, decoration: InputDecoration(labelText: 'Телефон'), keyboardType: TextInputType.phone),
-                  TextFormField(controller: _emailController, decoration: InputDecoration(labelText: 'Email'), keyboardType: TextInputType.emailAddress),
-                  DropdownButtonFormField<String>(
-                    value: _department,
-                    items: _departments.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-                    onChanged: (v) => setModalState(() => _department = v!),
-                    decoration: InputDecoration(labelText: 'Подразделение'),
-                  ),
-                  SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // TODO: сохранить в Supabase
-                        setModalState(() => isEditing = false);
-                      }
-                    },
-                    child: Text('Сохранить'),
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            ListTile(title: Text('${widget.user.lastName} ${widget.user.firstName} ${widget.user.middleName}')),
-            ListTile(title: Text(widget.user.phone)),
-            ListTile(title: Text(widget.user.email)),
-            ListTile(title: Text(_department)),
-          ],
-        ],
-      ),
+    return Column(
+      children: [
+        ListTile(
+          leading: Icon(Icons.business),
+          title: Text(widget.user.companyName),
+          subtitle: Text('ИНН: ${widget.user.inn}'),
+        ),
+        // Список пользователей с доступом (если есть)
+        // ... (оставить FutureBuilder, если реализовано)
+      ],
     );
   }
 
