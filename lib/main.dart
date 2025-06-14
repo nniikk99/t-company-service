@@ -203,7 +203,7 @@ class _MyHomePageState extends State<MyHomePage> {
           final updatedEquipment = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => EquipmentDetailPage(equipment: equipment),
+              builder: (context) => EquipmentDetailPage(equipment: equipment, user: widget.user, onAddRequest: _addServiceRequest),
             ),
           );
           
@@ -591,8 +591,8 @@ class _MyHomePageState extends State<MyHomePage> {
       itemBuilder: (context, index) {
         final req = serviceRequests[index];
         return ListTile(
-          title: Text(req.title),
-          subtitle: Text(req.description),
+          title: Text(req.equipmentTitle),
+          subtitle: Text(req.message),
           // и т.д.
         );
       },
@@ -653,86 +653,6 @@ class _MyHomePageState extends State<MyHomePage> {
     
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const AuthPage()),
-    );
-  }
-
-  void _showServiceRequestDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Заявка на сервис'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: 'Опишите проблему',
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final problem = controller.text.trim();
-              if (problem.isNotEmpty) {
-                // Добавь в свой список заявок:
-                final newRequest = ServiceRequest(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  equipmentTitle: '${widget.user.companyName} - ${widget.user.equipment.first.model}',
-                  type: 'Инженер',
-                  message: problem,
-                  date: DateTime.now(),
-                  status: 'Отправлено',
-                );
-                setState(() {
-                  serviceRequests.add(newRequest);
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Отправить'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showPartsRequestDialog(BuildContext context) {
-    final controller = TextEditingController();
-    // Можно добавить выпадающий список, если будет список запчастей
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Заявка на запчасти'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: 'Какие запчасти нужны?',
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final parts = controller.text.trim();
-              if (parts.isNotEmpty) {
-                // Добавь в свой список заявок:
-                // partsRequests.add(PartsRequest(...));
-                // setState(() {});
-                Navigator.pop(context);
-              }
-            },
-            child: Text('Отправить'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1351,7 +1271,10 @@ List<DropdownMenuItem<String>> _getModelsForManufacturer(String manufacturer) {
 
 class EquipmentDetailPage extends StatelessWidget {
   final Equipment equipment;
-  const EquipmentDetailPage({super.key, required this.equipment});
+  final User user;
+  final void Function(ServiceRequest) onAddRequest;
+
+  const EquipmentDetailPage({super.key, required this.equipment, required this.user, required this.onAddRequest});
 
   String _formatPhoneNumber(String value) {
     // Убираем все символы кроме цифр
@@ -1943,18 +1866,15 @@ class EquipmentDetailPage extends StatelessWidget {
             onPressed: () {
               final problem = controller.text.trim();
               if (problem.isNotEmpty) {
-                // Добавь в свой список заявок:
                 final newRequest = ServiceRequest(
                   id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  equipmentTitle: '${widget.user.companyName} - ${widget.user.equipment.first.model}',
+                  equipmentTitle: '${user.companyName} - ${equipment.model}',
                   type: 'Инженер',
                   message: problem,
                   date: DateTime.now(),
                   status: 'Отправлено',
                 );
-                setState(() {
-                  serviceRequests.add(newRequest);
-                });
+                onAddRequest(newRequest);
                 Navigator.pop(context);
               }
             },
@@ -1967,7 +1887,6 @@ class EquipmentDetailPage extends StatelessWidget {
 
   void _showPartsRequestDialog(BuildContext context) {
     final controller = TextEditingController();
-    // Можно добавить выпадающий список, если будет список запчастей
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1988,9 +1907,15 @@ class EquipmentDetailPage extends StatelessWidget {
             onPressed: () {
               final parts = controller.text.trim();
               if (parts.isNotEmpty) {
-                // Добавь в свой список заявок:
-                // partsRequests.add(PartsRequest(...));
-                // setState(() {});
+                final newRequest = ServiceRequest(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  equipmentTitle: '${user.companyName} - ${equipment.model}',
+                  type: 'Запчасти',
+                  message: parts,
+                  date: DateTime.now(),
+                  status: 'Отправлено',
+                );
+                onAddRequest(newRequest);
                 Navigator.pop(context);
               }
             },
