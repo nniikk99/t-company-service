@@ -1,90 +1,64 @@
 class Equipment {
   final String id;
-  final String manufacturer;
-  final String model;
+  final String title;
+  final String description;
   final String serialNumber;
-  final String address;
-  final String contactPerson;
-  final String phone;
-  final String status;
-  final String ownership;
-  final DateTime lastMaintenance;
-  final DateTime nextMaintenance;
+  final String userId;
+  final DateTime createdAt;
+  final DateTime? lastServiceDate;
 
   Equipment({
     required this.id,
-    required this.manufacturer,
-    required this.model,
+    required this.title,
+    required this.description,
     required this.serialNumber,
-    required this.address,
-    required this.contactPerson,
-    required this.phone,
-    required this.status,
-    required this.ownership,
-    required this.lastMaintenance,
-    required this.nextMaintenance,
+    required this.userId,
+    required this.createdAt,
+    this.lastServiceDate,
   });
 
   Equipment copyWith({
-    String? manufacturer,
-    String? model,
+    String? title,
+    String? description,
     String? serialNumber,
-    String? address,
-    String? contactPerson,
-    String? phone,
-    String? status,
-    String? ownership,
-    DateTime? lastMaintenance,
-    DateTime? nextMaintenance,
+    String? userId,
+    DateTime? createdAt,
+    DateTime? lastServiceDate,
   }) {
     return Equipment(
       id: id,
-      manufacturer: manufacturer ?? this.manufacturer,
-      model: model ?? this.model,
+      title: title ?? this.title,
+      description: description ?? this.description,
       serialNumber: serialNumber ?? this.serialNumber,
-      address: address ?? this.address,
-      contactPerson: contactPerson ?? this.contactPerson,
-      phone: phone ?? this.phone,
-      status: status ?? this.status,
-      ownership: ownership ?? this.ownership,
-      lastMaintenance: lastMaintenance ?? this.lastMaintenance,
-      nextMaintenance: nextMaintenance ?? this.nextMaintenance,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      lastServiceDate: lastServiceDate ?? this.lastServiceDate,
     );
   }
 
   factory Equipment.fromJson(Map<String, dynamic> json) {
     return Equipment(
-      id: json['id'] ?? '',
-      manufacturer: json['manufacturer'] ?? '',
-      model: json['model'] ?? '',
-      serialNumber: json['serialNumber'] ?? '',
-      address: json['address'] ?? '',
-      contactPerson: json['contactPerson'] ?? '',
-      phone: json['phone'] ?? '',
-      status: json['status'] ?? '',
-      ownership: json['ownership'] ?? '',
-      lastMaintenance: json['lastMaintenance'] != null
-          ? DateTime.parse(json['lastMaintenance'])
-          : DateTime.now(),
-      nextMaintenance: json['nextMaintenance'] != null
-          ? DateTime.parse(json['nextMaintenance'])
-          : DateTime.now(),
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      serialNumber: json['serial_number'] as String,
+      userId: json['user_id'] as String,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      lastServiceDate: json['last_service_date'] != null
+          ? DateTime.parse(json['last_service_date'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'manufacturer': manufacturer,
-      'model': model,
-      'serialNumber': serialNumber,
-      'address': address,
-      'contactPerson': contactPerson,
-      'phone': phone,
-      'status': status,
-      'ownership': ownership,
-      'lastMaintenance': lastMaintenance.toIso8601String(),
-      'nextMaintenance': nextMaintenance.toIso8601String(),
+      'title': title,
+      'description': description,
+      'serial_number': serialNumber,
+      'user_id': userId,
+      'created_at': createdAt.toIso8601String(),
+      'last_service_date': lastServiceDate?.toIso8601String(),
     };
   }
 }

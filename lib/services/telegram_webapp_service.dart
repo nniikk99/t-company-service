@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:html' as html;
 
 class TelegramWebAppService {
   static bool get isAvailable {
@@ -11,7 +12,7 @@ class TelegramWebAppService {
 
   // Инициализация
   static void init() {
-    // Временно ничего не делаем
+    // Инициализация Telegram WebApp
   }
 
   // Получение данных пользователя
@@ -42,18 +43,27 @@ class TelegramWebAppService {
   // Получение темы
   static ThemeData getTheme() {
     return ThemeData(
-      colorScheme: ColorScheme.light(
-        primary: Colors.blue,
-        secondary: Colors.blueAccent,
-        background: Colors.white,
-        surface: Colors.grey[100]!,
-        onPrimary: Colors.white,
-        onBackground: Colors.black,
-      ),
+      primarySwatch: Colors.blue,
       scaffoldBackgroundColor: Colors.white,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.blue,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.blue,
+        ),
       ),
     );
   }
@@ -61,5 +71,14 @@ class TelegramWebAppService {
   static Color _parseColor(String? color) {
     if (color == null) return Colors.white;
     return Color(int.parse(color.replaceAll('#', '0xFF')));
+  }
+
+  static void showAlert(String message) {
+    html.window.alert(message);
+  }
+
+  static void showConfirm(String message, Function(bool) onResult) {
+    final result = html.window.confirm(message);
+    onResult(result);
   }
 } 

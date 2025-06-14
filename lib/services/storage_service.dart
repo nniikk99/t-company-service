@@ -2,8 +2,14 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../models/equipment.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import '../models/service_request.dart';
 
 class StorageService {
+  final supabase.SupabaseClient _client;
+
+  StorageService(this._client);
+
   static const String _usersKey = 'users_data';
   static const String _currentUserKey = 'current_user_inn';
 
@@ -17,7 +23,7 @@ class StorageService {
         'inn': user.inn,
         'companyName': user.companyName,
         'password': user.password,
-        'equipment': user.equipment.map((eq) => eq.toJson()).toList(),
+        'equipment': user.equipment,
       };
     });
     
@@ -26,38 +32,13 @@ class StorageService {
   }
 
   // Загрузить всех пользователей
-  static Future<Map<String, User>> loadUsers() async {
-    final prefs = await SharedPreferences.getInstance();
-    final usersString = prefs.getString(_usersKey);
-    
-    if (usersString == null) {
-      print('📂 Данные пользователей не найдены, создаем тестового пользователя');
-      return _createDefaultUsers();
-    }
-
-    try {
-      final usersJson = jsonDecode(usersString) as Map<String, dynamic>;
-      final users = <String, User>{};
-      
-      usersJson.forEach((inn, userData) {
-        final equipmentList = (userData['equipment'] as List<dynamic>)
-            .map((eq) => Equipment.fromJson(eq as Map<String, dynamic>))
-            .toList();
-            
-        users[inn] = User(
-          inn: userData['inn'],
-          companyName: userData['companyName'],
-          password: userData['password'],
-          equipment: equipmentList,
-        );
-      });
-      
-      print('📂 Загружено ${users.length} пользователей');
-      return users;
-    } catch (e) {
-      print('❌ Ошибка загрузки данных: $e');
-      return _createDefaultUsers();
-    }
+  Future<Map<String, Map<String, dynamic>>> loadUsers() async {
+    final response = await _client.from('users').select();
+    final users = response as List<dynamic>;
+    return {
+      for (var user in users)
+        user['id'] as String: user as Map<String, dynamic>
+    };
   }
 
   // Сохранить текущего пользователя
@@ -73,25 +54,40 @@ class StorageService {
   }
 
   // Очистить данные текущего пользователя (выход)
-  static Future<void> clearCurrentUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_currentUserKey);
+  Future<void> clearCurrentUser() async {
+    await _client.auth.signOut();
   }
 
   // Создать тестовых пользователей по умолчанию
   static Map<String, User> _createDefaultUsers() {
     return {
       '1234567890': User(
+        id: 'user-1',
         inn: '1234567890',
         companyName: 'T-company',
+        lastName: 'Иванов',
+        firstName: 'Иван',
+        middleName: 'Иванович',
+        position: 'Директор',
+        email: 'ivanov@t-company.com',
+        phone: '+79991234567',
         password: 'test123',
-        equipment: <Equipment>[],
+        role: UserRole.client,
+        equipment: <String>[],
       ),
       '9876543210': User(
+        id: 'user-2',
         inn: '9876543210',
         companyName: 'Тестовая компания',
+        lastName: 'Петров',
+        firstName: 'Петр',
+        middleName: 'Петрович',
+        position: 'Менеджер',
+        email: 'petrov@test.com',
+        phone: '+79997654321',
         password: 'demo123',
-        equipment: <Equipment>[],
+        role: UserRole.client,
+        equipment: <String>[],
       ),
     };
   }
@@ -136,17 +132,69 @@ class StorageService {
   }
 
   // Очистить данные автовхода
-  static Future<void> clearRememberMe() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('remember_inn');
-    await prefs.remove('remember_password');
-    await prefs.setBool('remember_me', false);
-    print('🗑️ Данные автовхода очищены');
+  Future<void> clearRememberMe() async {
+    await _client.auth.signOut();
   }
 
   // Проверить, включен ли автовход
   static Future<bool> isRememberMeEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('remember_me') ?? false;
+  }
+
+  Future<void> updateUser(User user) async {
+    await _client.from('users').update(toJsonUser(user)).eq('id', user.id);
+  }
+
+  Future<void> createUser(User user) async {
+    await _client.from('users').insert(toJsonUser(user));
+  }
+
+  Future<List<Equipment>> loadEquipment() async {
+    final response = await _client.from('equipment').select();
+    final equipment = response as List<dynamic>;
+    return equipment
+        .map((e) => Equipment.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> updateEquipment(Equipment equipment) async {
+    await _client.from('equipment').update(equipment.toJson()).eq('id', equipment.id);
+  }
+
+  Future<void> createEquipment(Equipment equipment) async {
+    await _client.from('equipment').insert(equipment.toJson());
+  }
+
+  Future<List<ServiceRequest>> loadServiceRequests() async {
+    final response = await _client.from('service_requests').select();
+    final requests = response as List<dynamic>;
+    return requests
+        .map((r) => ServiceRequest.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> updateServiceRequest(ServiceRequest request) async {
+    await _client.from('service_requests').update(request.toJson()).eq('id', request.id);
+  }
+
+  Future<void> createServiceRequest(ServiceRequest request) async {
+    await _client.from('service_requests').insert(request.toJson());
+  }
+
+  Future<void> setRememberMe(String inn, String password) async {
+    await _client.auth.signInWithPassword(
+      email: inn,
+      password: password,
+    );
+  }
+
+  Map<String, dynamic> toJsonUser(User user) {
+    return {
+      'inn': user.inn,
+      'companyName': user.companyName,
+      'password': user.password,
+      'equipment': user.equipment,
+    };
   }
 } 
