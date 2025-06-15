@@ -60,6 +60,7 @@ class _LoginPageState extends State<LoginPage> {
   final _innController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -118,9 +119,18 @@ class _LoginPageState extends State<LoginPage> {
                   },
                 ),
                 const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _login,
-                  child: const Text('Войти'),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _login,
+                    child: _isLoading 
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Войти'),
+                  ),
                 ),
               ],
             ),
@@ -132,29 +142,40 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
       try {
-        final users = await widget.storageService.loadUsers();
-        final user = users.values.firstWhere(
-          (u) => u['inn'] == _innController.text && u['password'] == _passwordController.text,
-          orElse: () => throw Exception('Неверный ИНН или пароль'),
-        );
-
-        if (_rememberMe) {
+        // Сначала пробуем войти через Supabase
+        try {
           await widget.storageService.setRememberMe(
             _innController.text,
             _passwordController.text,
           );
-        }
+        } catch (e) {
+          print('Supabase auth error: $e');
+          // Если не получилось через Supabase, пробуем через локальную базу
+          final users = await widget.storageService.loadUsers();
+          final user = users.values.firstWhere(
+            (u) => u['inn'] == _innController.text && u['password'] == _passwordController.text,
+            orElse: () => throw Exception('Неверный ИНН или пароль'),
+          );
 
-        if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => UniversalHomePage(
-              user: User.fromJson(user),
-              storageService: widget.storageService,
+          if (_rememberMe) {
+            await widget.storageService.setRememberMe(
+              _innController.text,
+              _passwordController.text,
+            );
+          }
+
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => UniversalHomePage(
+                user: User.fromJson(user),
+                storageService: widget.storageService,
+              ),
             ),
-          ),
-        );
+          );
+        }
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -163,6 +184,10 @@ class _LoginPageState extends State<LoginPage> {
             backgroundColor: Colors.red,
           ),
         );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }

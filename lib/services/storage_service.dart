@@ -183,17 +183,30 @@ class StorageService {
   }
 
   Future<void> setRememberMe(String inn, String password) async {
-    await _client.auth.signInWithPassword(
-      email: inn,
-      password: password,
-    );
+    try {
+      await _client.auth.signInWithPassword(
+        email: inn,
+        password: password,
+      );
+    } catch (e) {
+      print('Error signing in: $e');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJsonUser(User user) {
     return {
+      'id': user.id,
       'inn': user.inn,
-      'companyName': user.companyName,
+      'company_name': user.companyName,
+      'last_name': user.lastName,
+      'first_name': user.firstName,
+      'middle_name': user.middleName,
+      'position': user.position,
+      'email': user.email,
+      'phone': user.phone,
       'password': user.password,
+      'role': user.role.toString().split('.').last,
       'equipment': user.equipment,
     };
   }
