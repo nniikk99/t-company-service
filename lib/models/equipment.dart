@@ -6,6 +6,10 @@ class Equipment {
   final String userId;
   final DateTime createdAt;
   final DateTime? lastServiceDate;
+  final String address;
+  final String contactName;
+  final String contactPhone;
+  final String? contactEmail;
 
   Equipment({
     required this.id,
@@ -15,6 +19,10 @@ class Equipment {
     required this.userId,
     required this.createdAt,
     this.lastServiceDate,
+    required this.address,
+    required this.contactName,
+    required this.contactPhone,
+    this.contactEmail,
   });
 
   Equipment copyWith({
@@ -24,6 +32,10 @@ class Equipment {
     String? userId,
     DateTime? createdAt,
     DateTime? lastServiceDate,
+    String? address,
+    String? contactName,
+    String? contactPhone,
+    String? contactEmail,
   }) {
     return Equipment(
       id: id,
@@ -33,6 +45,10 @@ class Equipment {
       userId: userId ?? this.userId,
       createdAt: createdAt ?? this.createdAt,
       lastServiceDate: lastServiceDate ?? this.lastServiceDate,
+      address: address ?? this.address,
+      contactName: contactName ?? this.contactName,
+      contactPhone: contactPhone ?? this.contactPhone,
+      contactEmail: contactEmail ?? this.contactEmail,
     );
   }
 
@@ -47,6 +63,10 @@ class Equipment {
       lastServiceDate: json['last_service_date'] != null
           ? DateTime.parse(json['last_service_date'] as String)
           : null,
+      address: json['address'] ?? '',
+      contactName: json['contact_name'] ?? '',
+      contactPhone: json['contact_phone'] ?? '',
+      contactEmail: json['contact_email'],
     );
   }
 
@@ -59,6 +79,10 @@ class Equipment {
       'user_id': userId,
       'created_at': createdAt.toIso8601String(),
       'last_service_date': lastServiceDate?.toIso8601String(),
+      'address': address,
+      'contact_name': contactName,
+      'contact_phone': contactPhone,
+      'contact_email': contactEmail,
     };
   }
 }

@@ -850,8 +850,7 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
   }
 
   void _showAttachInvoiceDialog(ServiceRequest req) async {
-    final _amountController = TextEditingController();
-    String? pdfPath;
+    String? pdfUrl;
     showDialog(
       context: context,
       builder: (context) {
@@ -863,23 +862,15 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
                   TextFormField(
-                    controller: _amountController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Сумма'),
+                    decoration: const InputDecoration(labelText: 'Ссылка на PDF (drag-n-drop или вставьте ссылку)'),
+                    onChanged: (v) => pdfUrl = v,
                   ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () async {
-                      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
-                      if (result != null && result.files.single.path != null) {
-                        setState(() {
-                          pdfPath = result.files.single.path;
-                        });
-                      }
-                    },
-                    child: Text(pdfPath == null ? 'Выбрать PDF' : 'PDF выбран'),
-            ),
-          ],
+                  Container(
+                    height: 80,
+                    color: Colors.grey[200],
+                    child: Center(child: Text('Перетащите PDF сюда или вставьте ссылку выше')),
+                  ),
+                ],
         ),
         actions: [
           TextButton(
@@ -888,7 +879,7 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
           ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (_amountController.text.isEmpty || pdfPath == null) return;
+                    if (pdfUrl == null) return;
                     final updated = ServiceRequest(
                       id: req.id,
                       title: req.title,
@@ -900,8 +891,8 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
                       engineerId: req.engineerId,
                       visitDate: req.visitDate,
                       isArchived: req.isArchived,
-                      invoiceUrl: pdfPath,
-                      invoiceAmount: double.tryParse(_amountController.text),
+                      invoiceUrl: pdfUrl,
+                      invoiceAmount: req.invoiceAmount,
                       isPaid: false,
                     );
                     await widget.storageService.updateServiceRequest(updated);
@@ -1041,11 +1032,11 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
                       children: [
                 Text('Производитель: ${equipment.description}'),
                 const SizedBox(height: 8),
-                Text('Адрес: ${equipment.address ?? '-'}'),
+                Text('Адрес: ${equipment.address}'),
                 const SizedBox(height: 8),
-                Text('Контактное лицо: ${equipment.contactName ?? '-'}'),
+                Text('Контактное лицо: ${equipment.contactName}'),
                 const SizedBox(height: 8),
-                Text('Телефон: ${equipment.contactPhone ?? '-'}'),
+                Text('Телефон: ${equipment.contactPhone}'),
                 if (equipment.contactEmail != null && equipment.contactEmail!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -1093,6 +1084,9 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
       },
     );
   }
+
+  void _showServiceRequestDialog(Equipment e) {}
+  void _showSparePartsDialog(Equipment e) {}
 }
 
 class AdminPanelPage extends StatefulWidget {
