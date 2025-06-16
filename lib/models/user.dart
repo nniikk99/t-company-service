@@ -37,21 +37,21 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] as String,
-      inn: json['inn'] as String,
-      companyName: json['company_name'] as String,
-      lastName: json['last_name'] as String,
-      firstName: json['first_name'] as String,
-      middleName: json['middle_name'] as String,
-      position: json['position'] as String,
-      email: json['email'] as String,
-      phone: json['phone'] as String,
-      password: json['password'] as String,
+      id: json['id']?.toString() ?? '',
+      inn: json['inn']?.toString() ?? '',
+      companyName: json['company_name']?.toString() ?? '',
+      lastName: json['last_name']?.toString() ?? '',
+      firstName: json['first_name']?.toString() ?? '',
+      middleName: json['middle_name']?.toString() ?? '',
+      position: json['position']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
+      password: json['password']?.toString() ?? '',
       role: UserRole.values.firstWhere(
-        (role) => role.toString().split('.').last == json['role'],
+        (role) => role.toString().split('.').last == (json['role'] ?? ''),
         orElse: () => UserRole.client,
       ),
-      equipment: (json['equipment'] as List<dynamic>?)?.cast<String>() ?? [],
+      equipment: (json['equipment'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
     );
   }
 

@@ -33,12 +33,30 @@ class StorageService {
 
   // Загрузить всех пользователей
   Future<Map<String, Map<String, dynamic>>> loadUsers() async {
-    final response = await _client.from('users').select();
-    final users = response as List<dynamic>;
-    return {
-      for (var user in users)
-        user['id'] as String: user as Map<String, dynamic>
-    };
+    try {
+      print('Loading users from Supabase...');
+      final response = await _client.from('users').select();
+      print('Supabase response: $response');
+      
+      if (response == null) {
+        print('No users found in Supabase');
+        return {};
+      }
+      
+      final users = response as List<dynamic>;
+      print('Found ${users.length} users');
+      
+      final result = {
+        for (var user in users)
+          user['inn'] as String: user as Map<String, dynamic>
+      };
+      
+      print('Processed users: ${result.keys.join(', ')}');
+      return result;
+    } catch (e) {
+      print('Error loading users: $e');
+      rethrow;
+    }
   }
 
   // Сохранить текущего пользователя

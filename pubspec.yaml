@@ -39,3 +39,5 @@ flutter:
     - assets/images/equipment/ipc/
     - assets/images/equipment/tennant/
     - assets/manuals/
+    - assets/icons/equipment.png
+    - assets/icons/analytics.png
