@@ -10,15 +10,17 @@ import 'models/service_request.dart';
 import 'services/telegram_webapp_service.dart';
 import 'services/storage_service.dart';
 import 'dart:convert';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await supabase.Supabase.initialize(
+  await Supabase.initialize(
     url: "https://kwunhuzfnjpcoeusnxzy.supabase.co",
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDA0MzYxOSwiZXhwIjoyMDU5NjE5NjE5fQ.JAn2aQ4dCcA64HHExVCDzaKOv1MtSTmlF7pPEn0CUlU",
   );
 
-  final storageService = StorageService(supabase.Supabase.instance.client);
+  final storageService = StorageService(Supabase.instance.client);
   runApp(MyApp(storageService: storageService));
 }
 
@@ -690,8 +692,8 @@ class _UniversalHomePageState extends State<UniversalHomePage> {
                       TextButton(
                         onPressed: () async {
                           final url = req.invoiceUrl!;
-                          if (await canLaunch(url)) {
-                            await launch(url);
+                          if (await canLaunchUrl(Uri.parse(url))) {
+                            await launchUrl(Uri.parse(url));
                           }
                         },
                         child: const Text('Скачать счёт'),
@@ -1109,7 +1111,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
 
   Future<void> _loadUsers() async {
     try {
-      final storageService = StorageService(supabase.Supabase.instance.client);
+      final storageService = StorageService(Supabase.instance.client);
       final usersMap = await storageService.loadUsers();
       setState(() {
         users = usersMap.values.map((u) => User.fromJson(u)).toList();
@@ -1123,7 +1125,7 @@ class _AdminPanelPageState extends State<AdminPanelPage> {
 
   Future<void> updateUserRole(String userId, UserRole role) async {
     try {
-      final storageService = StorageService(supabase.Supabase.instance.client);
+      final storageService = StorageService(Supabase.instance.client);
       final user = users.firstWhere((u) => u.id == userId);
       final updatedUser = User(
         id: user.id,
