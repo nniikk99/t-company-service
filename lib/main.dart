@@ -10,10 +10,6 @@ import 'models/service_request.dart';
 import 'services/telegram_webapp_service.dart';
 import 'services/storage_service.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
-import 'package:file_picker/file_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
