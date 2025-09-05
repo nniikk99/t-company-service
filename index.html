@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <base href="/t-company-service/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="T-Company Service Mini App">
+    <title>T-Company Service</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            color: #000;
+            line-height: 1.5;
+        }
+        
+        .app-bar {
+            background: white;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .app-title {
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            color: #000;
+        }
+        
+        .container {
+            padding: 16px;
+            max-width: 100%;
+        }
+        
+        .welcome-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .welcome-content {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .avatar {
+            width: 48px;
+            height: 48px;
+            background: #2196f3;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        
+        .welcome-text {
+            flex: 1;
+        }
+        
+        .welcome-subtitle {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .welcome-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #000;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .nav-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .nav-icon {
+            width: 60px;
+            height: 60px;
+            background: #e3f2fd;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            font-size: 30px;
+            color: #2196f3;
+        }
+        
+        .nav-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #000;
+        }
+        
+        .nav-subtitle {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .actions-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .actions-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #000;
+        }
+        
+        .actions-row {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #2196f3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1976d2;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: #2196f3;
+            border: 1px solid #2196f3;
+        }
+        
+        .btn-outline:hover {
+            background: #e3f2fd;
+        }
+        
+        .snackbar {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            transform: translateY(100px);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        
+        .snackbar.show {
+            transform: translateY(0);
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 12px;
+            }
+            
+            .grid {
+                gap: 8px;
+            }
+            
+            .nav-card {
+                padding: 12px;
+            }
+            
+            .nav-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-bar">
+        <div class="app-title">T-Company Service</div>
+    </div>
+    
+    <div class="container">
+        <!-- Приветствие -->
+        <div class="welcome-card">
+            <div class="welcome-content">
+                <div class="avatar">T</div>
+                <div class="welcome-text">
+                    <div class="welcome-subtitle">Добро пожаловать в</div>
+                    <div class="welcome-title">T-Company Service</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Навигационные карточки -->
+        <div class="grid">
+            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
+                <div class="nav-icon">🔧</div>
+                <div class="nav-title">Оборудование</div>
+                <div class="nav-subtitle">Управление техникой</div>
+            </div>
+            
+            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
+                <div class="nav-icon">📋</div>
+                <div class="nav-title">Заявки</div>
+                <div class="nav-subtitle">Сервисные заявки</div>
+            </div>
+            
+            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
+                <div class="nav-icon">⚙️</div>
+                <div class="nav-title">Админ-панель</div>
+                <div class="nav-subtitle">Управление системой</div>
+            </div>
+            
+            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
+                <div class="nav-icon">📊</div>
+                <div class="nav-title">Анализ</div>
+                <div class="nav-subtitle">Отчеты и статистика</div>
+            </div>
+        </div>
+        
+        <!-- Быстрые действия -->
+        <div class="actions-card">
+            <div class="actions-title">Быстрые действия</div>
+            <div class="actions-row">
+                <button class="btn btn-primary" onclick="showMessage('Функция в разработке')">
+                    ➕ Новая заявка
+                </button>
+                <button class="btn btn-outline" onclick="showMessage('Функция в разработке')">
+                    🔧 Оборудование
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Snackbar для уведомлений -->
+    <div id="snackbar" class="snackbar"></div>
+    
+    <script>
+        // Telegram WebApp API интеграция
+        const tg = window.Telegram.WebApp;
+        
+        // Инициализация Telegram WebApp
+        if (tg.initDataUnsafe) {
+            tg.expand();
+            tg.MainButton.setText("Закрыть");
+            tg.MainButton.show();
+            tg.MainButton.onClick(() => {
+                tg.close();
+            });
+        }
+        
+        // Функция для показа уведомлений
+        function showMessage(message) {
+            const snackbar = document.getElementById('snackbar');
+            snackbar.textContent = message;
+            snackbar.classList.add('show');
+            
+            setTimeout(() => {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Обработка ошибок
+        window.addEventListener('error', function(e) {
+            console.error('Error:', e.error);
+        });
+        
+        // Адаптация под мобильные устройства
+        function adjustForMobile() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        
+        window.addEventListener('resize', adjustForMobile);
+        adjustForMobile();
+    </script>
+</body>
+</html>
