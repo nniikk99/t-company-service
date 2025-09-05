@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <base href="/t-company-service/">
+    <base href="/t_co_service/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="T-Company Service Mini App">
-    <title>T-Company Service</title>
+    <meta name="description" content="T-Co Service Mini App">
+    <title>T-Co Service</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -16,7 +16,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f8f9fa;
+            background-color: #f5f5f5;
             color: #000;
             line-height: 1.5;
         }
@@ -31,34 +31,26 @@
         }
         
         .app-title {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
-            text-align: center;
             color: #000;
+            margin-bottom: 4px;
         }
         
-        .container {
-            padding: 16px;
-            max-width: 100%;
+        .app-subtitle {
+            font-size: 14px;
+            color: #666;
         }
         
-        .welcome-card {
-            background: white;
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .welcome-content {
+        .user-info {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 8px;
         }
         
         .avatar {
-            width: 48px;
-            height: 48px;
+            width: 32px;
+            height: 32px;
             background: #2196f3;
             border-radius: 50%;
             display: flex;
@@ -66,122 +58,161 @@
             justify-content: center;
             color: white;
             font-weight: bold;
-            font-size: 20px;
-        }
-        
-        .welcome-text {
-            flex: 1;
-        }
-        
-        .welcome-subtitle {
             font-size: 12px;
-            color: #666;
-            margin-bottom: 4px;
         }
         
-        .welcome-title {
-            font-size: 16px;
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .user-name {
+            font-size: 12px;
             font-weight: 600;
-            color: #000;
         }
         
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+        .user-role {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        .tabs {
+            background: white;
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            border-bottom-color: #2196f3;
+            color: #2196f3;
+            font-weight: 600;
+        }
+        
+        .content {
+            padding: 16px;
+            min-height: calc(100vh - 140px);
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: bold;
             margin-bottom: 16px;
         }
         
-        .nav-card {
+        .card {
             background: white;
-            border-radius: 12px;
+            border-radius: 8px;
             padding: 16px;
-            text-align: center;
+            margin-bottom: 12px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             cursor: pointer;
             transition: transform 0.2s;
         }
         
-        .nav-card:hover {
+        .card:hover {
             transform: translateY(-2px);
         }
         
-        .nav-icon {
-            width: 60px;
-            height: 60px;
-            background: #e3f2fd;
-            border-radius: 12px;
+        .card-content {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin: 0 auto 12px;
-            font-size: 30px;
-            color: #2196f3;
-        }
-        
-        .nav-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 4px;
-            color: #000;
-        }
-        
-        .nav-subtitle {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .actions-card {
-            background: white;
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .actions-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 12px;
-            color: #000;
-        }
-        
-        .actions-row {
-            display: flex;
             gap: 12px;
         }
         
-        .btn {
-            flex: 1;
-            padding: 14px 20px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            font-size: 20px;
         }
         
-        .btn-primary {
-            background: #2196f3;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #1976d2;
-        }
-        
-        .btn-outline {
-            background: transparent;
-            color: #2196f3;
-            border: 1px solid #2196f3;
-        }
-        
-        .btn-outline:hover {
+        .card-icon.blue {
             background: #e3f2fd;
+            color: #2196f3;
+        }
+        
+        .card-icon.orange {
+            background: #fff3e0;
+            color: #ff9800;
+        }
+        
+        .card-text {
+            flex: 1;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .card-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .card-arrow {
+            color: #ccc;
+        }
+        
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            gap: 16px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2196f3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        .analytics-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .analytics-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .analytics-label {
+            font-size: 14px;
+            color: #666;
         }
         
         .snackbar {
@@ -203,80 +234,122 @@
         }
         
         @media (max-width: 480px) {
-            .container {
+            .content {
                 padding: 12px;
             }
             
-            .grid {
-                gap: 8px;
-            }
-            
-            .nav-card {
-                padding: 12px;
-            }
-            
-            .nav-icon {
-                width: 50px;
-                height: 50px;
-                font-size: 24px;
+            .analytics-grid {
+                gap: 12px;
             }
         }
     </style>
 </head>
 <body>
     <div class="app-bar">
-        <div class="app-title">T-Company Service</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div class="app-title">T-Co</div>
+                <div class="app-subtitle">Сервисная служба</div>
+            </div>
+            <div class="user-info">
+                <div class="avatar">АП</div>
+                <div class="user-details">
+                    <div class="user-name">Александр Петров</div>
+                    <div class="user-role">Администратор</div>
+                </div>
+            </div>
+        </div>
     </div>
     
-    <div class="container">
-        <!-- Приветствие -->
-        <div class="welcome-card">
-            <div class="welcome-content">
-                <div class="avatar">T</div>
-                <div class="welcome-text">
-                    <div class="welcome-subtitle">Добро пожаловать в</div>
-                    <div class="welcome-title">T-Company Service</div>
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab(0)">Оборудование</div>
+        <div class="tab" onclick="switchTab(1)">Заявки</div>
+        <div class="tab" onclick="switchTab(2)">Анализ</div>
+    </div>
+    
+    <div class="content">
+        <div id="content-equipment" class="tab-content">
+            <div class="section-title">Оборудование</div>
+            <div id="equipment-list">
+                <div class="card" onclick="showMessage('Открыть оборудование 1')">
+                    <div class="card-content">
+                        <div class="card-icon blue">🔧</div>
+                        <div class="card-text">
+                            <div class="card-title">Оборудование 1</div>
+                            <div class="card-subtitle">Статус: Активно</div>
+                        </div>
+                        <div class="card-arrow">›</div>
+                    </div>
+                </div>
+                
+                <div class="card" onclick="showMessage('Открыть оборудование 2')">
+                    <div class="card-content">
+                        <div class="card-icon blue">🔧</div>
+                        <div class="card-text">
+                            <div class="card-title">Оборудование 2</div>
+                            <div class="card-subtitle">Статус: Активно</div>
+                        </div>
+                        <div class="card-arrow">›</div>
+                    </div>
+                </div>
+                
+                <div class="card" onclick="showMessage('Открыть оборудование 3')">
+                    <div class="card-content">
+                        <div class="card-icon blue">🔧</div>
+                        <div class="card-text">
+                            <div class="card-title">Оборудование 3</div>
+                            <div class="card-subtitle">Статус: Активно</div>
+                        </div>
+                        <div class="card-arrow">›</div>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- Навигационные карточки -->
-        <div class="grid">
-            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
-                <div class="nav-icon">🔧</div>
-                <div class="nav-title">Оборудование</div>
-                <div class="nav-subtitle">Управление техникой</div>
+        <div id="content-requests" class="tab-content" style="display: none;">
+            <div class="section-title">Заявки</div>
+            <div class="card" onclick="showMessage('Открыть заявку 1')">
+                <div class="card-content">
+                    <div class="card-icon orange">📋</div>
+                    <div class="card-text">
+                        <div class="card-title">Заявка 1</div>
+                        <div class="card-subtitle">Статус: В обработке</div>
+                    </div>
+                    <div class="card-arrow">›</div>
+                </div>
             </div>
             
-            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
-                <div class="nav-icon">📋</div>
-                <div class="nav-title">Заявки</div>
-                <div class="nav-subtitle">Сервисные заявки</div>
-            </div>
-            
-            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
-                <div class="nav-icon">⚙️</div>
-                <div class="nav-title">Админ-панель</div>
-                <div class="nav-subtitle">Управление системой</div>
-            </div>
-            
-            <div class="nav-card" onclick="showMessage('Раздел в разработке')">
-                <div class="nav-icon">📊</div>
-                <div class="nav-title">Анализ</div>
-                <div class="nav-subtitle">Отчеты и статистика</div>
+            <div class="card" onclick="showMessage('Открыть заявку 2')">
+                <div class="card-content">
+                    <div class="card-icon orange">📋</div>
+                    <div class="card-text">
+                        <div class="card-title">Заявка 2</div>
+                        <div class="card-subtitle">Статус: В обработке</div>
+                    </div>
+                    <div class="card-arrow">›</div>
+                </div>
             </div>
         </div>
         
-        <!-- Быстрые действия -->
-        <div class="actions-card">
-            <div class="actions-title">Быстрые действия</div>
-            <div class="actions-row">
-                <button class="btn btn-primary" onclick="showMessage('Функция в разработке')">
-                    ➕ Новая заявка
-                </button>
-                <button class="btn btn-outline" onclick="showMessage('Функция в разработке')">
-                    🔧 Оборудование
-                </button>
+        <div id="content-analytics" class="tab-content" style="display: none;">
+            <div class="section-title">Анализ</div>
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <div class="analytics-value" style="color: #2196f3;">15</div>
+                    <div class="analytics-label">Всего заявок</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-value" style="color: #4caf50;">8</div>
+                    <div class="analytics-label">Активных</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-value" style="color: #ff9800;">5</div>
+                    <div class="analytics-label">Завершенных</div>
+                </div>
+                <div class="analytics-card">
+                    <div class="analytics-value" style="color: #9c27b0;">12</div>
+                    <div class="analytics-label">Оборудования</div>
+                </div>
             </div>
         </div>
     </div>
@@ -298,6 +371,19 @@
             });
         }
         
+        // Переключение вкладок
+        function switchTab(index) {
+            // Обновляем активную вкладку
+            document.querySelectorAll('.tab').forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+            });
+            
+            // Показываем соответствующий контент
+            document.querySelectorAll('.tab-content').forEach((content, i) => {
+                content.style.display = i === index ? 'block' : 'none';
+            });
+        }
+        
         // Функция для показа уведомлений
         function showMessage(message) {
             const snackbar = document.getElementById('snackbar');
@@ -309,19 +395,13 @@
             }, 3000);
         }
         
-        // Обработка ошибок
-        window.addEventListener('error', function(e) {
-            console.error('Error:', e.error);
-        });
-        
-        // Адаптация под мобильные устройства
-        function adjustForMobile() {
-            const vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', `${vh}px`);
-        }
-        
-        window.addEventListener('resize', adjustForMobile);
-        adjustForMobile();
+        // Имитация загрузки оборудования
+        setTimeout(() => {
+            const equipmentList = document.getElementById('equipment-list');
+            if (equipmentList) {
+                equipmentList.style.opacity = '1';
+            }
+        }, 2000);
     </script>
 </body>
 </html>

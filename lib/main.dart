@@ -10,38 +10,19 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'T-Company Service',
+      title: 'T-Co Service',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
-          elevation: 0,
-          centerTitle: true,
+          elevation: 1,
+          centerTitle: false,
           titleTextStyle: TextStyle(
             color: Colors.black,
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 1,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            minimumSize: const Size(double.infinity, 48),
           ),
         ),
       ),
@@ -50,224 +31,304 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+  bool _isLoading = true;
+
+  final List<String> _sections = ['Оборудование', 'Заявки', 'Анализ'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Имитация загрузки
+    Future.delayed(const Duration(seconds: 2), () {
+      setState(() {
+        _isLoading = false;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('T-Company Service'),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Приветствие
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
+            Text('T-Co'),
+            Text(
+              'Сервисная служба',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
+        actions: [
+          // Профиль пользователя
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.blue,
+                  child: Text(
+                    'АП',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.blue,
-                      child: const Text(
-                        'T',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                        ),
+                    Text(
+                      'Александр Петров',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Добро пожаловать в',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.black54,
-                            ),
-                          ),
-                          Text(
-                            'T-Company Service',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      'Администратор',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey,
                       ),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
-
-            // Навигационные карточки
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.2,
-                children: [
-                  _buildNavCard(
-                    icon: Icons.build,
-                    title: 'Оборудование',
-                    subtitle: 'Управление техникой',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Навигационные вкладки
+          Container(
+            color: Colors.white,
+            child: Row(
+              children: _sections.asMap().entries.map((entry) {
+                int index = entry.key;
+                String section = entry.value;
+                bool isSelected = _selectedIndex == index;
+                
+                return Expanded(
+                  child: GestureDetector(
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Раздел в разработке')),
-                      );
+                      setState(() {
+                        _selectedIndex = index;
+                      });
                     },
-                  ),
-                  _buildNavCard(
-                    icon: Icons.assignment,
-                    title: 'Заявки',
-                    subtitle: 'Сервисные заявки',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Раздел в разработке')),
-                      );
-                    },
-                  ),
-                  _buildNavCard(
-                    icon: Icons.admin_panel_settings,
-                    title: 'Админ-панель',
-                    subtitle: 'Управление системой',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Раздел в разработке')),
-                      );
-                    },
-                  ),
-                  _buildNavCard(
-                    icon: Icons.analytics,
-                    title: 'Анализ',
-                    subtitle: 'Отчеты и статистика',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Раздел в разработке')),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            // Быстрые действия
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Быстрые действия',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: isSelected ? Colors.blue : Colors.transparent,
+                            width: 2,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Функция в разработке')),
-                                );
-                              },
-                              icon: const Icon(Icons.add),
-                              label: const Text('Новая заявка'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Функция в разработке')),
-                                );
-                              },
-                              icon: const Icon(Icons.build),
-                              label: const Text('Оборудование'),
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        section,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected ? Colors.blue : Colors.black87,
+                        ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              }).toList(),
             ),
-            const SizedBox(height: 16),
-          ],
-        ),
+          ),
+          
+          // Контент
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Загрузка оборудования...'),
+                      ],
+                    ),
+                  )
+                : _buildContent(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildNavCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: Colors.blue,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+  Widget _buildContent() {
+    switch (_selectedIndex) {
+      case 0: // Оборудование
+        return _buildEquipmentContent();
+      case 1: // Заявки
+        return _buildRequestsContent();
+      case 2: // Анализ
+        return _buildAnalyticsContent();
+      default:
+        return const Center(child: Text('Неизвестный раздел'));
+    }
+  }
+
+  Widget _buildEquipmentContent() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Оборудование',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: 5,
+              itemBuilder: (context, index) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: const Icon(Icons.build, color: Colors.blue),
+                    title: Text('Оборудование ${index + 1}'),
+                    subtitle: const Text('Статус: Активно'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Открыть оборудование ${index + 1}')),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequestsContent() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Заявки',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: 3,
+              itemBuilder: (context, index) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: const Icon(Icons.assignment, color: Colors.orange),
+                    title: Text('Заявка ${index + 1}'),
+                    subtitle: const Text('Статус: В обработке'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Открыть заявку ${index + 1}')),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsContent() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Анализ',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              children: [
+                _buildAnalyticsCard('Всего заявок', '15', Colors.blue),
+                _buildAnalyticsCard('Активных', '8', Colors.green),
+                _buildAnalyticsCard('Завершенных', '5', Colors.orange),
+                _buildAnalyticsCard('Оборудования', '12', Colors.purple),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticsCard(String title, String value, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
         ),
       ),
     );
