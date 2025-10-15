@@ -1,18 +1,19 @@
 @echo off
-echo Настройка Git репозитория...
-git init
-git add .
-git commit -m "Создано T-Co Service приложение для Telegram Mini App"
+setlocal enabledelayedexpansion
 
-echo Настройка удаленного репозитория...
-git remote add origin https://github.com/nniikk.9/t_co_service.git
+set REMOTE=%1
+if "%REMOTE%"=="" set REMOTE=https://github.com/nniikk.9/t_co_service.git
+set BRANCH=gh-pages
+set BASEHREF=/t_co_service/
 
-echo Создание ветки gh-pages...
-git checkout -b gh-pages
+echo Running PowerShell deploy...
+powershell -ExecutionPolicy Bypass -File "%~dp0deploy.ps1" -Remote "%REMOTE%" -Branch "%BRANCH%" -BaseHref "%BASEHREF%" %*
 
-echo Отправка в GitHub...
-git push -u origin gh-pages
+if %ERRORLEVEL% NEQ 0 (
+  echo Deployment failed with error %ERRORLEVEL%.
+  exit /b %ERRORLEVEL%
+)
 
-echo Готово! Приложение доступно по адресу:
+echo Done. Your app should be available at:
 echo https://nniikk.9.github.io/t_co_service/
-pause
+endlocal

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../models/user.dart';
 
 class AdminScreen extends StatelessWidget {
-  const AdminScreen({super.key});
+  final User user;
+  
+  const AdminScreen({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {

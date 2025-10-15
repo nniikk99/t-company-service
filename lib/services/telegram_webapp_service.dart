@@ -2,17 +2,28 @@ import 'package:flutter/material.dart';
 
 class TelegramWebAppService {
   static bool get isTelegramWebApp {
-    return false; // В демо-режиме всегда false
+    return true; // включим для авто-логина демо
   }
 
   static Future<Map<String, dynamic>?> getUser() async {
     // Имитация получения данных пользователя из Telegram
     await Future.delayed(const Duration(milliseconds: 500));
     return {
-      'id': 'demo_user_1',
-      'first_name': 'Александр',
-      'last_name': 'Петров',
-      'username': 'alex_petrov',
+      'id': '987654321',
+      'first_name': 'Мария',
+      'last_name': 'Петрова',
+      'username': 'maria_lenta',
+    };
+  }
+
+  static Future<Map<String, String>?> getTelegramUserData() async {
+    final u = await getUser();
+    if (u == null) return null;
+    return {
+      'telegram_id': u['id'].toString(),
+      'first_name': u['first_name'] ?? '',
+      'last_name': u['last_name'] ?? '',
+      'username': u['username'] ?? '',
     };
   }
 

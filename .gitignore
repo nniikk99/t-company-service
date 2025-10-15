@@ -1,0 +1,109 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code related
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Build artifacts
+build/
+*.stamp
+*.dill
+*.cache
+*.track.dill
+
+# Web
+/web/flutter_service_worker.js
+/web/assets/AssetManifest.json
+/web/assets/FontManifest.json
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+*.local
+
+# Sensitive data
+secrets/
+config/secrets.dart
+lib/config/supabase_config.dart
+
+# Database credentials (если есть)
+database.json
+db_config.json
+
+# Supabase credentials (если хранятся локально)
+supabase_credentials.json
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.backup
+*.bak
+
+# User-specific files
+.vscode/settings.json
+.vscode/launch.json
+
+# OS specific
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Node modules (если используется)
+node_modules/
+
+# Lock files (опционально, можно оставить pubspec.lock)
+# pubspec.lock
+
+# Test coverage
+coverage/
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
