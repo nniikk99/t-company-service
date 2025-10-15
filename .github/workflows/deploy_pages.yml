@@ -28,6 +28,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Prepare Supabase config for CI
+        run: |
+          if [ -f lib/config/supabase_config.example.dart ]; then
+            cp lib/config/supabase_config.example.dart lib/config/supabase_config.dart
+          else
+            echo "class SupabaseConfig {static const String supabaseUrl=''; static const String supabaseAnonKey=''; static const bool useLocalSupabase=false; static String get url=>supabaseUrl; static String get anonKey=>supabaseAnonKey;}" > lib/config/supabase_config.dart
+          fi
+
       - name: Build web
         run: flutter build web --release --base-href /t-company-service/
 
