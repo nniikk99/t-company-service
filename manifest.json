@@ -1,11 +1,11 @@
 {
-    "name": "T-Co Service",
-    "short_name": "T-Co Service",
+    "name": "T-Company Service",
+    "short_name": "T-Company Service",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#f5f5f5",
-    "theme_color": "#2196f3",
-    "description": "T-Co Service Mini App для Telegram",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "T-Company Service Mini App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
