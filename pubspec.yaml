@@ -1,0 +1,31 @@
+name: t_co_service
+description: T-Co Service - Система управления сервисными заявками
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  supabase_flutter: ^2.10.0
+  http: ^1.1.0
+  shared_preferences: ^2.2.2
+  image_picker: ^1.0.4
+  url_launcher: ^6.2.1
+  logger: ^2.0.2+1
+  provider: ^6.1.1
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
