@@ -1,5 +1,21 @@
 {
   "version": 2,
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "" },
+        { "key": "Content-Security-Policy", "value": "frame-ancestors 'self' https://*.telegram.org https://web.telegram.org https://*.t.me https://t.me;" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/$1" }
+  ]
+}
+
+{
+  "version": 2,
   "builds": [
     { "src": "scripts/build_web.sh", "use": "@vercel/static-build", "config": { "distDir": "build/web" } }
   ],
