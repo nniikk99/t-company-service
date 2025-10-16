@@ -1,0 +1,1 @@
+ C:\\my_telegram_bot\\t_co_service\\build\\web\\manifest.json:  C:\\my_telegram_bot\\t_co_service\\web\\index.html C:\\my_telegram_bot\\t_co_service\\web\\manifest.json

@@ -1,0 +1,9 @@
+{
+  "name": "t-company-service-web",
+  "private": true,
+  "scripts": {
+    "vercel-build": "bash scripts/build_web.sh"
+  }
+}
+
+
