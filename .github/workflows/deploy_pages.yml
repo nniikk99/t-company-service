@@ -32,8 +32,8 @@ jobs:
         run: |
           cat > lib/config/supabase_config.dart << 'EOF'
           class SupabaseConfig {
-            static const String supabaseUrl = '${{ secrets.SUPABASE_URL }}';
-            static const String supabaseAnonKey = '${{ secrets.SUPABASE_ANON_KEY }}';
+            static const String supabaseUrl = '${{ secrets.SUPABASE_URL || 'https://kwunhuzfnjpcoeusnxzy.supabase.co' }}';
+            static const String supabaseAnonKey = '${{ secrets.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE' }}';
             static const bool useLocalSupabase = false;
             static String get url => supabaseUrl;
             static String get anonKey => supabaseAnonKey;
