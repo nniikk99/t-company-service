@@ -25,8 +25,8 @@ jobs:
     - name: Copy supabase config
       run: |
         cp lib/config/supabase_config.example.dart lib/config/supabase_config.dart
-        sed -i 's/YOUR_SUPABASE_URL/${{ secrets.SUPABASE_URL }}/g' lib/config/supabase_config.dart
-        sed -i 's/YOUR_SUPABASE_ANON_KEY/${{ secrets.SUPABASE_ANON_KEY }}/g' lib/config/supabase_config.dart
+        sed -i 's|YOUR_SUPABASE_URL|${{ secrets.SUPABASE_URL }}|g' lib/config/supabase_config.dart
+        sed -i 's|YOUR_SUPABASE_ANON_KEY|${{ secrets.SUPABASE_ANON_KEY }}|g' lib/config/supabase_config.dart
     
     - name: Build web
       run: flutter build web --release --base-href /t-company-service/
