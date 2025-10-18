@@ -54,7 +54,6 @@
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
         const statusDiv = document.getElementById('status');
         
         function updateStatus(message, isSuccess = true) {
@@ -62,52 +61,94 @@
             statusDiv.className = `status ${isSuccess ? 'success' : 'error'}`;
         }
         
-        try {
-            // Проверяем доступность Telegram WebApp API
-            if (typeof tg !== 'undefined') {
-                updateStatus('✅ Telegram WebApp API подключен!', true);
-                
-                // Заполняем информацию
-                document.getElementById('version').textContent = tg.version || 'Неизвестно';
-                document.getElementById('platform').textContent = tg.platform || 'Неизвестно';
-                document.getElementById('theme').textContent = tg.colorScheme || 'Неизвестно';
-                
-                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                    const user = tg.initDataUnsafe.user;
-                    document.getElementById('user').textContent = `${user.first_name} ${user.last_name || ''}`.trim();
-                } else {
-                    document.getElementById('user').textContent = 'Не авторизован';
-                }
-                
-                // Настраиваем кнопки
-                tg.expand();
-                tg.MainButton.setText("Закрыть");
-                tg.MainButton.show();
-                tg.MainButton.onClick(() => {
-                    tg.close();
-                });
-                
-            } else {
-                updateStatus('❌ Telegram WebApp API недоступен', false);
-            }
-        } catch (error) {
+        function logError(error) {
+            console.error('Telegram WebApp Error:', error);
             updateStatus(`❌ Ошибка: ${error.message}`, false);
         }
         
+        // Ждем загрузки Telegram WebApp API
+        function initTelegramWebApp() {
+            try {
+                // Проверяем, что скрипт загрузился
+                if (typeof window.Telegram === 'undefined') {
+                    updateStatus('❌ Telegram WebApp скрипт не загружен', false);
+                    return;
+                }
+                
+                const tg = window.Telegram.WebApp;
+                
+                if (!tg) {
+                    updateStatus('❌ Telegram.WebApp недоступен', false);
+                    return;
+                }
+                
+                updateStatus('✅ Telegram WebApp API подключен!', true);
+                
+                // Заполняем информацию с проверками
+                try {
+                    document.getElementById('version').textContent = tg.version || 'Неизвестно';
+                    document.getElementById('platform').textContent = tg.platform || 'Неизвестно';
+                    document.getElementById('theme').textContent = tg.colorScheme || 'Неизвестно';
+                    
+                    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                        const user = tg.initDataUnsafe.user;
+                        document.getElementById('user').textContent = `${user.first_name} ${user.last_name || ''}`.trim();
+                    } else {
+                        document.getElementById('user').textContent = 'Не авторизован';
+                    }
+                } catch (infoError) {
+                    logError(infoError);
+                }
+                
+                // Настраиваем кнопки с проверками
+                try {
+                    if (tg.expand) tg.expand();
+                    if (tg.MainButton) {
+                        tg.MainButton.setText("Закрыть");
+                        tg.MainButton.show();
+                        tg.MainButton.onClick(() => {
+                            if (tg.close) tg.close();
+                        });
+                    }
+                } catch (buttonError) {
+                    logError(buttonError);
+                }
+                
+            } catch (error) {
+                logError(error);
+            }
+        }
+        
+        // Инициализируем после загрузки страницы
+        window.addEventListener('load', () => {
+            // Даем время на загрузку скрипта
+            setTimeout(initTelegramWebApp, 100);
+        });
+        
         function testNotification() {
-            if (tg && tg.showAlert) {
-                tg.showAlert('Тест уведомления работает!');
-            } else {
-                alert('Telegram WebApp API недоступен');
+            try {
+                const tg = window.Telegram?.WebApp;
+                if (tg && tg.showAlert) {
+                    tg.showAlert('Тест уведомления работает!');
+                } else {
+                    alert('Telegram WebApp API недоступен');
+                }
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
             }
         }
         
         function testVibration() {
-            if (tg && tg.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('medium');
-                tg.showAlert('Вибрация работает!');
-            } else {
-                alert('Telegram WebApp API недоступен');
+            try {
+                const tg = window.Telegram?.WebApp;
+                if (tg && tg.HapticFeedback) {
+                    tg.HapticFeedback.impactOccurred('medium');
+                    tg.showAlert('Вибрация работает!');
+                } else {
+                    alert('Telegram WebApp API недоступен');
+                }
+            } catch (error) {
+                alert(`Ошибка: ${error.message}`);
             }
         }
     </script>
