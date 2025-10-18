@@ -1,9 +1,14 @@
 {
-  "name": "t-company-service-web",
-  "private": true,
+  "name": "t-company-service",
+  "version": "1.0.0",
+  "description": "T-Company Service Flutter Web App",
+  "main": "index.js",
   "scripts": {
     "vercel-build": "bash scripts/build_web.sh"
-  }
+  },
+  "keywords": ["flutter", "web", "telegram", "mini-app"],
+  "author": "nniikk99",
+  "license": "MIT"
 }
 
 
