@@ -29459,7 +29459,7 @@ s=q}while(true)switch(s){case 0:if($.a9==null)A.arH()
 $.a9.toString
 q=3
 s=6
-return A.h(A.apG("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE","https://kwunhuzfnjpcoeusnxzy.supabase.co"),$async$aMl)
+return A.h(A.apG("your-anon-key-here","https://your-project-ref.supabase.co"),$async$aMl)
 case 6:if($.a9==null)A.arH()
 n=$.a9
 A.aX9(n.a4P(B.yU),n,"runApp")
