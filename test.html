@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Mini App Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+    </style>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Telegram Mini App Test</h1>
+        
+        <div id="status" class="status">
+            <p>Проверяем подключение...</p>
+        </div>
+        
+        <div id="info">
+            <h3>Информация о Telegram WebApp:</h3>
+            <p><strong>Версия:</strong> <span id="version">-</span></p>
+            <p><strong>Платформа:</strong> <span id="platform">-</span></p>
+            <p><strong>Тема:</strong> <span id="theme">-</span></p>
+            <p><strong>Пользователь:</strong> <span id="user">-</span></p>
+        </div>
+        
+        <button onclick="testNotification()" style="margin: 10px; padding: 10px 20px; background-color: var(--tg-theme-button-color, #3390ec); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 5px;">
+            🔔 Тест уведомления
+        </button>
+        
+        <button onclick="testVibration()" style="margin: 10px; padding: 10px 20px; background-color: var(--tg-theme-button-color, #3390ec); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 5px;">
+            📳 Тест вибрации
+        </button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        const statusDiv = document.getElementById('status');
+        
+        function updateStatus(message, isSuccess = true) {
+            statusDiv.innerHTML = `<p>${message}</p>`;
+            statusDiv.className = `status ${isSuccess ? 'success' : 'error'}`;
+        }
+        
+        try {
+            // Проверяем доступность Telegram WebApp API
+            if (typeof tg !== 'undefined') {
+                updateStatus('✅ Telegram WebApp API подключен!', true);
+                
+                // Заполняем информацию
+                document.getElementById('version').textContent = tg.version || 'Неизвестно';
+                document.getElementById('platform').textContent = tg.platform || 'Неизвестно';
+                document.getElementById('theme').textContent = tg.colorScheme || 'Неизвестно';
+                
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    const user = tg.initDataUnsafe.user;
+                    document.getElementById('user').textContent = `${user.first_name} ${user.last_name || ''}`.trim();
+                } else {
+                    document.getElementById('user').textContent = 'Не авторизован';
+                }
+                
+                // Настраиваем кнопки
+                tg.expand();
+                tg.MainButton.setText("Закрыть");
+                tg.MainButton.show();
+                tg.MainButton.onClick(() => {
+                    tg.close();
+                });
+                
+            } else {
+                updateStatus('❌ Telegram WebApp API недоступен', false);
+            }
+        } catch (error) {
+            updateStatus(`❌ Ошибка: ${error.message}`, false);
+        }
+        
+        function testNotification() {
+            if (tg && tg.showAlert) {
+                tg.showAlert('Тест уведомления работает!');
+            } else {
+                alert('Telegram WebApp API недоступен');
+            }
+        }
+        
+        function testVibration() {
+            if (tg && tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('medium');
+                tg.showAlert('Вибрация работает!');
+            } else {
+                alert('Telegram WebApp API недоступен');
+            }
+        }
+    </script>
+</body>
+</html>
