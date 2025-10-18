@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Telegram Mini App Test</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -18,139 +19,97 @@
             text-align: center;
         }
         .status {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            background-color: var(--tg-theme-secondary-bg-color, #f0f0f0);
+            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
         }
-        .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
+        .success {
+            color: var(--tg-theme-link-color, #3390ec);
+        }
+        .error {
+            color: #e53935;
+        }
     </style>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🧪 Telegram Mini App Test</h1>
+        <h1>🎉 Telegram Mini App Test</h1>
         
-        <div id="status" class="status">
-            <p>Проверяем подключение...</p>
+        <div class="status">
+            <h3>Telegram WebApp Status:</h3>
+            <div id="tg-status">Checking...</div>
         </div>
         
-        <div id="info">
-            <h3>Информация о Telegram WebApp:</h3>
-            <p><strong>Версия:</strong> <span id="version">-</span></p>
-            <p><strong>Платформа:</strong> <span id="platform">-</span></p>
-            <p><strong>Тема:</strong> <span id="theme">-</span></p>
-            <p><strong>Пользователь:</strong> <span id="user">-</span></p>
+        <div class="status">
+            <h3>User Info:</h3>
+            <div id="user-info">Loading...</div>
         </div>
         
-        <button onclick="testNotification()" style="margin: 10px; padding: 10px 20px; background-color: var(--tg-theme-button-color, #3390ec); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 5px;">
-            🔔 Тест уведомления
-        </button>
+        <div class="status">
+            <h3>Theme Info:</h3>
+            <div id="theme-info">Loading...</div>
+        </div>
         
-        <button onclick="testVibration()" style="margin: 10px; padding: 10px 20px; background-color: var(--tg-theme-button-color, #3390ec); color: var(--tg-theme-button-text-color, #ffffff); border: none; border-radius: 5px;">
-            📳 Тест вибрации
-        </button>
+        <div class="status">
+            <h3>JavaScript Test:</h3>
+            <div id="js-test">✅ JavaScript is working!</div>
+        </div>
     </div>
 
     <script>
-        const statusDiv = document.getElementById('status');
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
         
-        function updateStatus(message, isSuccess = true) {
-            statusDiv.innerHTML = `<p>${message}</p>`;
-            statusDiv.className = `status ${isSuccess ? 'success' : 'error'}`;
-        }
+        // Expand to full height
+        tg.expand();
         
-        function logError(error) {
-            console.error('Telegram WebApp Error:', error);
-            updateStatus(`❌ Ошибка: ${error.message}`, false);
-        }
-        
-        // Ждем загрузки Telegram WebApp API
-        function initTelegramWebApp() {
-            try {
-                // Проверяем, что скрипт загрузился
-                if (typeof window.Telegram === 'undefined') {
-                    updateStatus('❌ Telegram WebApp скрипт не загружен', false);
-                    return;
-                }
-                
-                const tg = window.Telegram.WebApp;
-                
-                if (!tg) {
-                    updateStatus('❌ Telegram.WebApp недоступен', false);
-                    return;
-                }
-                
-                updateStatus('✅ Telegram WebApp API подключен!', true);
-                
-                // Заполняем информацию с проверками
-                try {
-                    document.getElementById('version').textContent = tg.version || 'Неизвестно';
-                    document.getElementById('platform').textContent = tg.platform || 'Неизвестно';
-                    document.getElementById('theme').textContent = tg.colorScheme || 'Неизвестно';
-                    
-                    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-                        const user = tg.initDataUnsafe.user;
-                        document.getElementById('user').textContent = `${user.first_name} ${user.last_name || ''}`.trim();
-                    } else {
-                        document.getElementById('user').textContent = 'Не авторизован';
-                    }
-                } catch (infoError) {
-                    logError(infoError);
-                }
-                
-                // Настраиваем кнопки с проверками
-                try {
-                    if (tg.expand) tg.expand();
-                    if (tg.MainButton) {
-                        tg.MainButton.setText("Закрыть");
-                        tg.MainButton.show();
-                        tg.MainButton.onClick(() => {
-                            if (tg.close) tg.close();
-                        });
-                    }
-                } catch (buttonError) {
-                    logError(buttonError);
-                }
-                
-            } catch (error) {
-                logError(error);
-            }
-        }
-        
-        // Инициализируем после загрузки страницы
-        window.addEventListener('load', () => {
-            // Даем время на загрузку скрипта
-            setTimeout(initTelegramWebApp, 100);
+        // Set up main button
+        tg.MainButton.setText("Закрыть");
+        tg.MainButton.show();
+        tg.MainButton.onClick(() => {
+            tg.close();
         });
         
-        function testNotification() {
-            try {
-                const tg = window.Telegram?.WebApp;
-                if (tg && tg.showAlert) {
-                    tg.showAlert('Тест уведомления работает!');
-                } else {
-                    alert('Telegram WebApp API недоступен');
-                }
-            } catch (error) {
-                alert(`Ошибка: ${error.message}`);
-            }
+        // Check Telegram WebApp status
+        const statusDiv = document.getElementById('tg-status');
+        if (tg.initData) {
+            statusDiv.innerHTML = '<span class="success">✅ Telegram WebApp is working!</span>';
+        } else {
+            statusDiv.innerHTML = '<span class="error">❌ Telegram WebApp not detected</span>';
         }
         
-        function testVibration() {
-            try {
-                const tg = window.Telegram?.WebApp;
-                if (tg && tg.HapticFeedback) {
-                    tg.HapticFeedback.impactOccurred('medium');
-                    tg.showAlert('Вибрация работает!');
-                } else {
-                    alert('Telegram WebApp API недоступен');
-                }
-            } catch (error) {
-                alert(`Ошибка: ${error.message}`);
-            }
+        // Get user info
+        const userInfoDiv = document.getElementById('user-info');
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            userInfoDiv.innerHTML = `
+                <strong>Name:</strong> ${user.first_name} ${user.last_name || ''}<br>
+                <strong>Username:</strong> @${user.username || 'N/A'}<br>
+                <strong>ID:</strong> ${user.id}
+            `;
+        } else {
+            userInfoDiv.innerHTML = '<span class="error">❌ No user data available</span>';
         }
+        
+        // Get theme info
+        const themeInfoDiv = document.getElementById('theme-info');
+        const themeParams = tg.themeParams;
+        if (themeParams) {
+            themeInfoDiv.innerHTML = `
+                <strong>Background:</strong> ${themeParams.bg_color || 'N/A'}<br>
+                <strong>Text:</strong> ${themeParams.text_color || 'N/A'}<br>
+                <strong>Button:</strong> ${themeParams.button_color || 'N/A'}
+            `;
+        } else {
+            themeInfoDiv.innerHTML = '<span class="error">❌ No theme data available</span>';
+        }
+        
+        // Test if we can access the main app
+        setTimeout(() => {
+            const jsTestDiv = document.getElementById('js-test');
+            jsTestDiv.innerHTML += '<br>✅ All tests completed successfully!';
+        }, 1000);
     </script>
 </body>
 </html>

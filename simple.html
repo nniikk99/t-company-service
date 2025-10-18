@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>T-Company Service</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            min-height: 100vh;
+        }
+        .container {
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            color: var(--tg-theme-hint-color, #707579);
+            font-size: 14px;
+        }
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .button {
+            background: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .button:active {
+            opacity: 0.8;
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .success {
+            background: rgba(0, 199, 62, 0.1);
+            color: #00c73e;
+        }
+        .info {
+            background: rgba(51, 144, 236, 0.1);
+            color: #3390ec;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🏢</div>
+            <div class="title">T-Company Service</div>
+            <div class="subtitle">Мини-приложение</div>
+        </div>
+        
+        <div class="card">
+            <h3>Добро пожаловать!</h3>
+            <p>Это тестовая версия приложения T-Company Service для Telegram.</p>
+            
+            <div id="user-info" class="status info">
+                Загрузка информации о пользователе...
+            </div>
+            
+            <button class="button" onclick="showAlert()">
+                Тест уведомления
+            </button>
+            
+            <button class="button" onclick="showHaptic()">
+                Тест вибрации
+            </button>
+            
+            <button class="button" onclick="openLink()">
+                Открыть ссылку
+            </button>
+        </div>
+        
+        <div class="card">
+            <h3>Статус Telegram WebApp</h3>
+            <div id="tg-status" class="status info">
+                Проверка...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        
+        // Expand to full height
+        tg.expand();
+        
+        // Set up main button
+        tg.MainButton.setText("Закрыть");
+        tg.MainButton.show();
+        tg.MainButton.onClick(() => {
+            tg.close();
+        });
+        
+        // Check Telegram WebApp status
+        const statusDiv = document.getElementById('tg-status');
+        if (tg.initData) {
+            statusDiv.innerHTML = '✅ Telegram WebApp работает корректно!';
+            statusDiv.className = 'status success';
+        } else {
+            statusDiv.innerHTML = '❌ Telegram WebApp не обнаружен';
+            statusDiv.className = 'status error';
+        }
+        
+        // Get user info
+        const userInfoDiv = document.getElementById('user-info');
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            userInfoDiv.innerHTML = `
+                <strong>Привет, ${user.first_name}!</strong><br>
+                Username: @${user.username || 'не указан'}<br>
+                ID: ${user.id}
+            `;
+            userInfoDiv.className = 'status success';
+        } else {
+            userInfoDiv.innerHTML = '❌ Информация о пользователе недоступна';
+            userInfoDiv.className = 'status error';
+        }
+        
+        // Test functions
+        function showAlert() {
+            tg.showAlert('Это тестовое уведомление!');
+        }
+        
+        function showHaptic() {
+            tg.HapticFeedback.impactOccurred('medium');
+            tg.showAlert('Вибрация активирована!');
+        }
+        
+        function openLink() {
+            tg.openLink('https://t.me/Assistant_t_co_bot');
+        }
+        
+        // Show ready state
+        tg.ready();
+    </script>
+</body>
+</html>
