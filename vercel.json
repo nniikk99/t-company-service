@@ -1,6 +1,7 @@
 {
   "version": 2,
   "buildCommand": null,
+  "outputDirectory": "web_dist",
   "headers": [
     {
       "source": "/(.*)",
