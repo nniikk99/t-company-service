@@ -1,6 +1,8 @@
 {
   "version": 2,
-  "buildCommand": null,
+  "installCommand": "echo 'Skip install'",
+  "buildCommand": "echo 'Skip build'",
+  "outputDirectory": "public",
   "headers": [
     {
       "source": "/(.*)",
