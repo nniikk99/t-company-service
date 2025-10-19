@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
@@ -24,15 +24,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      - name: Prepare deployment directory
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp app.html _site/ 2>/dev/null || true
+          cp simple_test.html _site/ 2>/dev/null || true
+          cp manifest.json _site/ 2>/dev/null || true
+          cp favicon.png _site/ 2>/dev/null || true
+          cp -r icons _site/ 2>/dev/null || true
+          echo "Deployment directory prepared"
+          ls -la _site/
+      
       - name: Setup Pages
         uses: actions/configure-pages@v4
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: '_site'
       
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
