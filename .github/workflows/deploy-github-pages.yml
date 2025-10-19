@@ -27,14 +27,25 @@ jobs:
       - name: Prepare deployment directory
         run: |
           mkdir -p _site
+          
+          # Copy ONLY lightweight HTML version
           cp index.html _site/
-          cp app.html _site/ 2>/dev/null || true
-          cp simple_test.html _site/ 2>/dev/null || true
-          cp manifest.json _site/ 2>/dev/null || true
-          cp favicon.png _site/ 2>/dev/null || true
-          cp -r icons _site/ 2>/dev/null || true
-          echo "Deployment directory prepared"
+          
+          # Copy supporting files if they exist
+          [ -f manifest.json ] && cp manifest.json _site/ || true
+          [ -f favicon.png ] && cp favicon.png _site/ || true
+          [ -d icons ] && cp -r icons _site/ || true
+          
+          # Add .nojekyll to prevent Jekyll processing
+          touch _site/.nojekyll
+          
+          # Create cache-busting file
+          echo "$(date +%s)" > _site/version.txt
+          
+          echo "✅ Deployment directory prepared:"
           ls -la _site/
+          echo "📄 index.html size:"
+          wc -c < _site/index.html
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
