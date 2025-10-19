@@ -97,13 +97,27 @@
     <div>Loading...</div>
   </div>
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-    tg.MainButton.setText("Закрыть");
-    tg.MainButton.show();
-    tg.MainButton.onClick(() => {
-      tg.close();
-    });
+    // Ждем загрузки Telegram WebApp API
+    function initTelegramWebApp() {
+      if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.MainButton.setText("Закрыть");
+        tg.MainButton.show();
+        tg.MainButton.onClick(() => {
+          tg.close();
+        });
+      } else {
+        // Если не в Telegram, показываем обычную страницу
+        console.log('Not in Telegram WebApp');
+      }
+    }
+    
+    // Инициализируем после загрузки страницы
+    window.addEventListener('load', initTelegramWebApp);
+    
+    // Дополнительная проверка через небольшую задержку
+    setTimeout(initTelegramWebApp, 100);
   </script>
 </body>
 </html>
