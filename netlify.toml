@@ -1,0 +1,15 @@
+[build]
+  publish = "."
+  command = "echo 'No build needed'"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org https://t.me https://*.t.me;"
+    X-Frame-Options = "ALLOWALL"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
