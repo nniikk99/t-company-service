@@ -1,7 +1,6 @@
 {
   "version": 2,
   "buildCommand": null,
-  "public": true,
   "headers": [
     {
       "source": "/(.*)",
