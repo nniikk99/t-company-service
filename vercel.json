@@ -16,6 +16,11 @@
   "routes": [
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
+  ],
+  "redirects": [
+    { "source": "/", "destination": "/index.html", "statusCode": 308 },
+    { "source": "/index", "destination": "/index.html", "statusCode": 308 },
+    { "source": "/:path*", "destination": "/index.html", "statusCode": 308 }
   ]
 }
 
