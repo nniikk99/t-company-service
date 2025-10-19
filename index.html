@@ -17,7 +17,6 @@
   <link rel="icon" type="image/png" href="favicon.png"/>
   <title>T-Company Service</title>
   <link rel="manifest" href="manifest.json">
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -36,8 +35,15 @@
   </style>
   <script src="flutter.js" defer></script>
   <script>
+    // Загружаем Telegram WebApp API
     var script = document.createElement('script');
     script.src = 'https://telegram.org/js/telegram-web-app.js';
+    script.onload = function() {
+      console.log('Telegram WebApp API loaded');
+    };
+    script.onerror = function() {
+      console.error('Failed to load Telegram WebApp API');
+    };
     document.head.appendChild(script);
   </script>
   <script>
@@ -97,27 +103,38 @@
     <div>Loading...</div>
   </div>
   <script>
-    // Ждем загрузки Telegram WebApp API
+    // Инициализация Telegram WebApp
     function initTelegramWebApp() {
+      console.log('Initializing Telegram WebApp...');
+      
       if (window.Telegram && window.Telegram.WebApp) {
+        console.log('Telegram WebApp API found');
         const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.MainButton.setText("Закрыть");
-        tg.MainButton.show();
-        tg.MainButton.onClick(() => {
-          tg.close();
-        });
+        
+        try {
+          tg.expand();
+          tg.MainButton.setText("Закрыть");
+          tg.MainButton.show();
+          tg.MainButton.onClick(() => {
+            tg.close();
+          });
+          console.log('Telegram WebApp initialized successfully');
+        } catch (error) {
+          console.error('Error initializing Telegram WebApp:', error);
+        }
       } else {
-        // Если не в Telegram, показываем обычную страницу
-        console.log('Not in Telegram WebApp');
+        console.log('Not in Telegram WebApp environment');
       }
     }
     
-    // Инициализируем после загрузки страницы
-    window.addEventListener('load', initTelegramWebApp);
+    // Ждем загрузки всех скриптов
+    window.addEventListener('load', function() {
+      console.log('Page loaded, initializing Telegram WebApp...');
+      setTimeout(initTelegramWebApp, 500); // Увеличиваем задержку
+    });
     
-    // Дополнительная проверка через небольшую задержку
-    setTimeout(initTelegramWebApp, 100);
+    // Дополнительная проверка
+    setTimeout(initTelegramWebApp, 1000);
   </script>
 </body>
 </html>
