@@ -232,7 +232,10 @@
         </div>
         
         <button class="button" onclick="login()">Войти в систему</button>
-        <a href="#" class="link-button">Забыли пароль?</a>
+        <div style="display:flex; justify-content: space-between; margin-top:12px;">
+            <a href="#" id="forgot-link" class="link-button">Забыли пароль?</a>
+            <a href="#" id="register-link" class="link-button">Регистрация</a>
+        </div>
     </div>
 
     <div id="main-app" class="hidden">
@@ -313,6 +316,21 @@
         </div>
     </div>
 
+    <!-- Регистрация -->
+    <div id="register-modal" class="container hidden" style="max-width:420px;">
+        <div class="logo-placeholder">T</div>
+        <h1>Регистрация</h1>
+        <p>Создайте учётную запись по номеру телефона</p>
+        <div class="input-group">
+            <input type="text" id="reg-phone" class="input-field" placeholder="Номер телефона">
+        </div>
+        <div class="input-group">
+            <input type="password" id="reg-password" class="input-field" placeholder="Пароль (мин. 6 символов)">
+        </div>
+        <button class="button" id="do-register">Зарегистрироваться</button>
+        <a href="#" id="to-login" class="link-button">У меня есть аккаунт</a>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const SUPABASE_URL = 'https://kwunhuzfnjpcoeusnxzy.supabase.co';
@@ -320,6 +338,7 @@
         const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const authPage = document.getElementById('auth-page');
+        const registerModal = document.getElementById('register-modal');
         const mainApp = document.getElementById('main-app');
         const phoneInput = document.getElementById('phone');
         const passwordInput = document.getElementById('password');
@@ -361,6 +380,12 @@
             e.target.value = maskedValue;
         });
 
+        function phoneToEmail(phoneDigits) {
+            // Превращаем телефон в технический email для Supabase
+            // +7 999 123-45-67 -> 79991234567@tco.local
+            return `${phoneDigits}@tco.local`;
+        }
+
         async function login() {
             const phone = phoneInput.value.replace(/\D/g, '');
             const password = passwordInput.value;
@@ -372,21 +397,25 @@
             }
 
             try {
-                // Simulate login for demo
-                if (phone === '79991234567' && password === 'password') {
-                    localStorage.setItem('isLoggedIn', 'true');
-                    showMainApp();
-                } else {
-                    alert('Неверный номер телефона или пароль.');
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: phoneToEmail(phone),
+                    password
+                });
+                if (error) {
+                    alert(error.message);
+                    return;
                 }
+                localStorage.setItem('isLoggedIn', 'true');
+                showMainApp();
             } catch (error) {
                 console.error('Login error:', error);
                 alert('Ошибка входа. Попробуйте еще раз.');
             }
         }
 
-        function logout() {
+        async function logout() {
             localStorage.removeItem('isLoggedIn');
+            await supabase.auth.signOut();
             showAuthPage();
         }
 
@@ -420,9 +449,47 @@
             });
         });
 
-        // Check login status on load
-        window.addEventListener('load', () => {
-            if (localStorage.getItem('isLoggedIn') === 'true') {
+        // Registration flow
+        document.getElementById('register-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            authPage.classList.add('hidden');
+            registerModal.classList.remove('hidden');
+        });
+
+        document.getElementById('to-login').addEventListener('click', (e) => {
+            e.preventDefault();
+            registerModal.classList.add('hidden');
+            authPage.classList.remove('hidden');
+        });
+
+        document.getElementById('do-register').addEventListener('click', async () => {
+            const phone = document.getElementById('reg-phone').value.replace(/\D/g, '');
+            const password = document.getElementById('reg-password').value;
+            if (phone.length < 11 || password.length < 6) {
+                alert('Введите корректный номер и пароль не короче 6 символов.');
+                return;
+            }
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: phoneToEmail(phone),
+                    password,
+                    options: { data: { phone } }
+                });
+                if (error) { alert(error.message); return; }
+                alert('Регистрация выполнена. Теперь войдите.');
+                registerModal.classList.add('hidden');
+                authPage.classList.remove('hidden');
+            } catch (e) {
+                alert('Ошибка регистрации');
+                console.error(e);
+            }
+        });
+
+        // Check login status on load (по токену Supabase)
+        window.addEventListener('load', async () => {
+            const { data } = await supabase.auth.getSession();
+            if (data?.session) {
+                localStorage.setItem('isLoggedIn', 'true');
                 showMainApp();
             } else {
                 showAuthPage();
