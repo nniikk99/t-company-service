@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>T-Co Service</title>
+    <title>AI Service</title>
     <meta name="telegram-web-app" content="yes">
     <meta name="telegram-web-app-version" content="6.0">
     <meta http-equiv="X-Frame-Options" content="ALLOWALL">
@@ -219,8 +219,8 @@
 </head>
 <body>
     <div id="auth-page" class="container">
-        <div class="logo-placeholder">T</div>
-        <h1>T-Co Service</h1>
+        <div class="logo-placeholder">AI</div>
+        <h1>AI Service</h1>
         <p>Система управления сервисными заявками</p>
         
         <div class="input-group">
@@ -249,19 +249,11 @@
         <div id="requests-page" class="page-content">
             <div class="header">
                 <h2>Заявки</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showCreateRequestModal()">+</button>
             </div>
             
-            <div class="card">
-                <h3>Заявка #001</h3>
-                <p>Статус: В работе</p>
-                <p>Описание: Проблема с сервером</p>
-            </div>
-            
-            <div class="card">
-                <h3>Заявка #002</h3>
-                <p>Статус: Новая</p>
-                <p>Описание: Установка нового ПО</p>
+            <div id="requests-list">
+                <!-- Заявки будут загружены из БД -->
             </div>
         </div>
 
@@ -318,7 +310,7 @@
 
     <!-- Регистрация -->
     <div id="register-modal" class="container hidden" style="max-width:420px;">
-        <div class="logo-placeholder">T</div>
+        <div class="logo-placeholder">AI</div>
         <h1>Регистрация</h1>
         <p>Создайте учётную запись по номеру телефона</p>
         <div class="input-group">
@@ -397,6 +389,16 @@
             }
 
             try {
+                // Проверяем админ аккаунт
+                if (phone === '79817467395' && password === 'admin8602') {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userRole', 'admin');
+                    localStorage.setItem('userPhone', phone);
+                    showMainApp();
+                    return;
+                }
+
+                // Обычная авторизация через Supabase
                 const { data, error } = await supabase.auth.signInWithPassword({
                     email: phoneToEmail(phone),
                     password
@@ -406,6 +408,8 @@
                     return;
                 }
                 localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userRole', 'user');
+                localStorage.setItem('userPhone', phone);
                 showMainApp();
             } catch (error) {
                 console.error('Login error:', error);
@@ -440,6 +444,11 @@
                 item.classList.remove('active');
             });
             document.querySelector(`.nav-item[data-page="${pageId}"]`).classList.add('active');
+            
+            // Загружаем данные при переключении страниц
+            if (pageId === 'requests') {
+                loadRequests();
+            }
         }
 
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -485,12 +494,112 @@
             }
         });
 
+        // Функции для работы с БД
+        async function loadRequests() {
+            try {
+                const { data, error } = await supabase
+                    .from('service_requests')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const requestsList = document.getElementById('requests-list');
+                requestsList.innerHTML = '';
+                
+                if (data && data.length > 0) {
+                    data.forEach(request => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = `
+                            <h3>Заявка #${request.id}</h3>
+                            <p>Статус: ${getStatusText(request.status)}</p>
+                            <p>Описание: ${request.description}</p>
+                            <p>Создана: ${new Date(request.created_at).toLocaleDateString()}</p>
+                            ${localStorage.getItem('userRole') === 'admin' ? 
+                                `<button class="button" onclick="updateRequestStatus(${request.id})" style="margin-top:10px;">Изменить статус</button>` : 
+                                ''
+                            }
+                        `;
+                        requestsList.appendChild(card);
+                    });
+                } else {
+                    requestsList.innerHTML = '<div class="card"><p>Заявок пока нет</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading requests:', error);
+                document.getElementById('requests-list').innerHTML = '<div class="card"><p>Ошибка загрузки заявок</p></div>';
+            }
+        }
+
+        function getStatusText(status) {
+            const statuses = {
+                'new': 'Новая',
+                'in_progress': 'В работе',
+                'completed': 'Завершена',
+                'cancelled': 'Отменена'
+            };
+            return statuses[status] || status;
+        }
+
+        async function showCreateRequestModal() {
+            const description = prompt('Опишите проблему:');
+            if (!description) return;
+            
+            try {
+                const { data, error } = await supabase
+                    .from('service_requests')
+                    .insert([{
+                        description: description,
+                        status: 'new',
+                        user_phone: localStorage.getItem('userPhone')
+                    }]);
+                
+                if (error) throw error;
+                
+                alert('Заявка создана!');
+                loadRequests();
+            } catch (error) {
+                console.error('Error creating request:', error);
+                alert('Ошибка создания заявки');
+            }
+        }
+
+        async function updateRequestStatus(requestId) {
+            const statuses = ['new', 'in_progress', 'completed', 'cancelled'];
+            const statusTexts = ['Новая', 'В работе', 'Завершена', 'Отменена'];
+            
+            const choice = prompt(`Выберите статус:\n1. Новая\n2. В работе\n3. Завершена\n4. Отменена\n\nВведите номер (1-4):`);
+            const statusIndex = parseInt(choice) - 1;
+            
+            if (statusIndex < 0 || statusIndex >= statuses.length) {
+                alert('Неверный выбор');
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('service_requests')
+                    .update({ status: statuses[statusIndex] })
+                    .eq('id', requestId);
+                
+                if (error) throw error;
+                
+                alert('Статус обновлен!');
+                loadRequests();
+            } catch (error) {
+                console.error('Error updating request:', error);
+                alert('Ошибка обновления статуса');
+            }
+        }
+
         // Check login status on load (по токену Supabase)
         window.addEventListener('load', async () => {
             const { data } = await supabase.auth.getSession();
-            if (data?.session) {
+            if (data?.session || localStorage.getItem('isLoggedIn') === 'true') {
                 localStorage.setItem('isLoggedIn', 'true');
                 showMainApp();
+                loadRequests(); // Загружаем заявки при входе
             } else {
                 showAuthPage();
             }
