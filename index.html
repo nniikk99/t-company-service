@@ -317,11 +317,9 @@
         <a href="#" id="to-login" class="link-button">У меня есть аккаунт</a>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const SUPABASE_URL = 'https://kwunhuzfnjpcoeusnxzy.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE';
-        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Простая версия без Supabase для тестирования
+        console.log('Script started');
 
         // Система ролей
         const ROLES = {
@@ -391,7 +389,7 @@
             return `${phoneDigits}@tco.local`;
         }
 
-        async function login() {
+        function login() {
             console.log('Login function called');
             const phone = phoneInput.value.replace(/\D/g, '');
             const password = passwordInput.value;
@@ -404,45 +402,29 @@
                 return;
             }
 
-            try {
-                console.log('Checking admin account...');
-                // Проверяем админ аккаунт
-                if (phone === '79817467395' && password === 'admin8602') {
-                    console.log('Admin login successful');
-                    localStorage.setItem('isLoggedIn', 'true');
-                    localStorage.setItem('userRole', 'admin');
-                    localStorage.setItem('userPhone', phone);
-                    showMainApp();
-                    return;
-                }
-
-                console.log('Trying Supabase login...');
-                // Обычная авторизация через Supabase
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: phoneToEmail(phone),
-                    password
-                });
-                
-                if (error) {
-                    console.error('Supabase login error:', error);
-                    alert('Ошибка входа: ' + error.message);
-                    return;
-                }
-                
-                console.log('Supabase login successful');
+            console.log('Checking admin account...');
+            // Проверяем админ аккаунт
+            if (phone === '79817467395' && password === 'admin8602') {
+                console.log('Admin login successful');
                 localStorage.setItem('isLoggedIn', 'true');
-                localStorage.setItem('userRole', 'user');
+                localStorage.setItem('userRole', 'admin');
                 localStorage.setItem('userPhone', phone);
                 showMainApp();
-            } catch (error) {
-                console.error('Unexpected login error:', error);
-                alert('Произошла непредвиденная ошибка входа.');
+                return;
             }
+
+            // Для тестирования - любой другой аккаунт
+            console.log('User login successful');
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userRole', 'user');
+            localStorage.setItem('userPhone', phone);
+            showMainApp();
         }
 
-        async function logout() {
+        function logout() {
             localStorage.removeItem('isLoggedIn');
-            await supabase.auth.signOut();
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userPhone');
             showAuthPage();
         }
 
@@ -538,42 +520,33 @@
             }
         }
 
-        // Функции для работы с БД
-        async function loadRequests() {
-            try {
-                const { data, error } = await supabase
-                    .from('service_requests')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                const requestsList = document.getElementById('requests-list');
-                requestsList.innerHTML = '';
-                
-                if (data && data.length > 0) {
-                    data.forEach(request => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        card.innerHTML = `
-                            <h3>Заявка #${request.id}</h3>
-                            <p>Статус: ${getStatusText(request.status)}</p>
-                            <p>Описание: ${request.description}</p>
-                            <p>Создана: ${new Date(request.created_at).toLocaleDateString()}</p>
-                            ${localStorage.getItem('userRole') === 'admin' ? 
-                                `<button class="button" onclick="updateRequestStatus(${request.id})" style="margin-top:10px;">Изменить статус</button>` : 
-                                ''
-                            }
-                        `;
-                        requestsList.appendChild(card);
-                    });
-                } else {
-                    requestsList.innerHTML = '<div class="card"><p>Заявок пока нет</p></div>';
-                }
-            } catch (error) {
-                console.error('Error loading requests:', error);
-                document.getElementById('requests-list').innerHTML = '<div class="card"><p>Ошибка загрузки заявок</p></div>';
-            }
+        // Функции для работы с БД (упрощенные для тестирования)
+        function loadRequests() {
+            console.log('Loading requests...');
+            const requestsList = document.getElementById('requests-list');
+            requestsList.innerHTML = '';
+            
+            // Тестовые данные
+            const testRequests = [
+                { id: 1, status: 'new', description: 'Проблема с сервером', created_at: new Date() },
+                { id: 2, status: 'in_progress', description: 'Установка нового ПО', created_at: new Date() }
+            ];
+            
+            testRequests.forEach(request => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h3>Заявка #${request.id}</h3>
+                    <p>Статус: ${getStatusText(request.status)}</p>
+                    <p>Описание: ${request.description}</p>
+                    <p>Создана: ${request.created_at.toLocaleDateString()}</p>
+                    ${localStorage.getItem('userRole') === 'admin' ? 
+                        `<button class="button" onclick="updateRequestStatus(${request.id})" style="margin-top:10px;">Изменить статус</button>` : 
+                        ''
+                    }
+                `;
+                requestsList.appendChild(card);
+            });
         }
 
         function getStatusText(status) {
@@ -586,198 +559,86 @@
             return statuses[status] || status;
         }
 
-        async function showCreateRequestModal() {
+        function showCreateRequestModal() {
             const description = prompt('Опишите проблему:');
             if (!description) return;
             
-            try {
-                const { data, error } = await supabase
-                    .from('service_requests')
-                    .insert([{
-                        description: description,
-                        status: 'new',
-                        user_phone: localStorage.getItem('userPhone')
-                    }]);
-                
-                if (error) throw error;
-                
-                alert('Заявка создана!');
-                loadRequests();
-            } catch (error) {
-                console.error('Error creating request:', error);
-                alert('Ошибка создания заявки');
-            }
+            alert('Заявка создана! (тестовый режим)');
+            loadRequests();
         }
 
-        async function updateRequestStatus(requestId) {
-            const statuses = ['new', 'in_progress', 'completed', 'cancelled'];
-            const statusTexts = ['Новая', 'В работе', 'Завершена', 'Отменена'];
+        function updateRequestStatus(requestId) {
+            alert('Статус обновлен! (тестовый режим)');
+            loadRequests();
+        }
+
+        // Загрузка персонала (упрощенная)
+        function loadEngineers() {
+            console.log('Loading engineers...');
+            const engineersList = document.getElementById('engineers-list');
+            engineersList.innerHTML = '';
             
-            const choice = prompt(`Выберите статус:\n1. Новая\n2. В работе\n3. Завершена\n4. Отменена\n\nВведите номер (1-4):`);
-            const statusIndex = parseInt(choice) - 1;
+            // Тестовые данные
+            const testEngineers = [
+                { id: 1, full_name: 'Иванов И.И.', role: 'engineer', phone: '+7 (999) 123-45-67', status: 'active' },
+                { id: 2, full_name: 'Петров П.П.', role: 'manager', phone: '+7 (999) 234-56-78', status: 'active' }
+            ];
             
-            if (statusIndex < 0 || statusIndex >= statuses.length) {
-                alert('Неверный выбор');
-                return;
-            }
+            testEngineers.forEach(engineer => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h3>${engineer.full_name}</h3>
+                    <p>Роль: ${ROLE_NAMES[engineer.role] || engineer.role}</p>
+                    <p>Телефон: ${engineer.phone}</p>
+                    <p>Статус: ${engineer.status}</p>
+                    ${localStorage.getItem('userRole') === 'admin' ? 
+                        `<button class="button" onclick="editUser(${engineer.id})" style="margin-top:10px;">Редактировать</button>` : 
+                        ''
+                    }
+                `;
+                engineersList.appendChild(card);
+            });
+        }
+
+        // Загрузка оборудования (упрощенная)
+        function loadEquipment() {
+            console.log('Loading equipment...');
+            const equipmentList = document.getElementById('equipment-list');
+            equipmentList.innerHTML = '';
             
-            try {
-                const { error } = await supabase
-                    .from('service_requests')
-                    .update({ status: statuses[statusIndex] })
-                    .eq('id', requestId);
-                
-                if (error) throw error;
-                
-                alert('Статус обновлен!');
-                loadRequests();
-            } catch (error) {
-                console.error('Error updating request:', error);
-                alert('Ошибка обновления статуса');
-            }
+            // Тестовые данные
+            const testEquipment = [
+                { id: 1, name: 'Сервер #1', type: 'Dell PowerEdge', status: 'working', location: 'Серверная' },
+                { id: 2, name: 'Принтер HP', type: 'Лазерный', status: 'maintenance', location: 'Офис' }
+            ];
+            
+            testEquipment.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <h3>${item.name}</h3>
+                    <p>Тип: ${item.type}</p>
+                    <p>Статус: ${item.status}</p>
+                    <p>Местоположение: ${item.location}</p>
+                    ${localStorage.getItem('userRole') === 'admin' ? 
+                        `<button class="button" onclick="editEquipment(${item.id})" style="margin-top:10px;">Редактировать</button>` : 
+                        ''
+                    }
+                `;
+                equipmentList.appendChild(card);
+            });
         }
 
-        // Загрузка персонала
-        async function loadEngineers() {
-            try {
-                const { data, error } = await supabase
-                    .from('users')
-                    .select('*')
-                    .in('role', ['engineer', 'manager', 'operator']);
-                
-                if (error) throw error;
-                
-                const engineersList = document.getElementById('engineers-list');
-                engineersList.innerHTML = '';
-                
-                if (data && data.length > 0) {
-                    data.forEach(engineer => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        card.innerHTML = `
-                            <h3>${engineer.full_name || 'Не указано'}</h3>
-                            <p>Роль: ${ROLE_NAMES[engineer.role] || engineer.role}</p>
-                            <p>Телефон: ${engineer.phone}</p>
-                            <p>Статус: ${engineer.status || 'Активен'}</p>
-                            ${localStorage.getItem('userRole') === 'admin' ? 
-                                `<button class="button" onclick="editUser(${engineer.id})" style="margin-top:10px;">Редактировать</button>` : 
-                                ''
-                            }
-                        `;
-                        engineersList.appendChild(card);
-                    });
-                } else {
-                    engineersList.innerHTML = '<div class="card"><p>Персонал не найден</p></div>';
-                }
-            } catch (error) {
-                console.error('Error loading engineers:', error);
-                document.getElementById('engineers-list').innerHTML = '<div class="card"><p>Ошибка загрузки персонала</p></div>';
-            }
-        }
-
-        // Загрузка оборудования
-        async function loadEquipment() {
-            try {
-                const { data, error } = await supabase
-                    .from('equipment')
-                    .select('*');
-                
-                if (error) throw error;
-                
-                const equipmentList = document.getElementById('equipment-list');
-                equipmentList.innerHTML = '';
-                
-                if (data && data.length > 0) {
-                    data.forEach(item => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        card.innerHTML = `
-                            <h3>${item.name}</h3>
-                            <p>Тип: ${item.type}</p>
-                            <p>Статус: ${item.status}</p>
-                            <p>Местоположение: ${item.location || 'Не указано'}</p>
-                            ${localStorage.getItem('userRole') === 'admin' ? 
-                                `<button class="button" onclick="editEquipment(${item.id})" style="margin-top:10px;">Редактировать</button>` : 
-                                ''
-                            }
-                        `;
-                        equipmentList.appendChild(card);
-                    });
-                } else {
-                    equipmentList.innerHTML = '<div class="card"><p>Оборудование не найдено</p></div>';
-                }
-            } catch (error) {
-                console.error('Error loading equipment:', error);
-                document.getElementById('equipment-list').innerHTML = '<div class="card"><p>Ошибка загрузки оборудования</p></div>';
-            }
-        }
-
-        // Модальные окна для добавления
+        // Модальные окна для добавления (упрощенные)
         function showAddPersonModal() {
-            const name = prompt('ФИО:');
-            if (!name) return;
-            
-            const phone = prompt('Телефон:');
-            if (!phone) return;
-            
-            const role = prompt('Роль (engineer/manager/operator):');
-            if (!role) return;
-            
-            addPerson(name, phone, role);
+            alert('Добавление персонала (тестовый режим)');
+            loadEngineers();
         }
 
         function showAddEquipmentModal() {
-            const name = prompt('Название оборудования:');
-            if (!name) return;
-            
-            const type = prompt('Тип оборудования:');
-            if (!type) return;
-            
-            const location = prompt('Местоположение:');
-            
-            addEquipment(name, type, location);
-        }
-
-        async function addPerson(name, phone, role) {
-            try {
-                const { error } = await supabase
-                    .from('users')
-                    .insert([{
-                        full_name: name,
-                        phone: phone,
-                        role: role,
-                        status: 'active'
-                    }]);
-                
-                if (error) throw error;
-                
-                alert('Персонал добавлен!');
-                loadEngineers();
-            } catch (error) {
-                console.error('Error adding person:', error);
-                alert('Ошибка добавления персонала');
-            }
-        }
-
-        async function addEquipment(name, type, location) {
-            try {
-                const { error } = await supabase
-                    .from('equipment')
-                    .insert([{
-                        name: name,
-                        type: type,
-                        location: location,
-                        status: 'working'
-                    }]);
-                
-                if (error) throw error;
-                
-                alert('Оборудование добавлено!');
-                loadEquipment();
-            } catch (error) {
-                console.error('Error adding equipment:', error);
-                alert('Ошибка добавления оборудования');
-            }
+            alert('Добавление оборудования (тестовый режим)');
+            loadEquipment();
         }
 
         // Управление компаниями
@@ -798,16 +659,16 @@
             registerModal.classList.remove('hidden');
         }
 
-        // Check login status on load (по токену Supabase)
+        // Check login status on load (упрощенная)
         window.addEventListener('load', async () => {
             console.log('Page loaded, checking auth status...');
-            const { data } = await supabase.auth.getSession();
-            if (data?.session || localStorage.getItem('isLoggedIn') === 'true') {
-                localStorage.setItem('isLoggedIn', 'true');
+            if (localStorage.getItem('isLoggedIn') === 'true') {
+                console.log('User already logged in');
                 showMainApp();
                 updateUserProfile();
-                loadRequests(); // Загружаем заявки при входе
+                loadRequests();
             } else {
+                console.log('User not logged in, showing auth page');
                 showAuthPage();
             }
         });
