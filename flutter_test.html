@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Service - Full Flutter Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="telegram-web-app" content="yes">
+    <meta name="telegram-web-app-version" content="6.0">
+    <meta http-equiv="X-Frame-Options" content="ALLOWALL">
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org https://t.me https://*.t.me;">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom right, #4285F4, #1565C0);
+            color: #212529;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #FFFFFF;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-sizing: border-box;
+        }
+        .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background-color: #4285F4;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+        }
+        h1 {
+            color: #4285F4;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #6C757D;
+            font-size: 15px;
+            margin-bottom: 30px;
+        }
+        .button {
+            background-color: #4285F4;
+            color: white;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 10px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background-color: #1565C0;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-placeholder">AI</div>
+        <h1>AI Service</h1>
+        <p>Полная Flutter версия (3.21 MB)</p>
+        
+        <div id="status" class="status info">
+            Готов к загрузке Flutter приложения...
+        </div>
+        
+        <button class="button" onclick="loadFlutterApp()">Загрузить Flutter приложение</button>
+        <button class="button" onclick="testTelegramWebApp()">Тест Telegram WebApp</button>
+    </div>
+
+    <script>
+        // Telegram WebApp init
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            tg.MainButton.setText("Закрыть");
+            tg.MainButton.show();
+            tg.MainButton.onClick(() => {
+                tg.close();
+            });
+            console.log('Telegram WebApp initialized');
+        } else {
+            console.log('Not in Telegram WebApp');
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function loadFlutterApp() {
+            updateStatus('Начинаем загрузку Flutter приложения...', 'info');
+            
+            // Проверяем наличие flutter.js
+            if (typeof _flutter === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'flutter.js';
+                script.onload = () => {
+                    console.log('Flutter.js loaded');
+                    updateStatus('Flutter.js загружен, инициализируем приложение...', 'info');
+                    initializeFlutter();
+                };
+                script.onerror = () => {
+                    updateStatus('Ошибка загрузки flutter.js', 'error');
+                };
+                document.head.appendChild(script);
+            } else {
+                initializeFlutter();
+            }
+        }
+
+        function initializeFlutter() {
+            try {
+                updateStatus('Инициализируем Flutter движок...', 'info');
+                
+                window.addEventListener('load', function(ev) {
+                    _flutter.loader.loadEntrypoint({
+                        serviceWorker: {
+                            serviceWorkerVersion: "4233300523",
+                        },
+                        onEntrypointLoaded: function(engineInitializer) {
+                            updateStatus('Запускаем Flutter приложение...', 'info');
+                            engineInitializer.initializeEngine().then(function(appRunner) {
+                                updateStatus('✅ Flutter приложение успешно запущено!', 'success');
+                                appRunner.runApp();
+                            }).catch(error => {
+                                console.error('Flutter engine error:', error);
+                                updateStatus('❌ Ошибка запуска Flutter: ' + error.message, 'error');
+                            });
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error('Flutter initialization error:', error);
+                updateStatus('❌ Ошибка инициализации Flutter: ' + error.message, 'error');
+            }
+        }
+
+        function testTelegramWebApp() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                updateStatus('✅ Telegram WebApp работает! Версия: ' + tg.version, 'success');
+                
+                // Тестируем основные функции
+                try {
+                    tg.expand();
+                    tg.MainButton.setText("Тест кнопки");
+                    tg.MainButton.show();
+                    console.log('Telegram WebApp functions working');
+                } catch (error) {
+                    console.error('Telegram WebApp error:', error);
+                    updateStatus('❌ Ошибка Telegram WebApp: ' + error.message, 'error');
+                }
+            } else {
+                updateStatus('❌ Telegram WebApp недоступен', 'error');
+            }
+        }
+
+        // Автоматическая проверка при загрузке
+        window.addEventListener('load', () => {
+            updateStatus('Страница загружена. Готов к тестированию Flutter приложения.', 'info');
+        });
+    </script>
+</body>
+</html>
