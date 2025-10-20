@@ -1,0 +1,59 @@
+# Flutter build artifacts
+build/
+.dart_tool/
+web_dist/
+
+# Git
+.git/
+.github/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Documentation
+*.md
+!README.md
+
+# SQL files
+*.sql
+
+# Test files
+test/
+*_test.dart
+
+# Lock files
+*.lock
+
+# Scripts
+scripts/
+
+# Netlify
+netlify_deploy/
+netlify.toml
+.netlifyignore
+
+# Vercel
+vercel.json
+.vercel/
+
+# Node
+node_modules/
+package.json
+package-lock.json
+
+# Other configs
+analysis_options.yaml
+pubspec.yaml
+pubspec.lock
+
+# Backup files
+*_backup.*
+*.bak
+
+# Temporary files
+*.tmp
+.DS_Store
+Thumbs.db
+
