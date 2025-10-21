@@ -345,12 +345,6 @@
             'client': 'Клиент'
         };
 
-        const authPage = document.getElementById('auth-page');
-        const registerModal = document.getElementById('register-modal');
-        const mainApp = document.getElementById('main-app');
-        const phoneInput = document.getElementById('phone');
-        const passwordInput = document.getElementById('password');
-
         // Telegram WebApp init
         if (window.Telegram && window.Telegram.WebApp) {
             const tg = window.Telegram.WebApp;
@@ -366,27 +360,8 @@
             console.log('Not in Telegram WebApp');
         }
 
-        // Phone mask
-        phoneInput.addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            let maskedValue = '';
-            if (value.length > 0) {
-                maskedValue += '+7 (';
-                if (value.length > 1) {
-                    maskedValue += value.substring(1, 4);
-                }
-                if (value.length > 4) {
-                    maskedValue += ') ' + value.substring(4, 7);
-                }
-                if (value.length > 7) {
-                    maskedValue += '-' + value.substring(7, 9);
-                }
-                if (value.length > 9) {
-                    maskedValue += '-' + value.substring(9, 11);
-                }
-            }
-            e.target.value = maskedValue;
-        });
+        // Declare global variables
+        let authPage, registerModal, mainApp, phoneInput, passwordInput;
 
         function phoneToEmail(phoneDigits) {
             // Превращаем телефон в технический email для Supabase
@@ -864,7 +839,46 @@
 
         // Добавляем обработчики событий после загрузки DOM
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, adding event listeners...');
+            console.log('=== DOM LOADED ===');
+            
+            // Initialize elements
+            authPage = document.getElementById('auth-page');
+            registerModal = document.getElementById('register-modal');
+            mainApp = document.getElementById('main-app');
+            phoneInput = document.getElementById('phone');
+            passwordInput = document.getElementById('password');
+            
+            console.log('Elements initialized:', {
+                authPage: !!authPage,
+                mainApp: !!mainApp,
+                phoneInput: !!phoneInput,
+                passwordInput: !!passwordInput
+            });
+            
+            // Phone mask
+            if (phoneInput) {
+                phoneInput.addEventListener('input', function (e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    let maskedValue = '';
+                    if (value.length > 0) {
+                        maskedValue += '+7 (';
+                        if (value.length > 1) {
+                            maskedValue += value.substring(1, 4);
+                        }
+                        if (value.length > 4) {
+                            maskedValue += ') ' + value.substring(4, 7);
+                        }
+                        if (value.length > 7) {
+                            maskedValue += '-' + value.substring(7, 9);
+                        }
+                        if (value.length > 9) {
+                            maskedValue += '-' + value.substring(9, 11);
+                        }
+                    }
+                    e.target.value = maskedValue;
+                });
+                console.log('Phone mask added');
+            }
             
             // Кнопка входа
             const loginBtn = document.getElementById('login-btn');
