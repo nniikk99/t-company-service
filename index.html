@@ -482,48 +482,44 @@
             }
         }
 
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                showPage(this.dataset.page);
-            });
-        });
+        // Navigation will be initialized in DOMContentLoaded
 
         // Registration flow
-        document.getElementById('register-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            authPage.classList.add('hidden');
-            registerModal.classList.remove('hidden');
-        });
-
-        document.getElementById('to-login').addEventListener('click', (e) => {
-            e.preventDefault();
-            registerModal.classList.add('hidden');
-            authPage.classList.remove('hidden');
-        });
-
-        document.getElementById('do-register').addEventListener('click', async () => {
+        // Registration function
+        async function register() {
+            console.log('Register function called');
             const phone = document.getElementById('reg-phone').value.replace(/\D/g, '');
             const password = document.getElementById('reg-password').value;
+            
+            console.log('Registration phone:', phone, 'Password length:', password.length);
+            
             if (phone.length < 11 || password.length < 6) {
                 alert('Введите корректный номер и пароль не короче 6 символов.');
                 return;
             }
+            
             try {
                 const { data, error } = await supabase.auth.signUp({
                     email: phoneToEmail(phone),
                     password,
                     options: { data: { phone } }
                 });
-                if (error) { alert(error.message); return; }
-                alert('Регистрация выполнена. Теперь войдите.');
+                
+                if (error) {
+                    console.error('Registration error:', error);
+                    alert('Ошибка регистрации: ' + error.message);
+                    return;
+                }
+                
+                console.log('Registration successful');
+                alert('✅ Регистрация выполнена! Теперь войдите.');
                 registerModal.classList.add('hidden');
                 authPage.classList.remove('hidden');
             } catch (e) {
+                console.error('Unexpected registration error:', e);
                 alert('Ошибка регистрации');
-                console.error(e);
             }
-        });
+        }
 
         // Обновляем профиль пользователя
         function updateUserProfile() {
@@ -971,6 +967,16 @@
                     logout();
                 });
             }
+
+            // Навигация
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Nav clicked:', this.dataset.page);
+                    showPage(this.dataset.page);
+                });
+            });
+            console.log('Navigation initialized');
         });
     </script>
 </body>
