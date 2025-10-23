@@ -86,6 +86,7 @@
             background: #f5f5f5;
             min-height: 100vh;
             padding: 20px;
+            padding-bottom: 80px; /* Место для навигации */
         }
         .header {
             background: white;
@@ -146,38 +147,68 @@
     </div>
 
     <div id="main" class="main hidden">
-        <div class="header">
-            <h2>AI Service</h2>
-            <span id="userInfo">Пользователь</span>
+        <!-- Навигация внизу -->
+        <div class="nav">
+            <div class="nav-item active" data-page="requests">Заявки</div>
+            <div class="nav-item" data-page="engineers">Персонал</div>
+            <div class="nav-item" data-page="equipment">Оборудование</div>
+            <div class="nav-item" data-page="profile">Профиль</div>
         </div>
 
-        <div class="card">
-            <h3>🎉 Авторизация работает!</h3>
-            <p>Вы успешно вошли в систему.</p>
-            <p id="userDetails">Загрузка данных пользователя...</p>
-        </div>
-
-        <div class="card">
-            <h3>📋 Заявки</h3>
+        <!-- Страница заявок -->
+        <div id="requests-page" class="page active">
+            <div class="header">
+                <h2>Заявки</h2>
+                <button class="btn" style="width: auto; padding: 10px 20px;" id="addRequestBtn">+</button>
+            </div>
             <div id="requestsList">Загрузка заявок...</div>
-            <button class="btn" onclick="createRequest()">Создать заявку</button>
         </div>
 
-        <div class="card">
-            <h3>👥 Персонал</h3>
+        <!-- Страница персонала -->
+        <div id="engineers-page" class="page">
+            <div class="header">
+                <h2>Персонал</h2>
+                <button class="btn" style="width: auto; padding: 10px 20px;" id="addEngineerBtn">+</button>
+            </div>
             <div id="engineersList">Загрузка персонала...</div>
         </div>
 
-        <div class="card">
-            <h3>🔧 Оборудование</h3>
+        <!-- Страница оборудования -->
+        <div id="equipment-page" class="page">
+            <div class="header">
+                <h2>Оборудование</h2>
+                <button class="btn" style="width: auto; padding: 10px 20px;" id="addEquipmentBtn">+</button>
+            </div>
             <div id="equipmentList">Загрузка оборудования...</div>
         </div>
 
-        <button class="btn" id="logoutBtn">Выйти</button>
+        <!-- Страница профиля -->
+        <div id="profile-page" class="page">
+            <div class="header">
+                <h2>Профиль</h2>
+            </div>
+            
+            <div class="card">
+                <h3 id="userName">Пользователь</h3>
+                <p id="userPhone">Телефон: +7 (999) 123-45-67</p>
+                <p id="userRole">Роль: Пользователь</p>
+                <p id="userCompany">Компания: Не указана</p>
+            </div>
+            
+            <div class="card" id="managementCard">
+                <h3>Управление</h3>
+                <button class="btn" style="margin-bottom: 10px;" onclick="alert('Управление компаниями - в разработке')">Управление компаниями</button>
+                <button class="btn" style="margin-bottom: 10px;" onclick="alert('Управление пользователями - в разработке')">Управление пользователями</button>
+                <button class="btn" style="margin-bottom: 10px;" onclick="alert('Управление площадками - в разработке')">Управление площадками</button>
+            </div>
+            
+            <button class="btn" id="logoutBtn">Выйти</button>
+        </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        console.log('🚀 Simple AI Service Started');
+        console.log('🚀 AI Service Started');
         
         // Telegram init
         if (window.Telegram?.WebApp) {
@@ -284,6 +315,51 @@
                 }
             });
 
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    console.log('📱 Nav clicked:', this.dataset.page);
+                    
+                    // Update nav
+                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update pages
+                    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                    document.getElementById(this.dataset.page + '-page').classList.add('active');
+                    
+                    // Load data
+                    if (this.dataset.page === 'requests') loadRequests();
+                    if (this.dataset.page === 'engineers') loadEngineers();
+                    if (this.dataset.page === 'equipment') loadEquipment();
+                    if (this.dataset.page === 'profile') loadProfile();
+                });
+            });
+
+            // Add buttons
+            document.getElementById('addRequestBtn').addEventListener('click', function() {
+                console.log('➕ Add request clicked');
+                createRequest();
+            });
+
+            document.getElementById('addEngineerBtn').addEventListener('click', function() {
+                console.log('➕ Add engineer clicked');
+                const name = prompt('ФИО сотрудника:');
+                if (name) {
+                    alert('✅ Сотрудник добавлен: ' + name);
+                    loadEngineers();
+                }
+            });
+
+            document.getElementById('addEquipmentBtn').addEventListener('click', function() {
+                console.log('➕ Add equipment clicked');
+                const name = prompt('Название оборудования:');
+                if (name) {
+                    alert('✅ Оборудование добавлено: ' + name);
+                    loadEquipment();
+                }
+            });
+
             // Logout
             document.getElementById('logoutBtn').addEventListener('click', function() {
                 console.log('🚪 Logout clicked');
@@ -291,7 +367,7 @@
                 showAuth();
             });
 
-            console.log('✅ Event listeners added');
+            console.log('✅ All event listeners added');
         });
 
         function showMain() {
@@ -299,17 +375,11 @@
             document.getElementById('auth').classList.add('hidden');
             document.getElementById('main').classList.remove('hidden');
             
-            const userName = localStorage.getItem('userName') || 'Пользователь';
-            const userRole = localStorage.getItem('userRole') || 'user';
-            document.getElementById('userInfo').textContent = `${userName} (${userRole})`;
+            // Update profile info
+            loadProfile();
             
-            document.getElementById('userDetails').innerHTML = `
-                <strong>Имя:</strong> ${userName}<br>
-                <strong>Телефон:</strong> ${localStorage.getItem('userPhone')}<br>
-                <strong>Роль:</strong> ${userRole === 'admin' ? 'Администратор' : 'Пользователь'}
-            `;
-            
-            loadData();
+            // Load initial data
+            loadRequests();
         }
 
         function showAuth() {
@@ -319,35 +389,195 @@
             document.getElementById('status').className = 'status';
         }
 
-        function loadData() {
-            console.log('📊 Loading data...');
-            
-            // Mock data for testing
-            document.getElementById('requestsList').innerHTML = `
-                <p>• Заявка #001 - Проблема с сервером (Новая)</p>
-                <p>• Заявка #002 - Установка ПО (В работе)</p>
-                <p>• Заявка #003 - Ремонт принтера (Завершена)</p>
-            `;
-            
-            document.getElementById('engineersList').innerHTML = `
-                <p>• Иванов И.И. - Инженер (Активен)</p>
-                <p>• Петров П.П. - Менеджер (Активен)</p>
-                <p>• Сидоров С.С. - Оператор (Активен)</p>
-            `;
-            
-            document.getElementById('equipmentList').innerHTML = `
-                <p>• Сервер Dell #1 - Работает</p>
-                <p>• Принтер HP LaserJet - Требует обслуживания</p>
-                <p>• Коммутатор Cisco - Работает</p>
-            `;
-        }
 
         function createRequest() {
             const desc = prompt('Опишите проблему:');
             if (desc) {
                 alert('✅ Заявка создана: ' + desc);
                 console.log('📝 Request created:', desc);
+                loadRequests();
             }
+        }
+
+        function loadProfile() {
+            console.log('👤 Loading profile...');
+            const userName = localStorage.getItem('userName') || 'Пользователь';
+            const userPhone = localStorage.getItem('userPhone') || '';
+            const userRole = localStorage.getItem('userRole') || 'user';
+            
+            document.getElementById('userName').textContent = userName;
+            document.getElementById('userPhone').textContent = `Телефон: +7 ${userPhone}`;
+            document.getElementById('userRole').textContent = `Роль: ${userRole === 'admin' ? 'Администратор' : 'Пользователь'}`;
+            
+            // Hide management for non-admin
+            const managementCard = document.getElementById('managementCard');
+            if (managementCard && userRole !== 'admin') {
+                managementCard.style.display = 'none';
+            }
+        }
+
+        async function loadRequests() {
+            console.log('📋 Loading requests...');
+            const list = document.getElementById('requestsList');
+            list.innerHTML = 'Загрузка заявок...';
+            
+            // Try Supabase first, fallback to mock data
+            try {
+                if (window.Supabase) {
+                    const supabase = window.Supabase.createClient(
+                        'https://kwunhuzfnjpcoeusnxzy.supabase.co',
+                        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE'
+                    );
+                    
+                    const { data, error } = await supabase
+                        .from('service_requests')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        list.innerHTML = data.map(req => `
+                            <div class="card">
+                                <h3>Заявка #${req.id}</h3>
+                                <p><strong>Статус:</strong> ${req.status}</p>
+                                <p><strong>Описание:</strong> ${req.description}</p>
+                                <p><strong>Создана:</strong> ${new Date(req.created_at).toLocaleDateString()}</p>
+                            </div>
+                        `).join('');
+                        console.log('✅ Loaded', data.length, 'requests from DB');
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Supabase error:', error);
+            }
+            
+            // Fallback to mock data
+            console.log('📋 Using mock data for requests');
+            list.innerHTML = `
+                <div class="card">
+                    <h3>Заявка #001</h3>
+                    <p><strong>Статус:</strong> Новая</p>
+                    <p><strong>Описание:</strong> Проблема с сервером</p>
+                    <p><strong>Создана:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+                <div class="card">
+                    <h3>Заявка #002</h3>
+                    <p><strong>Статус:</strong> В работе</p>
+                    <p><strong>Описание:</strong> Установка нового ПО</p>
+                    <p><strong>Создана:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+            `;
+        }
+
+        async function loadEngineers() {
+            console.log('👥 Loading engineers...');
+            const list = document.getElementById('engineersList');
+            list.innerHTML = 'Загрузка персонала...';
+            
+            // Try Supabase first, fallback to mock data
+            try {
+                if (window.Supabase) {
+                    const supabase = window.Supabase.createClient(
+                        'https://kwunhuzfnjpcoeusnxzy.supabase.co',
+                        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE'
+                    );
+                    
+                    const { data, error } = await supabase
+                        .from('users')
+                        .select('*')
+                        .in('role', ['engineer', 'manager', 'operator']);
+                    
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        list.innerHTML = data.map(eng => `
+                            <div class="card">
+                                <h3>${eng.full_name || 'Не указано'}</h3>
+                                <p><strong>Роль:</strong> ${eng.role}</p>
+                                <p><strong>Телефон:</strong> ${eng.phone}</p>
+                                <p><strong>Статус:</strong> ${eng.status || 'Активен'}</p>
+                            </div>
+                        `).join('');
+                        console.log('✅ Loaded', data.length, 'engineers from DB');
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Supabase error:', error);
+            }
+            
+            // Fallback to mock data
+            console.log('👥 Using mock data for engineers');
+            list.innerHTML = `
+                <div class="card">
+                    <h3>Иванов И.И.</h3>
+                    <p><strong>Роль:</strong> Инженер</p>
+                    <p><strong>Телефон:</strong> +7 (999) 123-45-67</p>
+                    <p><strong>Статус:</strong> Активен</p>
+                </div>
+                <div class="card">
+                    <h3>Петров П.П.</h3>
+                    <p><strong>Роль:</strong> Менеджер</p>
+                    <p><strong>Телефон:</strong> +7 (999) 234-56-78</p>
+                    <p><strong>Статус:</strong> Активен</p>
+                </div>
+            `;
+        }
+
+        async function loadEquipment() {
+            console.log('🔧 Loading equipment...');
+            const list = document.getElementById('equipmentList');
+            list.innerHTML = 'Загрузка оборудования...';
+            
+            // Try Supabase first, fallback to mock data
+            try {
+                if (window.Supabase) {
+                    const supabase = window.Supabase.createClient(
+                        'https://kwunhuzfnjpcoeusnxzy.supabase.co',
+                        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE'
+                    );
+                    
+                    const { data, error } = await supabase
+                        .from('equipment')
+                        .select('*');
+                    
+                    if (error) throw error;
+                    
+                    if (data && data.length > 0) {
+                        list.innerHTML = data.map(eq => `
+                            <div class="card">
+                                <h3>${eq.name}</h3>
+                                <p><strong>Тип:</strong> ${eq.type}</p>
+                                <p><strong>Статус:</strong> ${eq.status}</p>
+                                <p><strong>Местоположение:</strong> ${eq.location || 'Не указано'}</p>
+                            </div>
+                        `).join('');
+                        console.log('✅ Loaded', data.length, 'equipment from DB');
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Supabase error:', error);
+            }
+            
+            // Fallback to mock data
+            console.log('🔧 Using mock data for equipment');
+            list.innerHTML = `
+                <div class="card">
+                    <h3>Сервер Dell #1</h3>
+                    <p><strong>Тип:</strong> Dell PowerEdge</p>
+                    <p><strong>Статус:</strong> Работает</p>
+                    <p><strong>Местоположение:</strong> Серверная</p>
+                </div>
+                <div class="card">
+                    <h3>Принтер HP LaserJet</h3>
+                    <p><strong>Тип:</strong> Лазерный принтер</p>
+                    <p><strong>Статус:</strong> Требует обслуживания</p>
+                    <p><strong>Местоположение:</strong> Офис</p>
+                </div>
+            `;
         }
 
         // Auto-login check
