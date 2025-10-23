@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Admin - AI Service</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #4285F4, #1565C0);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 500px;
+        }
+        h1 { color: #4285F4; margin-bottom: 20px; text-align: center; }
+        .section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #4285F4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn:hover { background: #1565C0; }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Create Admin User</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Создание администратора в Supabase Auth
+        </p>
+
+        <div class="section">
+            <h3>1. Создать админа в Supabase Auth</h3>
+            <button class="btn" onclick="createAdminAuth()">Создать админа: 79817467395@tco.local</button>
+            <div id="auth-result" class="result info">Готов к созданию</div>
+        </div>
+
+        <div class="section">
+            <h3>2. Создать запись в таблице users</h3>
+            <button class="btn" onclick="createAdminUser()">Создать запись в таблице users</button>
+            <div id="user-result" class="result info">Готов к созданию</div>
+        </div>
+
+        <div class="section">
+            <h3>3. Проверить созданного админа</h3>
+            <button class="btn" onclick="testAdminLogin()">Тест входа админа</button>
+            <div id="test-result" class="result info">Готов к тестированию</div>
+        </div>
+
+        <div class="section">
+            <h3>4. Создать тестовые данные</h3>
+            <button class="btn" onclick="createTestData()">Создать заявки и оборудование</button>
+            <div id="data-result" class="result info">Готов к созданию</div>
+        </div>
+
+        <div class="section">
+            <h3>5. Открыть приложение</h3>
+            <a href="index.html" class="btn" style="text-decoration: none; display: block; text-align: center;">
+                Открыть AI Service
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        console.log('🔧 Admin Creator Started');
+
+        const supabase = window.Supabase.createClient(
+            'https://kwunhuzfnjpcoeusnxzy.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE'
+        );
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.innerHTML = `<pre>${message}</pre>`;
+        }
+
+        async function createAdminAuth() {
+            showResult('auth-result', 'Создание админа в Supabase Auth...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: '79817467395@tco.local',
+                    password: 'admin8602',
+                    options: {
+                        data: {
+                            phone: '79817467395',
+                            full_name: 'Михаил Басалыгин',
+                            role: 'admin'
+                        }
+                    }
+                });
+                
+                if (error) {
+                    if (error.message.includes('already registered')) {
+                        showResult('auth-result', 
+                            '✅ Админ уже существует в Supabase Auth!\n' +
+                            'Email: 79817467395@tco.local\n' +
+                            'Можно использовать для входа', 
+                            'success'
+                        );
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    showResult('auth-result', 
+                        '✅ Админ создан в Supabase Auth!\n' +
+                        `User ID: ${data.user.id}\n` +
+                        `Email: ${data.user.email}\n` +
+                        'Пароль: admin8602', 
+                        'success'
+                    );
+                }
+                
+            } catch (error) {
+                console.error('Create admin auth failed:', error);
+                showResult('auth-result', `❌ Ошибка создания админа:\n${error.message}`, 'error');
+            }
+        }
+
+        async function createAdminUser() {
+            showResult('user-result', 'Создание записи в таблице users...', 'info');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert([{
+                        full_name: 'Михаил Басалыгин',
+                        phone: '79817467395',
+                        role: 'admin',
+                        status: 'active',
+                        position: 'Супер-администратор',
+                        company_name: 'AI Service'
+                    }])
+                    .select();
+                
+                if (error) {
+                    if (error.message.includes('duplicate') || error.message.includes('unique')) {
+                        showResult('user-result', 
+                            '✅ Запись админа уже существует в таблице users!\n' +
+                            'Телефон: 79817467395\n' +
+                            'Роль: admin', 
+                            'success'
+                        );
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    showResult('user-result', 
+                        '✅ Запись админа создана в таблице users!\n' +
+                        JSON.stringify(data, null, 2), 
+                        'success'
+                    );
+                }
+                
+            } catch (error) {
+                console.error('Create admin user failed:', error);
+                showResult('user-result', `❌ Ошибка создания записи:\n${error.message}`, 'error');
+            }
+        }
+
+        async function testAdminLogin() {
+            showResult('test-result', 'Тестирование входа админа...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: '79817467395@tco.local',
+                    password: 'admin8602'
+                });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                // Get user data
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('phone', '79817467395')
+                    .single();
+                
+                let result = '✅ Админ вход работает!\n' +
+                    `Auth User ID: ${data.user.id}\n` +
+                    `Email: ${data.user.email}\n`;
+                
+                if (userError) {
+                    result += `\n⚠️ Данные пользователя не найдены в таблице users:\n${userError.message}`;
+                } else {
+                    result += `\nДанные из таблицы users:\n` +
+                        `ID: ${userData.id}\n` +
+                        `Имя: ${userData.full_name}\n` +
+                        `Роль: ${userData.role}\n` +
+                        `Статус: ${userData.status}`;
+                }
+                
+                showResult('test-result', result, 'success');
+                
+            } catch (error) {
+                console.error('Admin login test failed:', error);
+                showResult('test-result', `❌ Ошибка входа админа:\n${error.message}`, 'error');
+            }
+        }
+
+        async function createTestData() {
+            showResult('data-result', 'Создание тестовых данных...', 'info');
+            
+            try {
+                // Create test requests
+                const { data: requests, error: reqError } = await supabase
+                    .from('service_requests')
+                    .insert([
+                        {
+                            description: 'Проблема с сервером - тестовая заявка',
+                            status: 'new',
+                            phone: '79817467395'
+                        },
+                        {
+                            description: 'Установка нового ПО - тестовая заявка',
+                            status: 'in_progress',
+                            phone: '79817467395'
+                        }
+                    ])
+                    .select();
+                
+                // Create test equipment
+                const { data: equipment, error: eqError } = await supabase
+                    .from('equipment')
+                    .insert([
+                        {
+                            name: 'Тестовый сервер Dell',
+                            type: 'Dell PowerEdge R740',
+                            status: 'working',
+                            location: 'Серверная комната'
+                        },
+                        {
+                            name: 'Тестовый принтер HP',
+                            type: 'HP LaserJet Pro',
+                            status: 'maintenance',
+                            location: 'Офис'
+                        }
+                    ])
+                    .select();
+                
+                let result = '';
+                
+                if (reqError) {
+                    result += `⚠️ Заявки: ${reqError.message}\n`;
+                } else {
+                    result += `✅ Создано заявок: ${requests.length}\n`;
+                }
+                
+                if (eqError) {
+                    result += `⚠️ Оборудование: ${eqError.message}\n`;
+                } else {
+                    result += `✅ Создано оборудования: ${equipment.length}\n`;
+                }
+                
+                showResult('data-result', result, reqError || eqError ? 'error' : 'success');
+                
+            } catch (error) {
+                console.error('Create test data failed:', error);
+                showResult('data-result', `❌ Ошибка создания данных:\n${error.message}`, 'error');
+            }
+        }
+
+        console.log('✅ Admin creator script loaded');
+    </script>
+</body>
+</html>
