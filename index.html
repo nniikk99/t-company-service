@@ -772,47 +772,65 @@
                 }
                 
                 // Try Supabase
-                if (supabase) {
-                    try {
-                        statusDiv.textContent = 'Проверка в базе данных...';
-                        
-                        const { data, error } = await supabase.auth.signInWithPassword({
-                            email: `${phone}@tco.local`,
-                            password: password
-                        });
-                        
-                        if (error) {
-                            statusDiv.className = 'status error';
-                            statusDiv.textContent = 'Неверный телефон или пароль';
-                            return;
-                        }
-                        
-                        // Get user data
-                        const { data: userData } = await supabase
-                            .from('users')
-                            .select('*')
-                            .eq('phone', phone)
-                            .single();
-                        
-                        localStorage.setItem('isLoggedIn', 'true');
-                        localStorage.setItem('userRole', userData?.role || 'user');
-                        localStorage.setItem('userPhone', phone);
-                        localStorage.setItem('userName', userData?.full_name || 'Пользователь');
-                        
-                        statusDiv.className = 'status success';
-                        statusDiv.textContent = '✅ Вход выполнен!';
-                        
-                        setTimeout(() => {
-                            showMain();
-                        }, 1500);
-                    } catch (error) {
-                        console.error('❌ Supabase error:', error);
-                        statusDiv.className = 'status error';
-                        statusDiv.textContent = 'Ошибка подключения к базе данных';
+                try {
+                    statusDiv.textContent = 'Инициализация Supabase...';
+                    
+                    if (!window.Supabase) {
+                        throw new Error('Supabase library not loaded');
                     }
-                } else {
+                    
+                    if (!supabase) {
+                        supabase = window.Supabase.createClient(
+                            'https://kwunhuzfnjpcoeusnxzy.supabase.co',
+                            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE'
+                        );
+                        console.log('✅ Supabase client created');
+                    }
+                    
+                    statusDiv.textContent = 'Проверка в базе данных...';
+                    
+                    const { data, error } = await supabase.auth.signInWithPassword({
+                        email: `${phone}@tco.local`,
+                        password: password
+                    });
+                    
+                    if (error) {
+                        console.error('❌ Auth error:', error);
+                        statusDiv.className = 'status error';
+                        statusDiv.textContent = 'Неверный телефон или пароль: ' + error.message;
+                        return;
+                    }
+                    
+                    console.log('✅ Supabase auth successful');
+                    
+                    // Get user data
+                    statusDiv.textContent = 'Получение данных пользователя...';
+                    const { data: userData, error: userError } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('phone', phone)
+                        .single();
+                    
+                    if (userError) {
+                        console.error('❌ User data error:', userError);
+                        // Continue without user data
+                    }
+                    
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userRole', userData?.role || 'user');
+                    localStorage.setItem('userPhone', phone);
+                    localStorage.setItem('userName', userData?.full_name || 'Пользователь');
+                    
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Вход выполнен через Supabase!';
+                    
+                    setTimeout(() => {
+                        showMain();
+                    }, 1500);
+                } catch (error) {
+                    console.error('❌ Supabase connection error:', error);
                     statusDiv.className = 'status error';
-                    statusDiv.textContent = 'База данных недоступна';
+                    statusDiv.textContent = 'Ошибка БД: ' + error.message + ' (используйте админ аккаунт)';
                 }
             });
 
