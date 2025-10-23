@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Test - AI Service</title>
+    <meta name="telegram-web-app" content="yes">
+    <meta http-equiv="X-Frame-Options" content="ALLOWALL">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #4285F4; margin-bottom: 20px; }
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-left: 4px solid #4285F4;
+        }
+        .test-section h3 { margin-bottom: 12px; color: #333; }
+        .btn {
+            background: #4285F4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn:hover { background: #1565C0; }
+        .result {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { white-space: pre-wrap; word-break: break-all; }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Database Connection Test</h1>
+        <p>Диагностика подключения к Supabase и проверка таблиц</p>
+
+        <div class="test-section">
+            <h3>1. Supabase Connection Test</h3>
+            <button class="btn" onclick="testSupabaseConnection()">Тест подключения</button>
+            <div id="connection-result" class="result info">Готов к тестированию</div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Authentication Test</h3>
+            <div class="input-group">
+                <input type="text" id="test-phone" placeholder="Телефон" value="79817467395">
+                <input type="password" id="test-password" placeholder="Пароль" value="admin8602">
+                <button class="btn" onclick="testAuth()">Тест авторизации</button>
+            </div>
+            <div id="auth-result" class="result info">Готов к тестированию</div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Tables Test</h3>
+            <button class="btn" onclick="testTables()">Проверить таблицы</button>
+            <div id="tables-result" class="result info">Готов к тестированию</div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Users Table Test</h3>
+            <button class="btn" onclick="testUsersTable()">Проверить пользователей</button>
+            <button class="btn" onclick="createTestUser()">Создать тестового пользователя</button>
+            <div id="users-result" class="result info">Готов к тестированию</div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. Service Requests Test</h3>
+            <button class="btn" onclick="testRequestsTable()">Проверить заявки</button>
+            <button class="btn" onclick="createTestRequest()">Создать тестовую заявку</button>
+            <div id="requests-result" class="result info">Готов к тестированию</div>
+        </div>
+
+        <div class="test-section">
+            <h3>6. Equipment Test</h3>
+            <button class="btn" onclick="testEquipmentTable()">Проверить оборудование</button>
+            <button class="btn" onclick="createTestEquipment()">Создать тестовое оборудование</button>
+            <div id="equipment-result" class="result info">Готов к тестированию</div>
+        </div>
+
+        <div class="test-section">
+            <h3>7. Full App Test</h3>
+            <a href="index.html" class="btn" style="text-decoration: none; display: inline-block;">Открыть главное приложение</a>
+            <a href="debug.html" class="btn" style="text-decoration: none; display: inline-block;">Открыть диагностику</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        console.log('🔍 Database Test Started');
+
+        const SUPABASE_URL = 'https://kwunhuzfnjpcoeusnxzy.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE';
+
+        let supabase;
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.innerHTML = `<pre>${message}</pre>`;
+        }
+
+        async function testSupabaseConnection() {
+            console.log('Testing Supabase connection...');
+            showResult('connection-result', 'Подключение к Supabase...', 'info');
+            
+            try {
+                if (!window.Supabase) {
+                    throw new Error('Supabase library not loaded');
+                }
+                
+                supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase client created');
+                
+                // Test connection
+                const { data, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    throw new Error(`Auth error: ${error.message}`);
+                }
+                
+                showResult('connection-result', 
+                    `✅ Supabase подключен успешно!\n` +
+                    `URL: ${SUPABASE_URL}\n` +
+                    `Session: ${data.session ? 'Active' : 'None'}\n` +
+                    `Time: ${new Date().toLocaleString()}`, 
+                    'success'
+                );
+                
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                showResult('connection-result', 
+                    `❌ Ошибка подключения:\n${error.message}\n\nПроверьте:\n1. Интернет соединение\n2. Supabase URL\n3. Anon Key`, 
+                    'error'
+                );
+            }
+        }
+
+        async function testAuth() {
+            if (!supabase) {
+                showResult('auth-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            const phone = document.getElementById('test-phone').value;
+            const password = document.getElementById('test-password').value;
+            
+            showResult('auth-result', 'Тестирование авторизации...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: `${phone}@tco.local`,
+                    password: password
+                });
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                showResult('auth-result', 
+                    `✅ Авторизация успешна!\n` +
+                    `User ID: ${data.user.id}\n` +
+                    `Email: ${data.user.email}\n` +
+                    `Phone: ${data.user.user_metadata?.phone || 'Not set'}`, 
+                    'success'
+                );
+                
+            } catch (error) {
+                console.error('Auth test failed:', error);
+                showResult('auth-result', 
+                    `❌ Ошибка авторизации:\n${error.message}\n\nВозможные причины:\n1. Неверный телефон/пароль\n2. Пользователь не зарегистрирован\n3. Проблема с БД`, 
+                    'error'
+                );
+            }
+        }
+
+        async function testTables() {
+            if (!supabase) {
+                showResult('tables-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            showResult('tables-result', 'Проверка таблиц...', 'info');
+            
+            const tables = ['users', 'service_requests', 'equipment', 'companies', 'sites'];
+            const results = [];
+            
+            for (const table of tables) {
+                try {
+                    const { data, error, count } = await supabase
+                        .from(table)
+                        .select('*', { count: 'exact', head: true });
+                    
+                    if (error) {
+                        results.push(`❌ ${table}: ${error.message}`);
+                    } else {
+                        results.push(`✅ ${table}: ${count || 0} записей`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${table}: ${error.message}`);
+                }
+            }
+            
+            showResult('tables-result', results.join('\n'), results.some(r => r.includes('❌')) ? 'error' : 'success');
+        }
+
+        async function testUsersTable() {
+            if (!supabase) {
+                showResult('users-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            showResult('users-result', 'Проверка таблицы users...', 'info');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .limit(10);
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                const result = `✅ Таблица users доступна!\n` +
+                    `Найдено пользователей: ${data.length}\n\n` +
+                    data.map(user => 
+                        `ID: ${user.id}\n` +
+                        `Имя: ${user.full_name || 'Не указано'}\n` +
+                        `Телефон: ${user.phone || 'Не указан'}\n` +
+                        `Роль: ${user.role || 'Не указана'}\n` +
+                        `---`
+                    ).join('\n');
+                
+                showResult('users-result', result, 'success');
+                
+            } catch (error) {
+                console.error('Users test failed:', error);
+                showResult('users-result', `❌ Ошибка таблицы users:\n${error.message}`, 'error');
+            }
+        }
+
+        async function createTestUser() {
+            if (!supabase) {
+                showResult('users-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert([{
+                        full_name: 'Тестовый Пользователь',
+                        phone: '79991234567',
+                        role: 'user',
+                        status: 'active'
+                    }])
+                    .select();
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                showResult('users-result', `✅ Тестовый пользователь создан!\n${JSON.stringify(data, null, 2)}`, 'success');
+                
+            } catch (error) {
+                console.error('Create user failed:', error);
+                showResult('users-result', `❌ Ошибка создания пользователя:\n${error.message}`, 'error');
+            }
+        }
+
+        async function testRequestsTable() {
+            if (!supabase) {
+                showResult('requests-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('service_requests')
+                    .select('*')
+                    .limit(10);
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                const result = `✅ Таблица service_requests доступна!\n` +
+                    `Найдено заявок: ${data.length}\n\n` +
+                    data.map(req => 
+                        `ID: ${req.id}\n` +
+                        `Описание: ${req.description || 'Нет описания'}\n` +
+                        `Статус: ${req.status || 'Не указан'}\n` +
+                        `Создана: ${req.created_at}\n` +
+                        `---`
+                    ).join('\n');
+                
+                showResult('requests-result', result, 'success');
+                
+            } catch (error) {
+                console.error('Requests test failed:', error);
+                showResult('requests-result', `❌ Ошибка таблицы service_requests:\n${error.message}`, 'error');
+            }
+        }
+
+        async function createTestRequest() {
+            if (!supabase) {
+                showResult('requests-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('service_requests')
+                    .insert([{
+                        description: 'Тестовая заявка - проверка системы',
+                        status: 'new',
+                        phone: '79817467395'
+                    }])
+                    .select();
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                showResult('requests-result', `✅ Тестовая заявка создана!\n${JSON.stringify(data, null, 2)}`, 'success');
+                
+            } catch (error) {
+                console.error('Create request failed:', error);
+                showResult('requests-result', `❌ Ошибка создания заявки:\n${error.message}`, 'error');
+            }
+        }
+
+        async function testEquipmentTable() {
+            if (!supabase) {
+                showResult('equipment-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('equipment')
+                    .select('*')
+                    .limit(10);
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                const result = `✅ Таблица equipment доступна!\n` +
+                    `Найдено оборудования: ${data.length}\n\n` +
+                    data.map(eq => 
+                        `ID: ${eq.id}\n` +
+                        `Название: ${eq.name || 'Не указано'}\n` +
+                        `Тип: ${eq.type || 'Не указан'}\n` +
+                        `Статус: ${eq.status || 'Не указан'}\n` +
+                        `---`
+                    ).join('\n');
+                
+                showResult('equipment-result', result, 'success');
+                
+            } catch (error) {
+                console.error('Equipment test failed:', error);
+                showResult('equipment-result', `❌ Ошибка таблицы equipment:\n${error.message}`, 'error');
+            }
+        }
+
+        async function createTestEquipment() {
+            if (!supabase) {
+                showResult('equipment-result', '❌ Сначала протестируйте подключение к Supabase', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('equipment')
+                    .insert([{
+                        name: 'Тестовое оборудование',
+                        type: 'Сервер',
+                        status: 'working',
+                        location: 'Серверная'
+                    }])
+                    .select();
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                showResult('equipment-result', `✅ Тестовое оборудование создано!\n${JSON.stringify(data, null, 2)}`, 'success');
+                
+            } catch (error) {
+                console.error('Create equipment failed:', error);
+                showResult('equipment-result', `❌ Ошибка создания оборудования:\n${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run connection test
+        window.addEventListener('load', function() {
+            console.log('🔄 Auto-running connection test...');
+            setTimeout(testSupabaseConnection, 1000);
+        });
+
+        console.log('✅ Database test script loaded');
+    </script>
+</body>
+</html>
