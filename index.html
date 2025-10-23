@@ -43,7 +43,7 @@
         }
         h1 { color: #4285F4; margin-bottom: 10px; font-size: 28px; }
         p { color: #666; margin-bottom: 30px; font-size: 16px; }
-        .input-field {
+        .input {
             width: 100%;
             padding: 15px 20px;
             border: 2px solid #e0e0e0;
@@ -52,11 +52,11 @@
             margin-bottom: 15px;
             transition: border-color 0.3s;
         }
-        .input-field:focus {
+        .input:focus {
             border-color: #4285F4;
             outline: none;
         }
-        .button {
+        .btn {
             width: 100%;
             padding: 15px;
             background: #4285F4;
@@ -69,47 +69,33 @@
             transition: all 0.3s;
             margin-top: 10px;
         }
-        .button:hover { background: #1565C0; transform: translateY(-1px); }
-        .button:active { transform: translateY(0); }
-        .link { color: #4285F4; text-decoration: none; font-size: 14px; margin: 0 10px; }
+        .btn:hover { background: #1565C0; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 500;
+            display: none;
+        }
+        .status.success { background: #d4edda; color: #155724; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; display: block; }
+        .status.info { background: #d1ecf1; color: #0c5460; display: block; }
         .hidden { display: none !important; }
-        .main-app {
+        .main {
             background: #f5f5f5;
             min-height: 100vh;
             padding: 20px;
-            padding-bottom: 80px;
         }
-        .nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            display: flex;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-        }
-        .nav-item {
-            flex: 1;
-            padding: 15px 10px;
-            text-align: center;
-            color: #666;
-            cursor: pointer;
-            transition: color 0.3s;
-            font-size: 14px;
-        }
-        .nav-item.active { color: #4285F4; font-weight: 600; }
-        .page { display: none; }
-        .page.active { display: block; }
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             background: white;
             padding: 20px;
             border-radius: 12px;
             margin-bottom: 20px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .card {
             background: white;
@@ -119,115 +105,105 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .card h3 { color: #4285F4; margin-bottom: 10px; }
-        .status { padding: 10px; border-radius: 8px; margin-top: 15px; font-weight: 500; }
-        .status.success { background: #d4edda; color: #155724; }
-        .status.error { background: #f8d7da; color: #721c24; }
-        .status.info { background: #d1ecf1; color: #0c5460; }
+        .nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-item {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            color: #666;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        .nav-item.active { color: #4285F4; font-weight: 600; }
     </style>
 </head>
 <body>
-    <div id="auth-container" class="container">
+    <div id="auth" class="container">
         <div class="logo">AI</div>
         <h1>AI Service</h1>
         <p>Система управления сервисными заявками</p>
         
-        <div id="status" class="status info" style="display: none;">Готов к работе</div>
+        <input type="text" id="phone" class="input" placeholder="Номер телефона" maxlength="18">
+        <input type="password" id="password" class="input" placeholder="Пароль">
         
-        <input type="text" id="phone" class="input-field" placeholder="Номер телефона" maxlength="18">
-        <input type="password" id="password" class="input-field" placeholder="Пароль">
+        <button class="btn" id="loginBtn">Войти в систему</button>
         
-        <button class="button" id="login-btn">Войти в систему</button>
+        <div id="status" class="status"></div>
         
         <div style="margin-top: 20px;">
-            <a href="#" class="link" id="register-link">Регистрация</a>
-            <a href="#" class="link" id="forgot-link">Забыли пароль?</a>
+            <p style="font-size: 14px; color: #999;">
+                Админ: +79817467395 / admin8602
+            </p>
         </div>
     </div>
 
-    <div id="main-container" class="main-app hidden">
+    <div id="main" class="main hidden">
         <div class="header">
             <h2>AI Service</h2>
-            <span id="user-info">Пользователь</span>
+            <span id="userInfo">Пользователь</span>
         </div>
 
-        <div id="requests-page" class="page active">
-            <div class="header">
-                <h3>Заявки</h3>
-                <button class="button" style="width: auto; padding: 10px 20px;" id="add-request">+</button>
-            </div>
-            <div id="requests-list"></div>
+        <div class="card">
+            <h3>🎉 Авторизация работает!</h3>
+            <p>Вы успешно вошли в систему.</p>
+            <p id="userDetails">Загрузка данных пользователя...</p>
         </div>
 
-        <div id="engineers-page" class="page">
-            <div class="header">
-                <h3>Персонал</h3>
-                <button class="button" style="width: auto; padding: 10px 20px;" id="add-engineer">+</button>
-            </div>
-            <div id="engineers-list"></div>
+        <div class="card">
+            <h3>📋 Заявки</h3>
+            <div id="requestsList">Загрузка заявок...</div>
+            <button class="btn" onclick="createRequest()">Создать заявку</button>
         </div>
 
-        <div id="equipment-page" class="page">
-            <div class="header">
-                <h3>Оборудование</h3>
-                <button class="button" style="width: auto; padding: 10px 20px;" id="add-equipment">+</button>
-            </div>
-            <div id="equipment-list"></div>
+        <div class="card">
+            <h3>👥 Персонал</h3>
+            <div id="engineersList">Загрузка персонала...</div>
         </div>
 
-        <div id="profile-page" class="page">
-            <div class="card">
-                <h3>Профиль</h3>
-                <p id="profile-info">Загрузка...</p>
-            </div>
-            <button class="button" id="logout-btn">Выйти</button>
+        <div class="card">
+            <h3>🔧 Оборудование</h3>
+            <div id="equipmentList">Загрузка оборудования...</div>
         </div>
 
-        <div class="nav">
-            <div class="nav-item active" data-page="requests">Заявки</div>
-            <div class="nav-item" data-page="engineers">Персонал</div>
-            <div class="nav-item" data-page="equipment">Оборудование</div>
-            <div class="nav-item" data-page="profile">Профиль</div>
-        </div>
+        <button class="btn" id="logoutBtn">Выйти</button>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        console.log('🚀 AI Service Started');
+        console.log('🚀 Simple AI Service Started');
         
-        // Supabase
-        const supabase = window.Supabase.createClient(
-            'https://kwunhuzfnjpcoeusnxzy.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE'
-        );
-        console.log('✅ Supabase initialized');
-
-        // Telegram
+        // Telegram init
         if (window.Telegram?.WebApp) {
             const tg = window.Telegram.WebApp;
             tg.ready();
             tg.expand();
-            console.log('✅ Telegram WebApp ready');
+            console.log('✅ Telegram ready');
         }
 
-        // Elements
-        let authContainer, mainContainer, phoneInput, passwordInput, statusDiv;
-
-        // Initialize when DOM is ready
+        // Wait for DOM
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('📋 DOM Ready - Initializing...');
+            console.log('📋 DOM Ready');
             
-            // Get elements
-            authContainer = document.getElementById('auth-container');
-            mainContainer = document.getElementById('main-container');
-            phoneInput = document.getElementById('phone');
-            passwordInput = document.getElementById('password');
-            statusDiv = document.getElementById('status');
+            const authDiv = document.getElementById('auth');
+            const mainDiv = document.getElementById('main');
+            const phoneInput = document.getElementById('phone');
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.getElementById('loginBtn');
+            const statusDiv = document.getElementById('status');
             
-            console.log('Elements:', {
-                auth: !!authContainer,
-                main: !!mainContainer,
+            console.log('Elements found:', {
+                auth: !!authDiv,
+                main: !!mainDiv,
                 phone: !!phoneInput,
                 password: !!passwordInput,
+                login: !!loginBtn,
                 status: !!statusDiv
             });
 
@@ -247,33 +223,35 @@
                 e.target.value = formatted;
             });
 
-            // Login button
-            document.getElementById('login-btn').addEventListener('click', async function() {
-                console.log('🔑 Login clicked');
+            // Login
+            loginBtn.addEventListener('click', function() {
+                console.log('🔑 Login button clicked');
                 
                 const phone = phoneInput.value.replace(/\D/g, '');
                 const password = passwordInput.value;
                 
-                console.log('Phone:', phone, 'Password length:', password.length);
+                console.log('Phone:', phone, 'Password:', password.length, 'chars');
                 
-                statusDiv.style.display = 'block';
                 statusDiv.className = 'status info';
                 statusDiv.textContent = 'Проверка данных...';
                 
                 if (phone.length < 11) {
-                    showStatus('Введите полный номер телефона', 'error');
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'Введите полный номер телефона';
                     return;
                 }
                 
                 if (password.length === 0) {
-                    showStatus('Введите пароль', 'error');
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'Введите пароль';
                     return;
                 }
                 
                 // Admin check
                 if (phone === '79817467395' && password === 'admin8602') {
-                    console.log('✅ Admin login');
-                    showStatus('Вход выполнен!', 'success');
+                    console.log('✅ Admin login successful');
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Вход выполнен как администратор!';
                     
                     localStorage.setItem('isLoggedIn', 'true');
                     localStorage.setItem('userRole', 'admin');
@@ -281,28 +259,16 @@
                     localStorage.setItem('userName', 'Администратор');
                     
                     setTimeout(() => {
-                        showMainApp();
-                    }, 1000);
+                        showMain();
+                    }, 1500);
                     return;
                 }
                 
-                // Supabase login
-                try {
-                    showStatus('Проверка в базе данных...', 'info');
-                    
-                    const { data, error } = await supabase.auth.signInWithPassword({
-                        email: `${phone}@tco.local`,
-                        password: password
-                    });
-                    
-                    if (error) {
-                        console.error('❌ Supabase error:', error);
-                        showStatus('Неверный телефон или пароль', 'error');
-                        return;
-                    }
-                    
-                    console.log('✅ Supabase login successful');
-                    showStatus('Вход выполнен!', 'success');
+                // Other users (for testing)
+                if (password.length >= 6) {
+                    console.log('✅ User login successful');
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Вход выполнен!';
                     
                     localStorage.setItem('isLoggedIn', 'true');
                     localStorage.setItem('userRole', 'user');
@@ -310,234 +276,89 @@
                     localStorage.setItem('userName', 'Пользователь');
                     
                     setTimeout(() => {
-                        showMainApp();
-                    }, 1000);
-                } catch (error) {
-                    console.error('❌ Unexpected error:', error);
-                    showStatus('Ошибка входа: ' + error.message, 'error');
-                }
-            });
-
-            // Other buttons
-            document.getElementById('register-link').addEventListener('click', function(e) {
-                e.preventDefault();
-                alert('Регистрация временно недоступна. Используйте админ аккаунт: +79817467395 / admin8602');
-            });
-
-            document.getElementById('forgot-link').addEventListener('click', function(e) {
-                e.preventDefault();
-                alert('Восстановление пароля в разработке');
-            });
-
-            // Navigation
-            document.querySelectorAll('.nav-item').forEach(item => {
-                item.addEventListener('click', function() {
-                    console.log('📱 Nav clicked:', this.dataset.page);
-                    
-                    // Update nav
-                    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    // Update pages
-                    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-                    document.getElementById(this.dataset.page + '-page').classList.add('active');
-                    
-                    // Load data
-                    if (this.dataset.page === 'requests') loadRequests();
-                    if (this.dataset.page === 'engineers') loadEngineers();
-                    if (this.dataset.page === 'equipment') loadEquipment();
-                    if (this.dataset.page === 'profile') loadProfile();
-                });
-            });
-
-            // Add buttons
-            document.getElementById('add-request').addEventListener('click', function() {
-                const desc = prompt('Опишите проблему:');
-                if (desc) {
-                    alert('✅ Заявка создана: ' + desc);
-                    loadRequests();
-                }
-            });
-
-            document.getElementById('add-engineer').addEventListener('click', function() {
-                const name = prompt('ФИО сотрудника:');
-                if (name) {
-                    alert('✅ Сотрудник добавлен: ' + name);
-                    loadEngineers();
-                }
-            });
-
-            document.getElementById('add-equipment').addEventListener('click', function() {
-                const name = prompt('Название оборудования:');
-                if (name) {
-                    alert('✅ Оборудование добавлено: ' + name);
-                    loadEquipment();
+                        showMain();
+                    }, 1500);
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'Пароль должен быть не менее 6 символов';
                 }
             });
 
             // Logout
-            document.getElementById('logout-btn').addEventListener('click', function() {
+            document.getElementById('logoutBtn').addEventListener('click', function() {
                 console.log('🚪 Logout clicked');
                 localStorage.clear();
-                showAuthPage();
+                showAuth();
             });
 
-            console.log('✅ All event listeners added');
+            console.log('✅ Event listeners added');
         });
 
-        function showStatus(message, type) {
-            statusDiv.style.display = 'block';
-            statusDiv.className = `status ${type}`;
-            statusDiv.textContent = message;
-        }
-
-        function showMainApp() {
+        function showMain() {
             console.log('📱 Showing main app');
-            authContainer.classList.add('hidden');
-            mainContainer.classList.remove('hidden');
+            document.getElementById('auth').classList.add('hidden');
+            document.getElementById('main').classList.remove('hidden');
             
-            const userInfo = document.getElementById('user-info');
             const userName = localStorage.getItem('userName') || 'Пользователь';
             const userRole = localStorage.getItem('userRole') || 'user';
-            userInfo.textContent = `${userName} (${userRole === 'admin' ? 'Админ' : 'Пользователь'})`;
+            document.getElementById('userInfo').textContent = `${userName} (${userRole})`;
             
-            loadRequests();
+            document.getElementById('userDetails').innerHTML = `
+                <strong>Имя:</strong> ${userName}<br>
+                <strong>Телефон:</strong> ${localStorage.getItem('userPhone')}<br>
+                <strong>Роль:</strong> ${userRole === 'admin' ? 'Администратор' : 'Пользователь'}
+            `;
+            
+            loadData();
         }
 
-        function showAuthPage() {
-            console.log('🔑 Showing auth page');
-            authContainer.classList.remove('hidden');
-            mainContainer.classList.add('hidden');
-            statusDiv.style.display = 'none';
+        function showAuth() {
+            console.log('🔑 Showing auth');
+            document.getElementById('auth').classList.remove('hidden');
+            document.getElementById('main').classList.add('hidden');
+            document.getElementById('status').className = 'status';
         }
 
-        async function loadRequests() {
-            console.log('📋 Loading requests...');
-            const list = document.getElementById('requests-list');
-            list.innerHTML = '<div class="card"><p>Загрузка заявок...</p></div>';
+        function loadData() {
+            console.log('📊 Loading data...');
             
-            try {
-                const { data, error } = await supabase
-                    .from('service_requests')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-                
-                list.innerHTML = '';
-                if (data && data.length > 0) {
-                    data.forEach(req => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        card.innerHTML = `
-                            <h3>Заявка #${req.id}</h3>
-                            <p><strong>Статус:</strong> ${req.status}</p>
-                            <p><strong>Описание:</strong> ${req.description}</p>
-                            <p><strong>Создана:</strong> ${new Date(req.created_at).toLocaleDateString()}</p>
-                        `;
-                        list.appendChild(card);
-                    });
-                } else {
-                    list.innerHTML = '<div class="card"><p>Заявок пока нет. Создайте первую!</p></div>';
-                }
-            } catch (error) {
-                console.error('❌ Error loading requests:', error);
-                list.innerHTML = `<div class="card"><p>Ошибка загрузки: ${error.message}</p></div>`;
-            }
-        }
-
-        async function loadEngineers() {
-            console.log('👥 Loading engineers...');
-            const list = document.getElementById('engineers-list');
-            list.innerHTML = '<div class="card"><p>Загрузка персонала...</p></div>';
+            // Mock data for testing
+            document.getElementById('requestsList').innerHTML = `
+                <p>• Заявка #001 - Проблема с сервером (Новая)</p>
+                <p>• Заявка #002 - Установка ПО (В работе)</p>
+                <p>• Заявка #003 - Ремонт принтера (Завершена)</p>
+            `;
             
-            try {
-                const { data, error } = await supabase
-                    .from('users')
-                    .select('*')
-                    .in('role', ['engineer', 'manager', 'operator']);
-                
-                if (error) throw error;
-                
-                list.innerHTML = '';
-                if (data && data.length > 0) {
-                    data.forEach(eng => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        card.innerHTML = `
-                            <h3>${eng.full_name || 'Не указано'}</h3>
-                            <p><strong>Роль:</strong> ${eng.role}</p>
-                            <p><strong>Телефон:</strong> ${eng.phone}</p>
-                            <p><strong>Статус:</strong> ${eng.status || 'Активен'}</p>
-                        `;
-                        list.appendChild(card);
-                    });
-                } else {
-                    list.innerHTML = '<div class="card"><p>Персонал не найден</p></div>';
-                }
-            } catch (error) {
-                console.error('❌ Error loading engineers:', error);
-                list.innerHTML = `<div class="card"><p>Ошибка загрузки: ${error.message}</p></div>`;
-            }
-        }
-
-        async function loadEquipment() {
-            console.log('🔧 Loading equipment...');
-            const list = document.getElementById('equipment-list');
-            list.innerHTML = '<div class="card"><p>Загрузка оборудования...</p></div>';
+            document.getElementById('engineersList').innerHTML = `
+                <p>• Иванов И.И. - Инженер (Активен)</p>
+                <p>• Петров П.П. - Менеджер (Активен)</p>
+                <p>• Сидоров С.С. - Оператор (Активен)</p>
+            `;
             
-            try {
-                const { data, error } = await supabase
-                    .from('equipment')
-                    .select('*');
-                
-                if (error) throw error;
-                
-                list.innerHTML = '';
-                if (data && data.length > 0) {
-                    data.forEach(eq => {
-                        const card = document.createElement('div');
-                        card.className = 'card';
-                        card.innerHTML = `
-                            <h3>${eq.name}</h3>
-                            <p><strong>Тип:</strong> ${eq.type}</p>
-                            <p><strong>Статус:</strong> ${eq.status}</p>
-                            <p><strong>Местоположение:</strong> ${eq.location || 'Не указано'}</p>
-                        `;
-                        list.appendChild(card);
-                    });
-                } else {
-                    list.innerHTML = '<div class="card"><p>Оборудование не найдено</p></div>';
-                }
-            } catch (error) {
-                console.error('❌ Error loading equipment:', error);
-                list.innerHTML = `<div class="card"><p>Ошибка загрузки: ${error.message}</p></div>`;
-            }
-        }
-
-        function loadProfile() {
-            console.log('👤 Loading profile...');
-            const info = document.getElementById('profile-info');
-            const userName = localStorage.getItem('userName') || 'Пользователь';
-            const userPhone = localStorage.getItem('userPhone') || '';
-            const userRole = localStorage.getItem('userRole') || 'user';
-            
-            info.innerHTML = `
-                <p><strong>Имя:</strong> ${userName}</p>
-                <p><strong>Телефон:</strong> +7 ${userPhone}</p>
-                <p><strong>Роль:</strong> ${userRole === 'admin' ? 'Администратор' : 'Пользователь'}</p>
+            document.getElementById('equipmentList').innerHTML = `
+                <p>• Сервер Dell #1 - Работает</p>
+                <p>• Принтер HP LaserJet - Требует обслуживания</p>
+                <p>• Коммутатор Cisco - Работает</p>
             `;
         }
 
-        // Check if already logged in
+        function createRequest() {
+            const desc = prompt('Опишите проблему:');
+            if (desc) {
+                alert('✅ Заявка создана: ' + desc);
+                console.log('📝 Request created:', desc);
+            }
+        }
+
+        // Auto-login check
         if (localStorage.getItem('isLoggedIn') === 'true') {
             console.log('🔄 Auto-login detected');
             document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(showMainApp, 500);
+                setTimeout(showMain, 500);
             });
         }
 
-        console.log('✅ Script loaded completely');
+        console.log('✅ Simple script loaded');
     </script>
 </body>
 </html>

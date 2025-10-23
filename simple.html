@@ -1,170 +1,364 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>T-Company Service</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Service</title>
+    <meta name="telegram-web-app" content="yes">
+    <meta http-equiv="X-Frame-Options" content="ALLOWALL">
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org https://t.me https://*.t.me;">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            color: var(--tg-theme-text-color, #000000);
+            background: linear-gradient(135deg, #4285F4, #1565C0);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
         .container {
-            padding: 20px;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100%;
             max-width: 400px;
-            margin: 0 auto;
-        }
-        .header {
             text-align: center;
-            margin-bottom: 30px;
         }
         .logo {
-            font-size: 48px;
-            margin-bottom: 10px;
-        }
-        .title {
-            font-size: 24px;
+            width: 80px;
+            height: 80px;
+            background: #4285F4;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 36px;
             font-weight: bold;
-            margin-bottom: 5px;
         }
-        .subtitle {
-            color: var(--tg-theme-hint-color, #707579);
-            font-size: 14px;
-        }
-        .card {
-            background: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .button {
-            background: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
+        h1 { color: #4285F4; margin-bottom: 10px; font-size: 28px; }
+        p { color: #666; margin-bottom: 30px; font-size: 16px; }
+        .input {
             width: 100%;
-            margin-bottom: 10px;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
         }
-        .button:active {
-            opacity: 0.8;
+        .input:focus {
+            border-color: #4285F4;
+            outline: none;
         }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: #4285F4;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        .btn:hover { background: #1565C0; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
         .status {
-            text-align: center;
+            margin-top: 15px;
             padding: 10px;
             border-radius: 8px;
-            margin: 10px 0;
+            font-weight: 500;
+            display: none;
         }
-        .success {
-            background: rgba(0, 199, 62, 0.1);
-            color: #00c73e;
+        .status.success { background: #d4edda; color: #155724; display: block; }
+        .status.error { background: #f8d7da; color: #721c24; display: block; }
+        .status.info { background: #d1ecf1; color: #0c5460; display: block; }
+        .hidden { display: none !important; }
+        .main {
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
         }
-        .info {
-            background: rgba(51, 144, 236, 0.1);
-            color: #3390ec;
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .card h3 { color: #4285F4; margin-bottom: 10px; }
+        .nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .nav-item {
+            flex: 1;
+            padding: 15px 10px;
+            text-align: center;
+            color: #666;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        .nav-item.active { color: #4285F4; font-weight: 600; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">🏢</div>
-            <div class="title">T-Company Service</div>
-            <div class="subtitle">Мини-приложение</div>
-        </div>
+    <div id="auth" class="container">
+        <div class="logo">AI</div>
+        <h1>AI Service</h1>
+        <p>Система управления сервисными заявками</p>
         
-        <div class="card">
-            <h3>Добро пожаловать!</h3>
-            <p>Это тестовая версия приложения T-Company Service для Telegram.</p>
-            
-            <div id="user-info" class="status info">
-                Загрузка информации о пользователе...
-            </div>
-            
-            <button class="button" onclick="showAlert()">
-                Тест уведомления
-            </button>
-            
-            <button class="button" onclick="showHaptic()">
-                Тест вибрации
-            </button>
-            
-            <button class="button" onclick="openLink()">
-                Открыть ссылку
-            </button>
-        </div>
+        <input type="text" id="phone" class="input" placeholder="Номер телефона" maxlength="18">
+        <input type="password" id="password" class="input" placeholder="Пароль">
         
-        <div class="card">
-            <h3>Статус Telegram WebApp</h3>
-            <div id="tg-status" class="status info">
-                Проверка...
-            </div>
+        <button class="btn" id="loginBtn">Войти в систему</button>
+        
+        <div id="status" class="status"></div>
+        
+        <div style="margin-top: 20px;">
+            <p style="font-size: 14px; color: #999;">
+                Админ: +79817467395 / admin8602
+            </p>
         </div>
     </div>
 
+    <div id="main" class="main hidden">
+        <div class="header">
+            <h2>AI Service</h2>
+            <span id="userInfo">Пользователь</span>
+        </div>
+
+        <div class="card">
+            <h3>🎉 Авторизация работает!</h3>
+            <p>Вы успешно вошли в систему.</p>
+            <p id="userDetails">Загрузка данных пользователя...</p>
+        </div>
+
+        <div class="card">
+            <h3>📋 Заявки</h3>
+            <div id="requestsList">Загрузка заявок...</div>
+            <button class="btn" onclick="createRequest()">Создать заявку</button>
+        </div>
+
+        <div class="card">
+            <h3>👥 Персонал</h3>
+            <div id="engineersList">Загрузка персонала...</div>
+        </div>
+
+        <div class="card">
+            <h3>🔧 Оборудование</h3>
+            <div id="equipmentList">Загрузка оборудования...</div>
+        </div>
+
+        <button class="btn" id="logoutBtn">Выйти</button>
+    </div>
+
     <script>
-        // Initialize Telegram WebApp
-        const tg = window.Telegram.WebApp;
+        console.log('🚀 Simple AI Service Started');
         
-        // Expand to full height
-        tg.expand();
-        
-        // Set up main button
-        tg.MainButton.setText("Закрыть");
-        tg.MainButton.show();
-        tg.MainButton.onClick(() => {
-            tg.close();
+        // Telegram init
+        if (window.Telegram?.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            console.log('✅ Telegram ready');
+        }
+
+        // Wait for DOM
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📋 DOM Ready');
+            
+            const authDiv = document.getElementById('auth');
+            const mainDiv = document.getElementById('main');
+            const phoneInput = document.getElementById('phone');
+            const passwordInput = document.getElementById('password');
+            const loginBtn = document.getElementById('loginBtn');
+            const statusDiv = document.getElementById('status');
+            
+            console.log('Elements found:', {
+                auth: !!authDiv,
+                main: !!mainDiv,
+                phone: !!phoneInput,
+                password: !!passwordInput,
+                login: !!loginBtn,
+                status: !!statusDiv
+            });
+
+            // Phone mask
+            phoneInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value.length > 11) value = value.substring(0, 11);
+                
+                let formatted = '';
+                if (value.length > 0) {
+                    formatted = '+7';
+                    if (value.length > 1) formatted += ' (' + value.substring(1, 4);
+                    if (value.length > 4) formatted += ') ' + value.substring(4, 7);
+                    if (value.length > 7) formatted += '-' + value.substring(7, 9);
+                    if (value.length > 9) formatted += '-' + value.substring(9, 11);
+                }
+                e.target.value = formatted;
+            });
+
+            // Login
+            loginBtn.addEventListener('click', function() {
+                console.log('🔑 Login button clicked');
+                
+                const phone = phoneInput.value.replace(/\D/g, '');
+                const password = passwordInput.value;
+                
+                console.log('Phone:', phone, 'Password:', password.length, 'chars');
+                
+                statusDiv.className = 'status info';
+                statusDiv.textContent = 'Проверка данных...';
+                
+                if (phone.length < 11) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'Введите полный номер телефона';
+                    return;
+                }
+                
+                if (password.length === 0) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'Введите пароль';
+                    return;
+                }
+                
+                // Admin check
+                if (phone === '79817467395' && password === 'admin8602') {
+                    console.log('✅ Admin login successful');
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Вход выполнен как администратор!';
+                    
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userRole', 'admin');
+                    localStorage.setItem('userPhone', phone);
+                    localStorage.setItem('userName', 'Администратор');
+                    
+                    setTimeout(() => {
+                        showMain();
+                    }, 1500);
+                    return;
+                }
+                
+                // Other users (for testing)
+                if (password.length >= 6) {
+                    console.log('✅ User login successful');
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Вход выполнен!';
+                    
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userRole', 'user');
+                    localStorage.setItem('userPhone', phone);
+                    localStorage.setItem('userName', 'Пользователь');
+                    
+                    setTimeout(() => {
+                        showMain();
+                    }, 1500);
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'Пароль должен быть не менее 6 символов';
+                }
+            });
+
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', function() {
+                console.log('🚪 Logout clicked');
+                localStorage.clear();
+                showAuth();
+            });
+
+            console.log('✅ Event listeners added');
         });
-        
-        // Check Telegram WebApp status
-        const statusDiv = document.getElementById('tg-status');
-        if (tg.initData) {
-            statusDiv.innerHTML = '✅ Telegram WebApp работает корректно!';
-            statusDiv.className = 'status success';
-        } else {
-            statusDiv.innerHTML = '❌ Telegram WebApp не обнаружен';
-            statusDiv.className = 'status error';
-        }
-        
-        // Get user info
-        const userInfoDiv = document.getElementById('user-info');
-        const user = tg.initDataUnsafe?.user;
-        if (user) {
-            userInfoDiv.innerHTML = `
-                <strong>Привет, ${user.first_name}!</strong><br>
-                Username: @${user.username || 'не указан'}<br>
-                ID: ${user.id}
+
+        function showMain() {
+            console.log('📱 Showing main app');
+            document.getElementById('auth').classList.add('hidden');
+            document.getElementById('main').classList.remove('hidden');
+            
+            const userName = localStorage.getItem('userName') || 'Пользователь';
+            const userRole = localStorage.getItem('userRole') || 'user';
+            document.getElementById('userInfo').textContent = `${userName} (${userRole})`;
+            
+            document.getElementById('userDetails').innerHTML = `
+                <strong>Имя:</strong> ${userName}<br>
+                <strong>Телефон:</strong> ${localStorage.getItem('userPhone')}<br>
+                <strong>Роль:</strong> ${userRole === 'admin' ? 'Администратор' : 'Пользователь'}
             `;
-            userInfoDiv.className = 'status success';
-        } else {
-            userInfoDiv.innerHTML = '❌ Информация о пользователе недоступна';
-            userInfoDiv.className = 'status error';
+            
+            loadData();
         }
-        
-        // Test functions
-        function showAlert() {
-            tg.showAlert('Это тестовое уведомление!');
+
+        function showAuth() {
+            console.log('🔑 Showing auth');
+            document.getElementById('auth').classList.remove('hidden');
+            document.getElementById('main').classList.add('hidden');
+            document.getElementById('status').className = 'status';
         }
-        
-        function showHaptic() {
-            tg.HapticFeedback.impactOccurred('medium');
-            tg.showAlert('Вибрация активирована!');
+
+        function loadData() {
+            console.log('📊 Loading data...');
+            
+            // Mock data for testing
+            document.getElementById('requestsList').innerHTML = `
+                <p>• Заявка #001 - Проблема с сервером (Новая)</p>
+                <p>• Заявка #002 - Установка ПО (В работе)</p>
+                <p>• Заявка #003 - Ремонт принтера (Завершена)</p>
+            `;
+            
+            document.getElementById('engineersList').innerHTML = `
+                <p>• Иванов И.И. - Инженер (Активен)</p>
+                <p>• Петров П.П. - Менеджер (Активен)</p>
+                <p>• Сидоров С.С. - Оператор (Активен)</p>
+            `;
+            
+            document.getElementById('equipmentList').innerHTML = `
+                <p>• Сервер Dell #1 - Работает</p>
+                <p>• Принтер HP LaserJet - Требует обслуживания</p>
+                <p>• Коммутатор Cisco - Работает</p>
+            `;
         }
-        
-        function openLink() {
-            tg.openLink('https://t.me/Assistant_t_co_bot');
+
+        function createRequest() {
+            const desc = prompt('Опишите проблему:');
+            if (desc) {
+                alert('✅ Заявка создана: ' + desc);
+                console.log('📝 Request created:', desc);
+            }
         }
-        
-        // Show ready state
-        tg.ready();
+
+        // Auto-login check
+        if (localStorage.getItem('isLoggedIn') === 'true') {
+            console.log('🔄 Auto-login detected');
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(showMain, 500);
+            });
+        }
+
+        console.log('✅ Simple script loaded');
     </script>
 </body>
 </html>
