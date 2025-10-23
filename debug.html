@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug AI Service</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="telegram-web-app" content="yes">
+    <meta http-equiv="X-Frame-Options" content="ALLOWALL">
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org https://t.me https://*.t.me;">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .debug-box {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #F44336; }
+        .info { border-left: 4px solid #2196F3; }
+        .button {
+            background: #4285F4;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover { background: #1565C0; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 AI Service Debug Page</h1>
+    <p>Диагностика всех проблем приложения</p>
+
+    <div id="version-info" class="debug-box info">
+        <h3>📊 Информация о версии</h3>
+        <p>Время создания: <span id="build-time"></span></p>
+        <p>Размер файла: <span id="file-size"></span></p>
+        <p>Git commit: <span id="git-commit">6607647</span></p>
+    </div>
+
+    <div id="telegram-test" class="debug-box">
+        <h3>📱 Telegram WebApp Test</h3>
+        <p id="telegram-status">Проверка...</p>
+        <button class="button" onclick="testTelegram()">Тест Telegram</button>
+    </div>
+
+    <div id="supabase-test" class="debug-box">
+        <h3>🗄️ Supabase Connection Test</h3>
+        <p id="supabase-status">Проверка...</p>
+        <button class="button" onclick="testSupabase()">Тест Supabase</button>
+    </div>
+
+    <div id="auth-test" class="debug-box">
+        <h3>🔑 Authentication Test</h3>
+        <input type="text" id="test-phone" placeholder="Телефон" value="+79817467395" style="padding: 8px; margin: 5px;">
+        <input type="password" id="test-password" placeholder="Пароль" value="admin8602" style="padding: 8px; margin: 5px;">
+        <button class="button" onclick="testAuth()">Тест авторизации</button>
+        <p id="auth-status">Готов к тесту</p>
+    </div>
+
+    <div id="db-test" class="debug-box">
+        <h3>📋 Database Test</h3>
+        <button class="button" onclick="testDatabase()">Тест БД</button>
+        <p id="db-status">Готов к тесту</p>
+    </div>
+
+    <div id="console-logs" class="debug-box">
+        <h3>📝 Console Logs</h3>
+        <pre id="logs"></pre>
+        <button class="button" onclick="clearLogs()">Очистить логи</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Override console.log to capture logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logs = [];
+        
+        function addLog(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.join(' ');
+            logs.push(`[${timestamp}] ${type.toUpperCase()}: ${message}`);
+            updateLogsDisplay();
+            
+            if (type === 'log') originalLog(...args);
+            if (type === 'error') originalError(...args);
+        }
+        
+        console.log = (...args) => addLog('log', ...args);
+        console.error = (...args) => addLog('error', ...args);
+        
+        function updateLogsDisplay() {
+            document.getElementById('logs').textContent = logs.slice(-20).join('\n');
+        }
+        
+        function clearLogs() {
+            logs.length = 0;
+            updateLogsDisplay();
+        }
+
+        console.log('🚀 Debug page started');
+
+        // Initialize version info
+        document.getElementById('build-time').textContent = new Date().toLocaleString();
+        document.getElementById('file-size').textContent = 'Calculating...';
+
+        // Supabase
+        let supabase;
+        try {
+            supabase = window.Supabase.createClient(
+                'https://kwunhuzfnjpcoeusnxzy.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE'
+            );
+            console.log('✅ Supabase client created');
+        } catch (error) {
+            console.error('❌ Supabase initialization failed:', error);
+        }
+
+        function testTelegram() {
+            const status = document.getElementById('telegram-status');
+            
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                try {
+                    tg.ready();
+                    tg.expand();
+                    status.innerHTML = `✅ Telegram WebApp работает!<br>Версия: ${tg.version}<br>Платформа: ${tg.platform}`;
+                    status.parentElement.className = 'debug-box success';
+                } catch (error) {
+                    status.innerHTML = `❌ Ошибка Telegram WebApp: ${error.message}`;
+                    status.parentElement.className = 'debug-box error';
+                }
+            } else {
+                status.innerHTML = '❌ Telegram WebApp недоступен';
+                status.parentElement.className = 'debug-box error';
+            }
+        }
+
+        async function testSupabase() {
+            const status = document.getElementById('supabase-status');
+            status.innerHTML = 'Тестирование подключения...';
+            
+            if (!supabase) {
+                status.innerHTML = '❌ Supabase не инициализирован';
+                status.parentElement.className = 'debug-box error';
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error) throw error;
+                
+                status.innerHTML = '✅ Supabase подключен успешно!<br>Сессия: ' + (data.session ? 'Активна' : 'Нет');
+                status.parentElement.className = 'debug-box success';
+            } catch (error) {
+                console.error('Supabase test error:', error);
+                status.innerHTML = `❌ Ошибка Supabase: ${error.message}`;
+                status.parentElement.className = 'debug-box error';
+            }
+        }
+
+        async function testAuth() {
+            const status = document.getElementById('auth-status');
+            const phone = document.getElementById('test-phone').value.replace(/\D/g, '');
+            const password = document.getElementById('test-password').value;
+            
+            console.log('Testing auth with phone:', phone, 'password length:', password.length);
+            
+            status.innerHTML = 'Тестирование авторизации...';
+            
+            if (phone === '79817467395' && password === 'admin8602') {
+                status.innerHTML = '✅ Админ аккаунт работает!';
+                status.parentElement.className = 'debug-box success';
+                return;
+            }
+            
+            if (!supabase) {
+                status.innerHTML = '❌ Supabase недоступен для теста';
+                status.parentElement.className = 'debug-box error';
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: `${phone}@tco.local`,
+                    password: password
+                });
+                
+                if (error) {
+                    status.innerHTML = `❌ Ошибка авторизации: ${error.message}`;
+                    status.parentElement.className = 'debug-box error';
+                } else {
+                    status.innerHTML = '✅ Supabase авторизация работает!';
+                    status.parentElement.className = 'debug-box success';
+                }
+            } catch (error) {
+                console.error('Auth test error:', error);
+                status.innerHTML = `❌ Ошибка теста: ${error.message}`;
+                status.parentElement.className = 'debug-box error';
+            }
+        }
+
+        async function testDatabase() {
+            const status = document.getElementById('db-status');
+            status.innerHTML = 'Тестирование БД...';
+            
+            if (!supabase) {
+                status.innerHTML = '❌ Supabase недоступен';
+                status.parentElement.className = 'debug-box error';
+                return;
+            }
+            
+            try {
+                // Test service_requests table
+                const { data: requests, error: reqError } = await supabase
+                    .from('service_requests')
+                    .select('count(*)')
+                    .limit(1);
+                
+                if (reqError) throw reqError;
+                
+                // Test users table
+                const { data: users, error: userError } = await supabase
+                    .from('users')
+                    .select('count(*)')
+                    .limit(1);
+                
+                if (userError) throw userError;
+                
+                // Test equipment table
+                const { data: equipment, error: eqError } = await supabase
+                    .from('equipment')
+                    .select('count(*)')
+                    .limit(1);
+                
+                if (eqError) throw eqError;
+                
+                status.innerHTML = `✅ Все таблицы доступны!<br>
+                    service_requests: ✅<br>
+                    users: ✅<br>
+                    equipment: ✅`;
+                status.parentElement.className = 'debug-box success';
+                
+            } catch (error) {
+                console.error('Database test error:', error);
+                status.innerHTML = `❌ Ошибка БД: ${error.message}`;
+                status.parentElement.className = 'debug-box error';
+            }
+        }
+
+        // Auto-run tests
+        window.addEventListener('load', function() {
+            console.log('🔄 Auto-running tests...');
+            setTimeout(testTelegram, 500);
+            setTimeout(testSupabase, 1000);
+            setTimeout(testDatabase, 1500);
+        });
+
+        console.log('✅ Debug script loaded');
+    </script>
+</body>
+</html>
