@@ -55,8 +55,15 @@
     });
   </script>
   <script>
-    // Telegram WebApp initialization
-    window.addEventListener('DOMContentLoaded', function() {
+    // Fix for Flutter 3.35.5 and Telegram Mini Apps
+    window.addEventListener('load', function() {
+      // Ensure hash routing works for Telegram
+      const currentUrl = window.location.href;
+      if (!currentUrl.includes('#/') && currentUrl.includes('#')) {
+        window.history.replaceState(null, '', currentUrl.split('#')[0] + '#/');
+      }
+      
+      // Telegram WebApp initialization
       if (window.Telegram && window.Telegram.WebApp) {
         try {
           const tg = window.Telegram.WebApp;
@@ -71,6 +78,14 @@
           console.error('Telegram WebApp init error:', error);
         }
       }
+      
+      // Hide loading when Flutter is ready
+      window.addEventListener('flutter-first-frame', function() {
+        const loading = document.getElementById('loading');
+        if (loading) {
+          loading.style.display = 'none';
+        }
+      });
     });
   </script>
   <script type="text/javascript">

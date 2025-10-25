@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_strategy/url_strategy.dart';
 import 'services/app_router.dart';
 import 'screens/auth_screen.dart';
 import 'theme/app_theme.dart';
@@ -7,6 +8,9 @@ import 'config/supabase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set hash routing for Telegram Mini App compatibility
+  setHashUrlStrategy();
   
   try {
     // Инициализируем Supabase
