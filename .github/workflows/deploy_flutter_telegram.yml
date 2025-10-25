@@ -42,12 +42,8 @@ jobs:
     
     - name: Build web for Telegram Mini App
       run: |
-        # Build with HTML renderer and hash routing for Telegram compatibility
-        flutter build web \
-          --web-renderer html \
-          --release \
-          --pwa-strategy none \
-          --base-href /t-company-service/
+        # Build with hash routing for Telegram compatibility
+        flutter build web --release --base-href /t-company-service/
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
