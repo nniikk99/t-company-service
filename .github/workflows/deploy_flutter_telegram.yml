@@ -42,8 +42,8 @@ jobs:
     
     - name: Build web for Telegram Mini App
       run: |
-        # Build with HTML renderer for Telegram WebView compatibility
-        flutter build web --release --base-href /t-company-service/ --web-renderer html
+        # Build for Telegram WebView compatibility
+        flutter build web --release --base-href /t-company-service/
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
