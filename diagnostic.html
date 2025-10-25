@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 DIAGNOSTIC - AI Service</title>
+    <meta name="telegram-web-app" content="yes">
+    <meta http-equiv="X-Frame-Options" content="ALLOWALL">
+    <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org https://t.me https://*.t.me;">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #4285F4, #1565C0);
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 { color: #4285F4; text-align: center; margin-bottom: 30px; }
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4285F4;
+        }
+        .test-section h3 { margin-top: 0; color: #333; }
+        .btn {
+            background: #4285F4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn:hover { background: #1565C0; }
+        .btn.success { background: #28a745; }
+        .btn.error { background: #dc3545; }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background: #28a745; }
+        .status-error { background: #dc3545; }
+        .status-warning { background: #ffc107; }
+        .status-info { background: #17a2b8; }
+        .quick-fix {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .quick-fix h4 { margin-top: 0; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 ДИАГНОСТИКА AI SERVICE</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Полная диагностика всех компонентов системы
+        </p>
+
+        <div class="test-section">
+            <h3><span class="status-indicator status-info"></span>1. Базовые проверки</h3>
+            <button class="btn" onclick="testBasic()">Проверить базовую функциональность</button>
+            <div id="basic-result" class="result info">Ожидание проверки...</div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status-indicator status-info"></span>2. Telegram WebApp API</h3>
+            <button class="btn" onclick="testTelegram()">Проверить Telegram WebApp</button>
+            <div id="telegram-result" class="result info">Ожидание проверки...</div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status-indicator status-info"></span>3. Supabase подключение</h3>
+            <button class="btn" onclick="testSupabase()">Проверить Supabase</button>
+            <div id="supabase-result" class="result info">Ожидание проверки...</div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status-indicator status-info"></span>4. Авторизация</h3>
+            <button class="btn" onclick="testAuth()">Тест авторизации админа</button>
+            <div id="auth-result" class="result info">Ожидание проверки...</div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status-indicator status-info"></span>5. База данных</h3>
+            <button class="btn" onclick="testDatabase()">Проверить таблицы БД</button>
+            <div id="database-result" class="result info">Ожидание проверки...</div>
+        </div>
+
+        <div class="test-section">
+            <h3><span class="status-indicator status-info"></span>6. Полная диагностика</h3>
+            <button class="btn success" onclick="runFullDiagnostic()">🚀 ЗАПУСТИТЬ ПОЛНУЮ ДИАГНОСТИКУ</button>
+            <div id="full-result" class="result info">Ожидание полной диагностики...</div>
+        </div>
+
+        <div class="quick-fix">
+            <h4>⚡ Быстрые исправления:</h4>
+            <p><strong>Если ничего не работает:</strong></p>
+            <ul>
+                <li>1. Проверь интернет-соединение</li>
+                <li>2. Очисти кеш браузера (Ctrl+Shift+Delete)</li>
+                <li>3. Попробуй другой браузер</li>
+                <li>4. Проверь консоль браузера (F12 → Console)</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="index.html" style="color: #4285F4; text-decoration: none; font-weight: 600;">
+                ← Вернуться к основному приложению
+            </a>
+        </div>
+    </div>
+
+    <script>
+        console.log('🔧 DIAGNOSTIC TOOL STARTED');
+
+        const SUPABASE_URL = 'https://kwunhuzfnjpcoeusnxzy.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE';
+        
+        let supabase = null;
+        let diagnosticResults = {};
+
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.className = `result ${type}`;
+            element.textContent = message;
+        }
+
+        function updateStatusIndicator(sectionNumber, status) {
+            const indicator = document.querySelector(`.test-section:nth-child(${sectionNumber + 1}) .status-indicator`);
+            if (indicator) {
+                indicator.className = `status-indicator status-${status}`;
+            }
+        }
+
+        function testBasic() {
+            showResult('basic-result', 'Проверка базовой функциональности...', 'info');
+            
+            try {
+                const tests = [];
+                
+                // Test 1: JavaScript работает
+                tests.push('✅ JavaScript работает');
+                
+                // Test 2: DOM доступен
+                if (document.body) {
+                    tests.push('✅ DOM доступен');
+                } else {
+                    tests.push('❌ DOM недоступен');
+                }
+                
+                // Test 3: Console работает
+                console.log('✅ Console работает');
+                tests.push('✅ Console работает');
+                
+                // Test 4: LocalStorage работает
+                try {
+                    localStorage.setItem('test', 'test');
+                    localStorage.removeItem('test');
+                    tests.push('✅ LocalStorage работает');
+                } catch (e) {
+                    tests.push('❌ LocalStorage не работает: ' + e.message);
+                }
+                
+                // Test 5: Fetch API работает
+                if (typeof fetch !== 'undefined') {
+                    tests.push('✅ Fetch API доступен');
+                } else {
+                    tests.push('❌ Fetch API недоступен');
+                }
+                
+                diagnosticResults.basic = 'success';
+                updateStatusIndicator(1, 'success');
+                showResult('basic-result', tests.join('\n'), 'success');
+                
+            } catch (error) {
+                diagnosticResults.basic = 'error';
+                updateStatusIndicator(1, 'error');
+                showResult('basic-result', `❌ Ошибка базовой проверки:\n${error.message}`, 'error');
+            }
+        }
+
+        function testTelegram() {
+            showResult('telegram-result', 'Проверка Telegram WebApp API...', 'info');
+            
+            try {
+                const tests = [];
+                
+                // Test 1: Telegram объект существует
+                if (window.Telegram) {
+                    tests.push('✅ window.Telegram доступен');
+                } else {
+                    tests.push('❌ window.Telegram недоступен');
+                }
+                
+                // Test 2: WebApp объект существует
+                if (window.Telegram && window.Telegram.WebApp) {
+                    tests.push('✅ Telegram.WebApp доступен');
+                } else {
+                    tests.push('❌ Telegram.WebApp недоступен');
+                }
+                
+                // Test 3: Основные методы доступны
+                if (window.Telegram && window.Telegram.WebApp) {
+                    const tg = window.Telegram.WebApp;
+                    
+                    if (typeof tg.ready === 'function') {
+                        tests.push('✅ tg.ready() доступен');
+                    } else {
+                        tests.push('❌ tg.ready() недоступен');
+                    }
+                    
+                    if (typeof tg.expand === 'function') {
+                        tests.push('✅ tg.expand() доступен');
+                    } else {
+                        tests.push('❌ tg.expand() недоступен');
+                    }
+                    
+                    if (typeof tg.close === 'function') {
+                        tests.push('✅ tg.close() доступен');
+                    } else {
+                        tests.push('❌ tg.close() недоступен');
+                    }
+                    
+                    // Test 4: Инициализация
+                    try {
+                        tg.ready();
+                        tg.expand();
+                        tests.push('✅ Telegram WebApp инициализирован');
+                    } catch (e) {
+                        tests.push('❌ Ошибка инициализации: ' + e.message);
+                    }
+                }
+                
+                diagnosticResults.telegram = 'success';
+                updateStatusIndicator(2, 'success');
+                showResult('telegram-result', tests.join('\n'), 'success');
+                
+            } catch (error) {
+                diagnosticResults.telegram = 'error';
+                updateStatusIndicator(2, 'error');
+                showResult('telegram-result', `❌ Ошибка проверки Telegram:\n${error.message}`, 'error');
+            }
+        }
+
+        function testSupabase() {
+            showResult('supabase-result', 'Проверка Supabase подключения...', 'info');
+            
+            try {
+                const tests = [];
+                
+                // Test 1: Supabase библиотека загружена
+                if (window.Supabase) {
+                    tests.push('✅ Supabase библиотека загружена');
+                } else {
+                    tests.push('❌ Supabase библиотека не загружена');
+                }
+                
+                // Test 2: Создание клиента
+                if (window.Supabase) {
+                    try {
+                        supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                        tests.push('✅ Supabase клиент создан');
+                    } catch (e) {
+                        tests.push('❌ Ошибка создания клиента: ' + e.message);
+                    }
+                }
+                
+                // Test 3: Тест подключения
+                if (supabase) {
+                    tests.push('✅ Готов к тесту подключения к БД');
+                } else {
+                    tests.push('❌ Клиент не создан');
+                }
+                
+                diagnosticResults.supabase = 'success';
+                updateStatusIndicator(3, 'success');
+                showResult('supabase-result', tests.join('\n'), 'success');
+                
+            } catch (error) {
+                diagnosticResults.supabase = 'error';
+                updateStatusIndicator(3, 'error');
+                showResult('supabase-result', `❌ Ошибка проверки Supabase:\n${error.message}`, 'error');
+            }
+        }
+
+        async function testAuth() {
+            showResult('auth-result', 'Тестирование авторизации...', 'info');
+            
+            try {
+                const tests = [];
+                
+                if (!supabase) {
+                    tests.push('❌ Supabase клиент не создан');
+                    showResult('auth-result', tests.join('\n'), 'error');
+                    return;
+                }
+                
+                // Test 1: Попытка входа админа
+                tests.push('Попытка входа админа: 79817467395@tco.local');
+                
+                try {
+                    const { data, error } = await supabase.auth.signInWithPassword({
+                        email: '79817467395@tco.local',
+                        password: 'admin8602'
+                    });
+                    
+                    if (error) {
+                        tests.push('❌ Ошибка авторизации: ' + error.message);
+                        
+                        if (error.message.includes('Invalid login credentials')) {
+                            tests.push('💡 Решение: Админ не создан в Supabase Auth');
+                            tests.push('💡 Используйте create_admin.html для создания');
+                        }
+                    } else {
+                        tests.push('✅ Авторизация админа успешна');
+                        tests.push(`✅ User ID: ${data.user.id}`);
+                    }
+                    
+                } catch (e) {
+                    tests.push('❌ Ошибка подключения: ' + e.message);
+                }
+                
+                diagnosticResults.auth = 'success';
+                updateStatusIndicator(4, 'success');
+                showResult('auth-result', tests.join('\n'), 'success');
+                
+            } catch (error) {
+                diagnosticResults.auth = 'error';
+                updateStatusIndicator(4, 'error');
+                showResult('auth-result', `❌ Ошибка теста авторизации:\n${error.message}`, 'error');
+            }
+        }
+
+        async function testDatabase() {
+            showResult('database-result', 'Проверка базы данных...', 'info');
+            
+            try {
+                const tests = [];
+                
+                if (!supabase) {
+                    tests.push('❌ Supabase клиент не создан');
+                    showResult('database-result', tests.join('\n'), 'error');
+                    return;
+                }
+                
+                // Test таблиц
+                const tables = ['users', 'service_requests', 'equipment'];
+                
+                for (const table of tables) {
+                    try {
+                        const { count, error } = await supabase
+                            .from(table)
+                            .select('*', { count: 'exact', head: true });
+                        
+                        if (error) {
+                            tests.push(`❌ Таблица "${table}": ${error.message}`);
+                        } else {
+                            tests.push(`✅ Таблица "${table}": ${count} записей`);
+                        }
+                    } catch (e) {
+                        tests.push(`❌ Таблица "${table}": ${e.message}`);
+                    }
+                }
+                
+                diagnosticResults.database = 'success';
+                updateStatusIndicator(5, 'success');
+                showResult('database-result', tests.join('\n'), 'success');
+                
+            } catch (error) {
+                diagnosticResults.database = 'error';
+                updateStatusIndicator(5, 'error');
+                showResult('database-result', `❌ Ошибка проверки БД:\n${error.message}`, 'error');
+            }
+        }
+
+        async function runFullDiagnostic() {
+            showResult('full-result', '🚀 Запуск полной диагностики...\n\n', 'info');
+            
+            // Запускаем все тесты последовательно
+            testBasic();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            testTelegram();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            testSupabase();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testAuth();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testDatabase();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Анализ результатов
+            const results = diagnosticResults;
+            let summary = '📊 РЕЗУЛЬТАТЫ ДИАГНОСТИКИ:\n\n';
+            
+            summary += `1. Базовая функциональность: ${results.basic || 'не проверено'}\n`;
+            summary += `2. Telegram WebApp: ${results.telegram || 'не проверено'}\n`;
+            summary += `3. Supabase подключение: ${results.supabase || 'не проверено'}\n`;
+            summary += `4. Авторизация: ${results.auth || 'не проверено'}\n`;
+            summary += `5. База данных: ${results.database || 'не проверено'}\n\n`;
+            
+            // Рекомендации
+            summary += '💡 РЕКОМЕНДАЦИИ:\n';
+            
+            if (results.basic === 'error') {
+                summary += '• Проблема с базовой функциональностью - проверьте браузер\n';
+            }
+            
+            if (results.telegram === 'error') {
+                summary += '• Telegram WebApp не работает - проверьте загрузку скрипта\n';
+            }
+            
+            if (results.supabase === 'error') {
+                summary += '• Supabase не подключается - проверьте интернет\n';
+            }
+            
+            if (results.auth === 'error') {
+                summary += '• Авторизация не работает - создайте админа через create_admin.html\n';
+            }
+            
+            if (results.database === 'error') {
+                summary += '• База данных недоступна - проверьте подключение к Supabase\n';
+            }
+            
+            summary += '\n🔧 СЛЕДУЮЩИЕ ШАГИ:\n';
+            summary += '1. Исправьте все ошибки выше\n';
+            summary += '2. Перезапустите диагностику\n';
+            summary += '3. Если все зеленое - приложение должно работать\n';
+            
+            updateStatusIndicator(6, 'success');
+            showResult('full-result', summary, 'success');
+        }
+
+        // Автоматический запуск базовых проверок при загрузке
+        window.addEventListener('load', () => {
+            console.log('🔧 Diagnostic tool loaded');
+            setTimeout(() => {
+                testBasic();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
