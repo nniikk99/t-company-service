@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Supabase Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #4285F4, #1565C0);
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 { color: #4285F4; text-align: center; margin-bottom: 20px; }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .btn {
+            background: #4285F4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .btn:hover { background: #1565C0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 ТЕСТ SUPABASE ПОДКЛЮЧЕНИЯ</h1>
+        
+        <div id="status" class="status info">Инициализация...</div>
+        
+        <button class="btn" onclick="testConnection()">Проверить подключение к Supabase</button>
+        <button class="btn" onclick="testAuth()">Тест авторизации админа</button>
+        <button class="btn" onclick="testTables()">Проверить таблицы БД</button>
+        <button class="btn" onclick="createAdmin()">Создать админа в БД</button>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kwunhuzfnjpcoeusnxzy.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE';
+        
+        let supabase = null;
+        
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            console.log(message);
+        }
+        
+        window.addEventListener('load', async () => {
+            showStatus('🔍 Проверяю загрузку Supabase библиотеки...\n', 'info');
+            
+            // Ждем 1 секунду для загрузки библиотеки
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (!window.Supabase) {
+                showStatus('❌ ОШИБКА: Supabase библиотека не загружена!\nВозможные причины:\n1. Нет интернет-соединения\n2. CDN недоступен\n3. Блокировщик рекламы\n\nПроверьте консоль браузера (F12 → Console)', 'error');
+                return;
+            }
+            
+            showStatus('✅ Supabase библиотека загружена\nСоздаю клиент...', 'success');
+            
+            try {
+                supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                showStatus('✅ Supabase клиент создан успешно!', 'success');
+            } catch (error) {
+                showStatus(`❌ Ошибка создания клиента:\n${error.message}`, 'error');
+            }
+        });
+        
+        async function testConnection() {
+            if (!supabase) {
+                showStatus('❌ Клиент Supabase не создан', 'error');
+                return;
+            }
+            
+            showStatus('🔍 Пытаюсь подключиться к БД...', 'info');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('id')
+                    .limit(1);
+                
+                if (error) {
+                    showStatus(`❌ Ошибка подключения:\n${error.message}`, 'error');
+                } else {
+                    showStatus(`✅ Подключение к БД успешно!\nНайдено записей: ${data?.length || 0}`, 'success');
+                }
+            } catch (error) {
+                showStatus(`❌ Критическая ошибка:\n${error.message}\n\nПроверьте:\n1. Интернет-соединение\n2. Настройки Supabase\n3. Консоль браузера (F12)`, 'error');
+            }
+        }
+        
+        async function testAuth() {
+            if (!supabase) {
+                showStatus('❌ Клиент Supabase не создан', 'error');
+                return;
+            }
+            
+            showStatus('🔍 Пытаюсь войти как админ: 79817467395@tco.local...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: '79817467395@tco.local',
+                    password: 'admin8602'
+                });
+                
+                if (error) {
+                    showStatus(`❌ Ошибка авторизации:\n${error.message}\n\nРешение: Создайте админа через create_admin.html`, 'error');
+                } else {
+                    showStatus(`✅ Авторизация успешна!\nUser ID: ${data.user.id}\nEmail: ${data.user.email}`, 'success');
+                }
+            } catch (error) {
+                showStatus(`❌ Критическая ошибка авторизации:\n${error.message}`, 'error');
+            }
+        }
+        
+        async function testTables() {
+            if (!supabase) {
+                showStatus('❌ Клиент Supabase не создан', 'error');
+                return;
+            }
+            
+            showStatus('🔍 Проверяю таблицы БД...', 'info');
+            
+            const tables = ['users', 'service_requests', 'equipment'];
+            let results = [];
+            
+            for (const table of tables) {
+                try {
+                    const { count, error } = await supabase
+                        .from(table)
+                        .select('*', { count: 'exact', head: true });
+                    
+                    if (error) {
+                        results.push(`❌ ${table}: ${error.message}`);
+                    } else {
+                        results.push(`✅ ${table}: ${count} записей`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${table}: ${error.message}`);
+                }
+            }
+            
+            showStatus(results.join('\n'), results.some(r => r.includes('❌')) ? 'error' : 'success');
+        }
+        
+        async function createAdmin() {
+            if (!supabase) {
+                showStatus('❌ Клиент Supabase не создан', 'error');
+                return;
+            }
+            
+            showStatus('🔍 Создаю админа в Supabase Auth...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: '79817467395@tco.local',
+                    password: 'admin8602',
+                    options: {
+                        data: {
+                            phone: '79817467395',
+                            full_name: 'Михаил Басалыгин'
+                        }
+                    }
+                });
+                
+                if (error) {
+                    if (error.message.includes('already registered')) {
+                        showStatus('✅ Админ уже существует в Auth!\nСоздаю запись в таблице users...', 'success');
+                        
+                        // Попробуем создать запись в таблице users
+                        const { data: userData, error: userError } = await supabase
+                            .from('users')
+                            .insert([{
+                                full_name: 'Михаил Басалыгин',
+                                phone: '79817467395',
+                                role: 'admin',
+                                status: 'active'
+                            }])
+                            .select();
+                        
+                        if (userError) {
+                            if (userError.code === '23505') {
+                                showStatus('✅ Админ уже существует в таблице users!\n\nПопробуйте войти в основной app', 'success');
+                            } else {
+                                showStatus(`❌ Ошибка создания в users:\n${userError.message}`, 'error');
+                            }
+                        } else {
+                            showStatus('✅ Админ создан успешно в таблице users!', 'success');
+                        }
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    showStatus(`✅ Админ создан в Auth!\nUser ID: ${data.user.id}`, 'success');
+                }
+            } catch (error) {
+                showStatus(`❌ Критическая ошибка:\n${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
+
