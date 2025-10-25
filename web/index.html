@@ -54,6 +54,25 @@
       });
     });
   </script>
+  <script>
+    // Telegram WebApp initialization
+    window.addEventListener('DOMContentLoaded', function() {
+      if (window.Telegram && window.Telegram.WebApp) {
+        try {
+          const tg = window.Telegram.WebApp;
+          tg.ready();
+          tg.expand();
+          console.log('Telegram WebApp initialized successfully');
+          
+          // Set theme colors
+          document.body.style.backgroundColor = tg.themeParams.bg_color || '#ffffff';
+          document.body.style.color = tg.themeParams.text_color || '#000000';
+        } catch (error) {
+          console.error('Telegram WebApp init error:', error);
+        }
+      }
+    });
+  </script>
   <script type="text/javascript">
     (function(l) {
       if (l.search[1] === '/' ) {
