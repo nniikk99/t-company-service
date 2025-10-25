@@ -1,0 +1,74 @@
+name: Deploy Flutter Web to GitHub Pages (Telegram Mini App)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.35.5'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Copy supabase config
+      run: |
+        cp lib/config/supabase_config.example.dart lib/config/supabase_config.dart
+        # Use fallback values if secrets are not available
+        sed -i 's|YOUR_SUPABASE_URL|https://kwunhuzfnjpcoeusnxzy.supabase.co|g' lib/config/supabase_config.dart
+        sed -i 's|YOUR_SUPABASE_ANON_KEY|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE|g' lib/config/supabase_config.dart
+    
+    - name: Clean previous builds
+      run: flutter clean
+    
+    - name: Build web for Telegram Mini App
+      run: |
+        # Build with HTML renderer and hash routing for Telegram compatibility
+        flutter build web \
+          --web-renderer html \
+          --release \
+          --pwa-strategy none \
+          --base-href /t-company-service/
+    
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: build/web
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
