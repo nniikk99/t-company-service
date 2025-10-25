@@ -1,62 +1,69 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Service</title>
     <meta name="telegram-web-app" content="yes">
     <meta name="telegram-web-app-version" content="6.0">
-  <meta http-equiv="X-Frame-Options" content="ALLOWALL">
+    <meta http-equiv="X-Frame-Options" content="ALLOWALL">
     <meta http-equiv="Content-Security-Policy" content="frame-ancestors 'self' https://web.telegram.org https://telegram.org https://*.telegram.org https://t.me https://*.t.me;">
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* Стили из AppTheme.dart */
         :root {
             --primary-color: #4285F4;
             --primary-variant: #1565C0;
+            --secondary-color: #00BCD4;
+            --accent-color: #FF6B6B;
+            --success-color: #4CAF50;
+            --warning-color: #FF9800;
+            --error-color: #F44336;
+            --info-color: #2196F3;
+            --background-light: #F8F9FA;
+            --background-dark: #1A1A1A;
             --surface-light: #FFFFFF;
             --text-primary: #212529;
             --text-secondary: #6C757D;
             --divider-color: #E9ECEF;
+            --card-shadow: 0px 2px 12px rgba(0, 0, 0, 0.04);
             --elevated-shadow: 0px 4px 20px rgba(0, 0, 0, 0.08);
+            --soft-shadow: 0px 1px 8px rgba(0, 0, 0, 0.03);
         }
         
-        * {
+        body {
+            font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        
-    body {
-            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: linear-gradient(to bottom right, #4285F4, #1565C0);
             color: var(--text-primary);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-      padding: 20px;
-    }
+            box-sizing: border-box;
+        }
         
-    .container {
+        .container {
             background-color: var(--surface-light);
             border-radius: 20px;
             padding: 30px;
             box-shadow: var(--elevated-shadow);
             text-align: center;
             max-width: 400px;
-            width: 100%;
+            width: 90%;
+            box-sizing: border-box;
         }
         
-        .logo {
+        .logo-placeholder {
             width: 80px;
             height: 80px;
             background-color: var(--primary-color);
             border-radius: 50%;
             margin: 0 auto 20px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             color: white;
             font-size: 40px;
             font-weight: bold;
@@ -92,6 +99,7 @@
             border: 1px solid var(--divider-color);
             border-radius: 16px;
             font-size: 16px;
+            box-sizing: border-box;
             transition: border-color 0.3s ease;
         }
         
@@ -109,17 +117,15 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
             width: 100%;
+            box-sizing: border-box;
             margin-top: 10px;
         }
         
         .button:hover {
             background-color: var(--primary-variant);
-        }
-        
-        .button:active {
-            transform: scale(0.98);
+            box-shadow: var(--elevated-shadow);
         }
         
         .link-button {
@@ -134,30 +140,30 @@
         }
         
         .hidden {
-            display: none !important;
+            display: none;
         }
         
         .nav-bar {
-            position: fixed;
-            bottom: 0;
-        left: 0;
-        width: 100%;
-            background-color: var(--surface-light);
             display: flex;
             justify-content: space-around;
+            width: 100%;
+            background-color: var(--surface-light);
             padding: 10px 0;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            position: fixed;
+            bottom: 0;
+            left: 0;
             z-index: 1000;
         }
         
         .nav-item {
             flex: 1;
             text-align: center;
-            padding: 10px;
+            padding: 10px 0;
             color: var(--text-secondary);
             text-decoration: none;
             font-size: 14px;
-            cursor: pointer;
+            transition: color 0.3s ease;
         }
         
         .nav-item.active {
@@ -165,11 +171,15 @@
             font-weight: 600;
         }
         
+        .nav-item:hover {
+            color: var(--primary-variant);
+        }
+        
         .page-content {
             padding: 20px;
-            background-color: #F8F9FA;
+            background-color: var(--background-light);
             min-height: calc(100vh - 60px);
-            padding-bottom: 80px;
+            box-sizing: border-box;
         }
         
         .header {
@@ -178,7 +188,7 @@
             align-items: center;
             padding: 15px 20px;
             background-color: var(--surface-light);
-            box-shadow: 0px 1px 8px rgba(0, 0, 0, 0.03);
+            box-shadow: var(--soft-shadow);
             margin-bottom: 20px;
             border-radius: 16px;
         }
@@ -193,7 +203,7 @@
             border-radius: 16px;
             padding: 20px;
             margin-bottom: 15px;
-            box-shadow: 0px 2px 12px rgba(0, 0, 0, 0.04);
+            box-shadow: var(--card-shadow);
         }
         
         .card h3 {
@@ -204,40 +214,14 @@
         .card p {
             margin-bottom: 5px;
             color: var(--text-primary);
-            text-align: left;
         }
-        
-        .status {
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-        
-        .status.success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .status.error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        
-        .status.info {
-            background-color: #d1ecf1;
-            color: #0c5460;
-      }
     </style>
 </head>
 <body>
-    <!-- Страница авторизации -->
     <div id="auth-page" class="container">
-        <div class="logo">AI</div>
+        <div class="logo-placeholder">AI</div>
         <h1>AI Service</h1>
         <p>Система управления сервисными заявками</p>
-        
-        <div id="status" class="status info" style="display: none;">Проверка...</div>
         
         <div class="input-group">
             <input type="text" id="phone" class="input-field" placeholder="Номер телефона">
@@ -249,250 +233,345 @@
         
         <button class="button" id="login-btn">Войти в систему</button>
         <div style="display:flex; justify-content: space-between; margin-top:12px;">
-            <a href="#" class="link-button" id="forgot-link">Забыли пароль?</a>
-            <a href="#" class="link-button" id="register-link">Регистрация</a>
+            <a href="#" id="forgot-link" class="link-button">Забыли пароль?</a>
+            <a href="#" id="register-link" class="link-button">Регистрация</a>
         </div>
     </div>
 
-    <!-- Главное приложение -->
     <div id="main-app" class="hidden">
         <div class="nav-bar">
-            <div class="nav-item active" data-page="requests">Заявки</div>
-            <div class="nav-item" data-page="engineers">Персонал</div>
-            <div class="nav-item" data-page="equipment">Оборудование</div>
-            <div class="nav-item" data-page="profile">Профиль</div>
+            <a href="#" class="nav-item active" data-page="requests">Заявки</a>
+            <a href="#" class="nav-item" data-page="engineers">Инженеры</a>
+            <a href="#" class="nav-item" data-page="equipment">Оборудование</a>
+            <a href="#" class="nav-item" data-page="profile">Профиль</a>
         </div>
 
         <div id="requests-page" class="page-content">
             <div class="header">
                 <h2>Заявки</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" id="add-request-btn">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showCreateRequestModal()">+</button>
             </div>
-            <div id="requests-list"></div>
+            
+            <div id="requests-list">
+                <!-- Заявки будут загружены из БД -->
+            </div>
         </div>
 
         <div id="engineers-page" class="page-content hidden">
             <div class="header">
                 <h2>Персонал</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" id="add-engineer-btn">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showAddPersonModal()">+</button>
             </div>
-            <div id="engineers-list"></div>
+            
+            <div id="engineers-list">
+                <!-- Персонал будет загружен из БД -->
+            </div>
         </div>
 
         <div id="equipment-page" class="page-content hidden">
             <div class="header">
                 <h2>Оборудование</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" id="add-equipment-btn">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showAddEquipmentModal()">+</button>
             </div>
-            <div id="equipment-list"></div>
+            
+            <div id="equipment-list">
+                <!-- Оборудование будет загружено из БД -->
+            </div>
         </div>
 
         <div id="profile-page" class="page-content hidden">
             <div class="header">
                 <h2>Профиль</h2>
             </div>
+            
             <div class="card">
                 <h3 id="user-name">Пользователь</h3>
                 <p id="user-phone">Телефон: +7 (999) 123-45-67</p>
                 <p id="user-role">Роль: Пользователь</p>
+                <p id="user-company">Компания: Не указана</p>
             </div>
-            <button class="button" id="logout-btn">Выйти</button>
+            
+            <div class="card">
+                <h3>Управление</h3>
+                <button class="button" onclick="showCompaniesManagement()" style="margin-bottom: 10px;">Управление компаниями</button>
+                <button class="button" onclick="showUsersManagement()" style="margin-bottom: 10px;">Управление пользователями</button>
+                <button class="button" onclick="showSitesManagement()" style="margin-bottom: 10px;">Управление площадками</button>
+            </div>
+            
+            <button class="button" onclick="logout()">Выйти</button>
         </div>
-  </div>
+    </div>
 
-  <script>
-        console.log('=== SCRIPT STARTED ===');
+    <!-- Регистрация -->
+    <div id="register-modal" class="container hidden" style="max-width:420px;">
+        <div class="logo-placeholder">AI</div>
+        <h1>Регистрация</h1>
+        <p>Создайте учётную запись по номеру телефона</p>
+        <div class="input-group">
+            <input type="text" id="reg-phone" class="input-field" placeholder="Номер телефона">
+        </div>
+        <div class="input-group">
+            <input type="password" id="reg-password" class="input-field" placeholder="Пароль (мин. 6 символов)">
+        </div>
+        <button class="button" id="register-btn">Зарегистрироваться</button>
+        <a href="#" id="to-login" class="link-button">У меня есть аккаунт</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Полная версия с Supabase
+        console.log('Script started');
         
-        // Supabase config
         const SUPABASE_URL = 'https://kwunhuzfnjpcoeusnxzy.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE';
-        
-        let supabase = null;
-        
-        // Initialize when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('=== DOM LOADED ===');
-            
-            // Initialize Supabase
-            if (window.Supabase) {
-                try {
-                    supabase = window.Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    console.log('✅ Supabase initialized successfully');
-                } catch (error) {
-                    console.error('❌ Supabase initialization error:', error);
-                }
-            } else {
-                console.error('❌ Supabase library not loaded');
-            }
-            
-            // Initialize Telegram WebApp
-            if (window.Telegram && window.Telegram.WebApp) {
-                const tg = window.Telegram.WebApp;
-                tg.ready();
-                tg.expand();
-                console.log('✅ Telegram WebApp initialized');
-            }
-        });
-        
-        // Elements
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Система ролей
+        const ROLES = {
+            ADMIN: 'admin',
+            MANAGER: 'manager',
+            ENGINEER: 'engineer',
+            OPERATOR: 'operator',
+            SUPPLIER: 'supplier',
+            CLIENT: 'client'
+        };
+
+        const ROLE_NAMES = {
+            'admin': 'Администратор',
+            'manager': 'Менеджер площадки',
+            'engineer': 'Инженер',
+            'operator': 'Оператор ПМ',
+            'supplier': 'Поставщик',
+            'client': 'Клиент'
+        };
+
         const authPage = document.getElementById('auth-page');
+        const registerModal = document.getElementById('register-modal');
         const mainApp = document.getElementById('main-app');
         const phoneInput = document.getElementById('phone');
         const passwordInput = document.getElementById('password');
-        const loginBtn = document.getElementById('login-btn');
-        const statusDiv = document.getElementById('status');
-        
-        console.log('✅ Elements found:', {
-            authPage: !!authPage,
-            mainApp: !!mainApp,
-            phoneInput: !!phoneInput,
-            passwordInput: !!passwordInput,
-            loginBtn: !!loginBtn
-        });
-        
+
+        // Telegram WebApp init
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            tg.MainButton.setText("Закрыть");
+            tg.MainButton.show();
+            tg.MainButton.onClick(() => {
+                tg.close();
+            });
+            console.log('Telegram WebApp initialized');
+        } else {
+            console.log('Not in Telegram WebApp');
+        }
+
         // Phone mask
-        phoneInput.addEventListener('input', function(e) {
+        phoneInput.addEventListener('input', function (e) {
             let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 11) value = value.substring(0, 11);
-            
-            let formatted = '';
+            let maskedValue = '';
             if (value.length > 0) {
-                formatted = '+7';
-                if (value.length > 1) formatted += ' (' + value.substring(1, 4);
-                if (value.length > 4) formatted += ') ' + value.substring(4, 7);
-                if (value.length > 7) formatted += '-' + value.substring(7, 9);
-                if (value.length > 9) formatted += '-' + value.substring(9, 11);
+                maskedValue += '+7 (';
+                if (value.length > 1) {
+                    maskedValue += value.substring(1, 4);
+                }
+                if (value.length > 4) {
+                    maskedValue += ') ' + value.substring(4, 7);
+                }
+                if (value.length > 7) {
+                    maskedValue += '-' + value.substring(7, 9);
+                }
+                if (value.length > 9) {
+                    maskedValue += '-' + value.substring(9, 11);
+                }
             }
-            e.target.value = formatted;
+            e.target.value = maskedValue;
         });
-        
-        // Login
-        loginBtn.addEventListener('click', async function() {
-            console.log('=== LOGIN BUTTON CLICKED ===');
-            
+
+        function phoneToEmail(phoneDigits) {
+            // Превращаем телефон в технический email для Supabase
+            // +7 999 123-45-67 -> 79991234567@tco.local
+            return `${phoneDigits}@tco.local`;
+        }
+
+        async function login() {
+            console.log('Login function called');
             const phone = phoneInput.value.replace(/\D/g, '');
             const password = passwordInput.value;
-            
-            console.log('Phone:', phone);
-            console.log('Password length:', password.length);
-            
-            statusDiv.style.display = 'block';
-            statusDiv.className = 'status info';
-            statusDiv.textContent = 'Проверка данных...';
-            
-            if (phone.length < 11) {
-                statusDiv.className = 'status error';
-                statusDiv.textContent = 'Введите полный номер телефона';
+
+            console.log('Phone:', phone, 'Password length:', password.length);
+
+            // Basic validation
+            if (phone.length < 11 || password.length === 0) {
+                alert('Пожалуйста, введите полный номер телефона и пароль.');
                 return;
             }
-            
-            if (password.length === 0) {
-                statusDiv.className = 'status error';
-                statusDiv.textContent = 'Введите пароль';
-                return;
-            }
-            
-            // Check admin
-            if (phone === '79817467395' && password === 'admin8602') {
-                console.log('✅ Admin login successful');
-                statusDiv.className = 'status success';
-                statusDiv.textContent = 'Вход выполнен!';
+
+            try {
+                console.log('Checking admin account...');
+                // Проверяем админ аккаунт
+                if (phone === '79817467395' && password === 'admin8602') {
+                    console.log('Admin login successful');
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userRole', 'admin');
+                    localStorage.setItem('userPhone', phone);
+                    localStorage.setItem('userName', 'Администратор');
+                    showMainApp();
+                    return;
+                }
+
+                console.log('Trying Supabase login...');
+                // Обычная авторизация через Supabase
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: phoneToEmail(phone),
+                    password
+                });
+                
+                if (error) {
+                    console.error('Supabase login error:', error);
+                    alert('Ошибка входа: ' + error.message);
+                    return;
+                }
+                
+                console.log('Supabase login successful', data);
+                
+                // Получаем данные пользователя из БД
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('phone', phone)
+                    .single();
+                
+                if (userError) {
+                    console.error('Error fetching user data:', userError);
+                }
                 
                 localStorage.setItem('isLoggedIn', 'true');
-                localStorage.setItem('userRole', 'admin');
+                localStorage.setItem('userRole', userData?.role || 'user');
                 localStorage.setItem('userPhone', phone);
-                localStorage.setItem('userName', 'Администратор');
+                localStorage.setItem('userName', userData?.full_name || 'Пользователь');
+                localStorage.setItem('userId', userData?.id || '');
                 
-                setTimeout(() => {
-                    showMainApp();
-                }, 500);
-                return;
+                showMainApp();
+            } catch (error) {
+                console.error('Unexpected login error:', error);
+                alert('Произошла непредвиденная ошибка входа.');
             }
-            
-            // Try Supabase
-            if (supabase) {
-                try {
-                    statusDiv.textContent = 'Проверка в базе данных...';
-                    
-                    const { data, error } = await supabase.auth.signInWithPassword({
-                        email: `${phone}@tco.local`,
-                        password: password
-                    });
-                    
-                    if (error) {
-                        console.error('Supabase login error:', error);
-                        statusDiv.className = 'status error';
-                        statusDiv.textContent = 'Неверный телефон или пароль';
-                        return;
-                    }
-                    
-                    console.log('✅ Supabase login successful');
-                    statusDiv.className = 'status success';
-                    statusDiv.textContent = 'Вход выполнен!';
-                    
-                    // Get user data
-                    const { data: userData } = await supabase
-                        .from('users')
-                        .select('*')
-                        .eq('phone', phone)
-                        .single();
-                    
-                    localStorage.setItem('isLoggedIn', 'true');
-                    localStorage.setItem('userRole', userData?.role || 'user');
-                    localStorage.setItem('userPhone', phone);
-                    localStorage.setItem('userName', userData?.full_name || 'Пользователь');
-                    
-                    setTimeout(() => {
-                        showMainApp();
-                    }, 500);
-                } catch (error) {
-                    console.error('Unexpected error:', error);
-                    statusDiv.className = 'status error';
-                    statusDiv.textContent = 'Ошибка входа: ' + error.message;
-                }
-            } else {
-                statusDiv.className = 'status error';
-                statusDiv.textContent = 'База данных недоступна';
+        }
+
+        async function logout() {
+            try {
+                await supabase.auth.signOut();
+            } catch (error) {
+                console.error('Logout error:', error);
             }
-        });
-        
-        // Show main app
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userPhone');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userId');
+            showAuthPage();
+        }
+
         function showMainApp() {
-            console.log('=== SHOWING MAIN APP ===');
             authPage.classList.add('hidden');
             mainApp.classList.remove('hidden');
-            loadRequests();
-            updateProfile();
+            showPage('requests'); // Default to requests page
         }
-        
-        // Update profile
-        function updateProfile() {
-            const userName = localStorage.getItem('userName') || 'Пользователь';
-            const userPhone = localStorage.getItem('userPhone') || '';
-            const userRole = localStorage.getItem('userRole') || 'user';
-            
-            const roleNames = {
-                'admin': 'Администратор',
-                'manager': 'Менеджер площадки',
-                'engineer': 'Инженер',
-                'operator': 'Оператор ПМ',
-                'user': 'Пользователь'
-            };
-            
-            document.getElementById('user-name').textContent = userName;
-            document.getElementById('user-phone').textContent = `Телефон: +7 ${userPhone}`;
-            document.getElementById('user-role').textContent = `Роль: ${roleNames[userRole] || userRole}`;
+
+        function showAuthPage() {
+            authPage.classList.remove('hidden');
+            mainApp.classList.add('hidden');
         }
-        
-        // Load requests
-        async function loadRequests() {
-            const list = document.getElementById('requests-list');
-            list.innerHTML = '<div class="card"><p>Загрузка заявок...</p></div>';
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            document.getElementById(`${pageId}-page`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`.nav-item[data-page="${pageId}"]`).classList.add('active');
             
-            if (!supabase) {
-                list.innerHTML = '<div class="card"><p>База данных недоступна</p></div>';
+            // Загружаем данные при переключении страниц
+            if (pageId === 'requests') {
+                loadRequests();
+            } else if (pageId === 'engineers') {
+                loadEngineers();
+            } else if (pageId === 'equipment') {
+                loadEquipment();
+            } else if (pageId === 'profile') {
+                updateUserProfile();
+            }
+        }
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                showPage(this.dataset.page);
+            });
+        });
+
+        // Registration flow
+        document.getElementById('register-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            authPage.classList.add('hidden');
+            registerModal.classList.remove('hidden');
+        });
+
+        document.getElementById('to-login').addEventListener('click', (e) => {
+            e.preventDefault();
+            registerModal.classList.add('hidden');
+            authPage.classList.remove('hidden');
+        });
+
+        document.getElementById('do-register').addEventListener('click', async () => {
+            const phone = document.getElementById('reg-phone').value.replace(/\D/g, '');
+            const password = document.getElementById('reg-password').value;
+            if (phone.length < 11 || password.length < 6) {
+                alert('Введите корректный номер и пароль не короче 6 символов.');
                 return;
             }
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: phoneToEmail(phone),
+                    password,
+                    options: { data: { phone } }
+                });
+                if (error) { alert(error.message); return; }
+                alert('Регистрация выполнена. Теперь войдите.');
+                registerModal.classList.add('hidden');
+                authPage.classList.remove('hidden');
+            } catch (e) {
+                alert('Ошибка регистрации');
+                console.error(e);
+            }
+        });
+
+        // Обновляем профиль пользователя
+        function updateUserProfile() {
+            const userRole = localStorage.getItem('userRole');
+            const userPhone = localStorage.getItem('userPhone');
+            const userName = localStorage.getItem('userName');
+            
+            document.getElementById('user-name').textContent = userName || 'Пользователь';
+            document.getElementById('user-role').textContent = `Роль: ${ROLE_NAMES[userRole] || userRole}`;
+            document.getElementById('user-phone').textContent = `Телефон: ${userPhone}`;
+            
+            // Скрываем кнопки управления для не-админов
+            const managementCard = document.querySelector('#profile-page .card:nth-child(2)');
+            if (managementCard && userRole !== 'admin') {
+                managementCard.style.display = 'none';
+            }
+        }
+
+        // Функции для работы с БД
+        async function loadRequests() {
+            console.log('Loading requests...');
+            const requestsList = document.getElementById('requests-list');
+            requestsList.innerHTML = '<div class="card"><p>Загрузка заявок...</p></div>';
             
             try {
                 const { data, error } = await supabase
@@ -502,74 +581,343 @@
                 
                 if (error) throw error;
                 
-                list.innerHTML = '';
+                requestsList.innerHTML = '';
                 
                 if (data && data.length > 0) {
-                    data.forEach(req => {
+                    data.forEach(request => {
                         const card = document.createElement('div');
                         card.className = 'card';
                         card.innerHTML = `
-                            <h3>Заявка #${req.id}</h3>
-                            <p>Статус: ${req.status}</p>
-                            <p>Описание: ${req.description || 'Нет описания'}</p>
+                            <h3>Заявка #${request.id}</h3>
+                            <p>Статус: ${getStatusText(request.status)}</p>
+                            <p>Описание: ${request.description || 'Нет описания'}</p>
+                            <p>Создана: ${new Date(request.created_at).toLocaleDateString()}</p>
+                            ${localStorage.getItem('userRole') === 'admin' ? 
+                                `<button class="button" onclick="updateRequestStatus(${request.id})" style="margin-top:10px;">Изменить статус</button>` : 
+                                ''
+                            }
                         `;
-                        list.appendChild(card);
+                        requestsList.appendChild(card);
                     });
                 } else {
-                    list.innerHTML = '<div class="card"><p>Заявок пока нет. Создайте первую заявку!</p></div>';
+                    requestsList.innerHTML = '<div class="card"><p>Заявок пока нет. Создайте первую заявку!</p></div>';
                 }
             } catch (error) {
                 console.error('Error loading requests:', error);
-                list.innerHTML = '<div class="card"><p>Ошибка загрузки: ' + error.message + '</p></div>';
+                requestsList.innerHTML = '<div class="card"><p>Ошибка загрузки заявок. Проверьте подключение к БД.</p></div>';
             }
         }
-        
-        // Navigation
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', function() {
-                console.log('Nav clicked:', this.dataset.page);
+
+        function getStatusText(status) {
+            const statuses = {
+                'new': 'Новая',
+                'in_progress': 'В работе',
+                'completed': 'Завершена',
+                'cancelled': 'Отменена'
+            };
+            return statuses[status] || status;
+        }
+
+        async function showCreateRequestModal() {
+            const description = prompt('Опишите проблему:');
+            if (!description) return;
+            
+            try {
+                const userId = localStorage.getItem('userId');
+                const userPhone = localStorage.getItem('userPhone');
                 
-                // Hide all pages
-                document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+                const { data, error } = await supabase
+                    .from('service_requests')
+                    .insert([{
+                        description: description,
+                        status: 'new',
+                        user_id: userId || null,
+                        phone: userPhone || null
+                    }])
+                    .select();
                 
-                // Show selected page
-                const pageId = this.dataset.page + '-page';
-                document.getElementById(pageId).classList.remove('hidden');
+                if (error) throw error;
                 
-                // Update active nav
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                this.classList.add('active');
+                alert('✅ Заявка успешно создана!');
+                loadRequests();
+            } catch (error) {
+                console.error('Error creating request:', error);
+                alert('❌ Ошибка создания заявки: ' + error.message);
+            }
+        }
+
+        async function updateRequestStatus(requestId) {
+            const statuses = ['new', 'in_progress', 'completed', 'cancelled'];
+            const statusTexts = ['Новая', 'В работе', 'Завершена', 'Отменена'];
+            
+            const choice = prompt(`Выберите статус:\n1. Новая\n2. В работе\n3. Завершена\n4. Отменена\n\nВведите номер (1-4):`);
+            const statusIndex = parseInt(choice) - 1;
+            
+            if (statusIndex < 0 || statusIndex >= statuses.length) {
+                alert('Неверный выбор');
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('service_requests')
+                    .update({ status: statuses[statusIndex] })
+                    .eq('id', requestId);
                 
-                // Load data for page
-                if (this.dataset.page === 'requests') {
-                    loadRequests();
+                if (error) throw error;
+                
+                alert('✅ Статус успешно обновлен!');
+                loadRequests();
+            } catch (error) {
+                console.error('Error updating request:', error);
+                alert('❌ Ошибка обновления статуса: ' + error.message);
+            }
+        }
+
+        // Загрузка персонала
+        async function loadEngineers() {
+            console.log('Loading engineers...');
+            const engineersList = document.getElementById('engineers-list');
+            engineersList.innerHTML = '<div class="card"><p>Загрузка персонала...</p></div>';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .select('*')
+                    .in('role', ['engineer', 'manager', 'operator']);
+                
+                if (error) throw error;
+                
+                engineersList.innerHTML = '';
+                
+                if (data && data.length > 0) {
+                    data.forEach(engineer => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = `
+                            <h3>${engineer.full_name || 'Не указано'}</h3>
+                            <p>Роль: ${ROLE_NAMES[engineer.role] || engineer.role}</p>
+                            <p>Телефон: ${engineer.phone || 'Не указан'}</p>
+                            <p>Статус: ${engineer.status || 'Активен'}</p>
+                            ${localStorage.getItem('userRole') === 'admin' ? 
+                                `<button class="button" onclick="editUser(${engineer.id})" style="margin-top:10px;">Редактировать</button>` : 
+                                ''
+                            }
+                        `;
+                        engineersList.appendChild(card);
+                    });
+                } else {
+                    engineersList.innerHTML = '<div class="card"><p>Персонал не найден. Добавьте первого сотрудника!</p></div>';
                 }
-            });
-        });
-        
-        // Logout
-        document.getElementById('logout-btn').addEventListener('click', function() {
-            console.log('=== LOGOUT ===');
-            localStorage.clear();
-            if (supabase) {
-                supabase.auth.signOut();
+            } catch (error) {
+                console.error('Error loading engineers:', error);
+                engineersList.innerHTML = '<div class="card"><p>Ошибка загрузки персонала. Проверьте подключение к БД.</p></div>';
             }
-            mainApp.classList.add('hidden');
-            authPage.classList.remove('hidden');
-            statusDiv.style.display = 'none';
-        });
-        
-        // Check if already logged in
-        window.addEventListener('load', function() {
-            console.log('=== PAGE LOADED ===');
-            if (localStorage.getItem('isLoggedIn') === 'true') {
-                console.log('User already logged in');
-                showMainApp();
+        }
+
+        // Загрузка оборудования
+        async function loadEquipment() {
+            console.log('Loading equipment...');
+            const equipmentList = document.getElementById('equipment-list');
+            equipmentList.innerHTML = '<div class="card"><p>Загрузка оборудования...</p></div>';
+            
+            try {
+                const { data, error } = await supabase
+                    .from('equipment')
+                    .select('*');
+                
+                if (error) throw error;
+                
+                equipmentList.innerHTML = '';
+                
+                if (data && data.length > 0) {
+                    data.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = 'card';
+                        card.innerHTML = `
+                            <h3>${item.name}</h3>
+                            <p>Тип: ${item.type || 'Не указан'}</p>
+                            <p>Статус: ${item.status || 'Не указан'}</p>
+                            <p>Местоположение: ${item.location || 'Не указано'}</p>
+                            ${localStorage.getItem('userRole') === 'admin' ? 
+                                `<button class="button" onclick="editEquipment(${item.id})" style="margin-top:10px;">Редактировать</button>` : 
+                                ''
+                            }
+                        `;
+                        equipmentList.appendChild(card);
+                    });
+                } else {
+                    equipmentList.innerHTML = '<div class="card"><p>Оборудование не найдено. Добавьте первое оборудование!</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading equipment:', error);
+                equipmentList.innerHTML = '<div class="card"><p>Ошибка загрузки оборудования. Проверьте подключение к БД.</p></div>';
+            }
+        }
+
+        // Модальные окна для добавления
+        async function showAddPersonModal() {
+            const name = prompt('Введите ФИО:');
+            if (!name) return;
+            
+            const phone = prompt('Введите телефон:');
+            if (!phone) return;
+            
+            const roleChoice = prompt('Выберите роль:\n1. Инженер\n2. Менеджер площадки\n3. Оператор ПМ\n\nВведите номер (1-3):');
+            const roles = ['engineer', 'manager', 'operator'];
+            const roleIndex = parseInt(roleChoice) - 1;
+            
+            if (roleIndex < 0 || roleIndex >= roles.length) {
+                alert('Неверный выбор роли');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('users')
+                    .insert([{
+                        full_name: name,
+                        phone: phone,
+                        role: roles[roleIndex],
+                        status: 'active'
+                    }])
+                    .select();
+                
+                if (error) throw error;
+                
+                alert('✅ Персонал успешно добавлен!');
+                loadEngineers();
+            } catch (error) {
+                console.error('Error adding person:', error);
+                alert('❌ Ошибка добавления персонала: ' + error.message);
+            }
+        }
+
+        async function showAddEquipmentModal() {
+            const name = prompt('Введите название оборудования:');
+            if (!name) return;
+            
+            const type = prompt('Введите тип оборудования:');
+            if (!type) return;
+            
+            const location = prompt('Введите местоположение:');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('equipment')
+                    .insert([{
+                        name: name,
+                        type: type,
+                        location: location || null,
+                        status: 'working'
+                    }])
+                    .select();
+                
+                if (error) throw error;
+                
+                alert('✅ Оборудование успешно добавлено!');
+                loadEquipment();
+            } catch (error) {
+                console.error('Error adding equipment:', error);
+                alert('❌ Ошибка добавления оборудования: ' + error.message);
+            }
+        }
+
+        // Управление компаниями
+        function showCompaniesManagement() {
+            alert('Управление компаниями - в разработке');
+        }
+
+        function showUsersManagement() {
+            alert('Управление пользователями - в разработке');
+        }
+
+        function showSitesManagement() {
+            alert('Управление площадками - в разработке');
+        }
+
+        function showRegisterModal() {
+            authPage.classList.add('hidden');
+            registerModal.classList.remove('hidden');
+        }
+
+        // Check login status on load
+        window.addEventListener('load', async () => {
+            console.log('Page loaded, checking auth status...');
+            
+            try {
+                const { data } = await supabase.auth.getSession();
+                if (data?.session || localStorage.getItem('isLoggedIn') === 'true') {
+                    console.log('User already logged in');
+                    showMainApp();
+                    updateUserProfile();
+                    loadRequests();
+                } else {
+                    console.log('User not logged in, showing auth page');
+                    showAuthPage();
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                showAuthPage();
             }
         });
-        
-        console.log('=== SCRIPT LOADED COMPLETELY ===');
-  </script>
+
+        // Добавляем обработчики событий после загрузки DOM
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, adding event listeners...');
+            
+            // Кнопка входа
+            const loginBtn = document.getElementById('login-btn');
+            if (loginBtn) {
+                loginBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Login button clicked');
+                    login();
+                });
+            } else {
+                console.error('Login button not found!');
+            }
+
+            // Ссылка на регистрацию
+            const registerLink = document.getElementById('register-link');
+            if (registerLink) {
+                registerLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Register link clicked');
+                    showRegisterModal();
+                });
+            }
+
+            // Ссылка "забыли пароль"
+            const forgotLink = document.getElementById('forgot-link');
+            if (forgotLink) {
+                forgotLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    alert('Функция восстановления пароля в разработке');
+                });
+            }
+
+            // Кнопка регистрации
+            const registerBtn = document.getElementById('register-btn');
+            if (registerBtn) {
+                registerBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Register button clicked');
+                    register();
+                });
+            }
+
+            // Ссылка "У меня есть аккаунт"
+            const toLoginLink = document.getElementById('to-login');
+            if (toLoginLink) {
+                toLoginLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Back to login clicked');
+                    registerModal.classList.add('hidden');
+                    authPage.classList.remove('hidden');
+                });
+            }
+        });
+    </script>
 </body>
 </html>
-
