@@ -59,6 +59,18 @@
     * {
       overscroll-behavior: none !important;
     }
+    
+    /* Smooth scrolling for Flutter app */
+    flt-glass-pane,
+    div {
+      scroll-behavior: smooth !important;
+      -webkit-overflow-scrolling: touch !important;
+    }
+    
+    /* Smooth animations */
+    * {
+      transition: scroll-behavior 0.3s ease !important;
+    }
   </style>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="flutter.js" defer></script>
