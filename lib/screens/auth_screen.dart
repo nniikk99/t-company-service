@@ -372,178 +372,141 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF4A90E2), // Синий сверху
-              Color(0xFF6B73FF), // Фиолетовый снизу
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: SlideTransition(
-                position: _slideAnimation,
+      backgroundColor: const Color(0xFF4A90E2), // Solid blue background like in the screenshot
+      body: SafeArea(
+        child: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 40.0),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 60),
                     
-                    // Логотип и заголовок
+                    // Main white card with logo and form
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
                       padding: const EdgeInsets.all(40),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(28),
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 24,
-                            offset: const Offset(0, 8),
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
                       child: Column(
                         children: [
-                          // Иконка логотипа (скутер в круге)
+                          // Logo circle with "AI" letters
                           Container(
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: const Color(0xFF4A90E2),
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.2),
-                                  spreadRadius: 2,
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
                             ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/logo/IMG_1897.PNG',
-                                width: 80,
-                                height: 80,
-                                fit: BoxFit.cover,
+                            child: const Center(
+                              child: Text(
+                                'AI',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 24),
-
-                          // Заголовок
-                          Text(
-                            'T-Co Service',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF4A90E2),
-                              fontSize: 28,
+                          
+                          // Service name
+                          const Text(
+                            'T-Company Service',
+                            style: TextStyle(
+                              color: Color(0xFF4A90E2),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
+                          
+                          // Tagline
+                          const Text(
                             'Система управления сервисными заявками',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                              fontSize: 16,
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
                             ),
                             textAlign: TextAlign.center,
                           ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 40),
-
-                    // Поля ввода
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          // Поле телефона
-                          PhoneInputField(
-                            controller: _phoneController,
-                            labelText: 'Номер телефона',
-                            hintText: '+7 (999) 123-45-67',
+                          
+                          const SizedBox(height: 32),
+                          
+                          // Phone number field
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: TextField(
+                              controller: _phoneController,
+                              decoration: InputDecoration(
+                                hintText: 'Номер телефона',
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           
-                          // Поле пароля
-                          TextField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: 'Пароль',
-                              hintText: 'Введите пароль',
-                              prefixIcon: const Icon(Icons.lock),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                                  color: Colors.grey,
+                          // Password field
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: TextField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
+                                hintText: 'Пароль',
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                              labelStyle: const TextStyle(color: Colors.black87),
-                              floatingLabelStyle: const TextStyle(color: Colors.black87),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFF4A90E2), width: 2),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
                           
-                          // Кнопка восстановления пароля
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.pushNamed(context, '/password-recovery');
-                              },
-                              child: const Text(
-                                'Забыли пароль?',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 24),
                           
-                          // Кнопка входа
+                          // Login button
                           SizedBox(
                             width: double.infinity,
-                            height: 56,
+                            height: 50,
                             child: ElevatedButton(
                               onPressed: !_isLoading ? _authenticate : null,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                disabledBackgroundColor: Colors.grey[300],
-                                foregroundColor: Colors.black87,
-                                elevation: 2,
+                                backgroundColor: const Color(0xFF4A90E2),
+                                elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(color: Colors.grey[300]!),
                                 ),
                               ),
                               child: _isLoading
@@ -552,101 +515,62 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                       ),
                                     )
-                                  : Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: const [
-                                        Icon(Icons.login, size: 20),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Войти в систему',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
+                                  : const Text(
+                                      'Войти в систему',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                             ),
                           ),
-
-                          const SizedBox(height: 20),
                           
-                          // Кнопка регистрации
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pushNamed(context, '/registration');
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primaryColor,
-                                foregroundColor: Colors.white,
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: const Text(
-                                'Регистрация',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-
                           const SizedBox(height: 16),
-
-                          // Кнопка очистки кеша (только для разработки)
-                          OutlinedButton(
-                            onPressed: () async {
-                              await StorageService.clearAll();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('✅ Кеш очищен! Данные обновлены.'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.orange[400]!),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              '🗑️ Очистить кеш',
-                              style: TextStyle(color: Colors.orange),
-                            ),
-                          ),
                           
-                          OutlinedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SupabaseTestScreen(),
+                          // Links row
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/password-recovery');
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 ),
-                              );
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Colors.grey[400]!),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                child: const Text(
+                                  'Забыли пароль?',
+                                  style: TextStyle(
+                                    color: Color(0xFF4A90E2),
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: const Text(
-                              '🔧 Тест Supabase подключения',
-                              style: TextStyle(color: Colors.grey),
-                            ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushNamed(context, '/registration');
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: const Text(
+                                  'Регистрация',
+                                  style: TextStyle(
+                                    color: Color(0xFF4A90E2),
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          
-                          const SizedBox(height: 40),
                         ],
                       ),
                     ),
