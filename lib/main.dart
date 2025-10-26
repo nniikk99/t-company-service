@@ -16,19 +16,18 @@ void main() async {
     // ВАЖНО: Проверяем что URL и ключ не placeholder
     print('Initializing Supabase with URL: ${SupabaseConfig.url}');
     
+    // Проверяем что URL не placeholder
+    if (SupabaseConfig.url.contains('your-project-ref')) {
+      throw Exception('Supabase URL contains placeholder! Check supabase_config.dart');
+    }
+    
     // Инициализируем Supabase
     await Supabase.initialize(
       url: SupabaseConfig.url,
       anonKey: SupabaseConfig.anonKey,
     );
     
-    // Проверяем что клиент инициализирован правильно
-    final client = Supabase.instance.client;
-    print('Supabase client initialized with URL: ${client.supabaseUrl}');
-    
-    if (client.supabaseUrl.contains('your-project-ref')) {
-      throw Exception('Supabase URL contains placeholder! Check supabase_config.dart');
-    }
+    print('✅ Supabase initialized successfully');
     
     runApp(const MyApp());
   } catch (error) {
