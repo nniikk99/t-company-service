@@ -34,6 +34,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   
+  // Фокус для полей ввода
+  FocusNode _phoneFocusNode = FocusNode();
+  FocusNode _passwordFocusNode = FocusNode();
+  
   // Контроллеры для полей ввода
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -62,6 +66,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       curve: Curves.easeOutCubic,
     ));
     
+    // Listen to focus changes to update border color
+    _phoneFocusNode.addListener(() {
+      setState(() {});
+    });
+    _passwordFocusNode.addListener(() {
+      setState(() {});
+    });
+    
     _animationController.forward();
     _checkTelegramAuth();
   }
@@ -69,6 +81,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _animationController.dispose();
+    _phoneFocusNode.dispose();
+    _passwordFocusNode.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -452,10 +466,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[300]!),
+                              border: Border.all(
+                                color: _phoneFocusNode.hasFocus 
+                                    ? const Color(0xFF4A90E2) 
+                                    : Colors.grey[300]!,
+                                width: 2,
+                              ),
                             ),
                             child: TextField(
                               controller: _phoneController,
+                              focusNode: _phoneFocusNode,
                               decoration: InputDecoration(
                                 hintText: 'Номер телефона',
                                 border: InputBorder.none,
@@ -470,10 +490,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[300]!),
+                              border: Border.all(
+                                color: _passwordFocusNode.hasFocus 
+                                    ? const Color(0xFF4A90E2) 
+                                    : Colors.grey[300]!,
+                                width: 2,
+                              ),
                             ),
                             child: TextField(
                               controller: _passwordController,
+                              focusNode: _passwordFocusNode,
                               obscureText: _obscurePassword,
                               decoration: InputDecoration(
                                 hintText: 'Пароль',
