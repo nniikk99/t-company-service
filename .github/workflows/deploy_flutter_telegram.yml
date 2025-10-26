@@ -32,10 +32,13 @@ jobs:
     
     - name: Copy supabase config
       run: |
-        cp lib/config/supabase_config.example.dart lib/config/supabase_config.dart
-        # Use fallback values if secrets are not available
-        sed -i 's|YOUR_SUPABASE_URL|https://kwunhuzfnjpcoeusnxzy.supabase.co|g' lib/config/supabase_config.dart
-        sed -i 's|YOUR_SUPABASE_ANON_KEY|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE|g' lib/config/supabase_config.dart
+        # Create config if it doesn't exist, otherwise keep the existing one
+        if [ ! -f lib/config/supabase_config.dart ]; then
+          cp lib/config/supabase_config.example.dart lib/config/supabase_config.dart
+        fi
+        # Update with actual values
+        sed -i 's|https://your-project-ref.supabase.co|https://kwunhuzfnjpcoeusnxzy.supabase.co|g' lib/config/supabase_config.dart
+        sed -i 's|your-anon-key-here|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt3dW5odXpmbmpwY29ldXNueHp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwNDM2MTksImV4cCI6MjA1OTYxOTYxOX0.2ppg8GtsGKE-ACMC__jSTy0gmn7eUya2xHagi9cdypE|g' lib/config/supabase_config.dart
     
     - name: Clean previous builds
       run: flutter clean
