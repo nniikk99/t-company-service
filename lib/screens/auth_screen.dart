@@ -426,7 +426,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           
                           // Service name
                           const Text(
-                            'T-Company Service',
+                            'AI Service',
                             style: TextStyle(
                               color: Color(0xFF4A90E2),
                               fontSize: 24,
