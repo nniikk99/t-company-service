@@ -55,6 +55,19 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
         } else {
           formatted = '+7 (${cleanDigits.substring(0, 3)}) ${cleanDigits.substring(3, 6)}-${cleanDigits.substring(6, 8)}-${cleanDigits.substring(8)}';
         }
+      } else if (digitsOnly.startsWith('9') || digitsOnly.length > 10) {
+        // Номер начинается с 9 (скорее всего это 10 цифр без +7)
+        String cleanDigits = digitsOnly;
+        
+        if (cleanDigits.length <= 3) {
+          formatted = '+7 ($cleanDigits';
+        } else if (cleanDigits.length <= 6) {
+          formatted = '+7 (${cleanDigits.substring(0, 3)}) ${cleanDigits.substring(3)}';
+        } else if (cleanDigits.length <= 8) {
+          formatted = '+7 (${cleanDigits.substring(0, 3)}) ${cleanDigits.substring(3, 6)}-${cleanDigits.substring(6)}';
+        } else {
+          formatted = '+7 (${cleanDigits.substring(0, 3)}) ${cleanDigits.substring(3, 6)}-${cleanDigits.substring(6, 8)}-${cleanDigits.substring(8)}';
+        }
       } else {
         // Простое форматирование для других номеров
         formatted = digitsOnly;
@@ -62,12 +75,9 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
     }
 
     if (formatted != text) {
-      final selection = widget.controller.selection;
-      widget.controller.value = widget.controller.value.copyWith(
+      widget.controller.value = TextEditingValue(
         text: formatted,
-        selection: selection.isValid && selection.baseOffset <= formatted.length
-            ? selection
-            : TextSelection.collapsed(offset: formatted.length),
+        selection: TextSelection.collapsed(offset: formatted.length),
       );
     }
   }
