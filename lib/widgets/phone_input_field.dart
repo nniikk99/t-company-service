@@ -40,39 +40,20 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
     
     String formatted = '';
     if (digitsOnly.isNotEmpty) {
-      if (digitsOnly.startsWith('7')) {
-        // Российский номер: +7 (999) 123-45-67
-        if (digitsOnly.length >= 1) {
+      if (digitsOnly.startsWith('7') || digitsOnly.startsWith('8')) {
+        // Российский номер: +7 (981) 746-73-95
+        String cleanDigits = digitsOnly.substring(digitsOnly.startsWith('8') ? 1 : 1);
+        
+        if (cleanDigits.isEmpty) {
           formatted = '+7';
-        }
-        if (digitsOnly.length >= 2) {
-          formatted += ' (${digitsOnly.substring(1, digitsOnly.length > 4 ? 4 : digitsOnly.length)}';
-        }
-        if (digitsOnly.length >= 5) {
-          formatted += ') ${digitsOnly.substring(4, digitsOnly.length > 7 ? 7 : digitsOnly.length)}';
-        }
-        if (digitsOnly.length >= 8) {
-          formatted += '-${digitsOnly.substring(7, digitsOnly.length > 9 ? 9 : digitsOnly.length)}';
-        }
-        if (digitsOnly.length >= 10) {
-          formatted += '-${digitsOnly.substring(9, digitsOnly.length > 11 ? 11 : digitsOnly.length)}';
-        }
-      } else if (digitsOnly.startsWith('8')) {
-        // Альтернативный формат: 8 (999) 123-45-67
-        if (digitsOnly.length >= 1) {
-          formatted = '8';
-        }
-        if (digitsOnly.length >= 2) {
-          formatted += ' (${digitsOnly.substring(1, digitsOnly.length > 4 ? 4 : digitsOnly.length)}';
-        }
-        if (digitsOnly.length >= 5) {
-          formatted += ') ${digitsOnly.substring(4, digitsOnly.length > 7 ? 7 : digitsOnly.length)}';
-        }
-        if (digitsOnly.length >= 8) {
-          formatted += '-${digitsOnly.substring(7, digitsOnly.length > 9 ? 9 : digitsOnly.length)}';
-        }
-        if (digitsOnly.length >= 10) {
-          formatted += '-${digitsOnly.substring(9, digitsOnly.length > 11 ? 11 : digitsOnly.length)}';
+        } else if (cleanDigits.length <= 3) {
+          formatted = '+7 ($cleanDigits';
+        } else if (cleanDigits.length <= 6) {
+          formatted = '+7 (${cleanDigits.substring(0, 3)}) ${cleanDigits.substring(3)}';
+        } else if (cleanDigits.length <= 8) {
+          formatted = '+7 (${cleanDigits.substring(0, 3)}) ${cleanDigits.substring(3, 6)}-${cleanDigits.substring(6)}';
+        } else {
+          formatted = '+7 (${cleanDigits.substring(0, 3)}) ${cleanDigits.substring(3, 6)}-${cleanDigits.substring(6, 8)}-${cleanDigits.substring(8)}';
         }
       } else {
         // Простое форматирование для других номеров
@@ -81,9 +62,12 @@ class _PhoneInputFieldState extends State<PhoneInputField> {
     }
 
     if (formatted != text) {
+      final selection = widget.controller.selection;
       widget.controller.value = widget.controller.value.copyWith(
         text: formatted,
-        selection: TextSelection.collapsed(offset: formatted.length),
+        selection: selection.isValid && selection.baseOffset <= formatted.length
+            ? selection
+            : TextSelection.collapsed(offset: formatted.length),
       );
     }
   }

@@ -35,7 +35,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late Animation<Offset> _slideAnimation;
   
   // Фокус для полей ввода
-  FocusNode _phoneFocusNode = FocusNode();
   FocusNode _passwordFocusNode = FocusNode();
   
   // Контроллеры для полей ввода
@@ -67,9 +66,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     ));
     
     // Listen to focus changes to update border color
-    _phoneFocusNode.addListener(() {
-      setState(() {});
-    });
     _passwordFocusNode.addListener(() {
       setState(() {});
     });
@@ -81,7 +77,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _animationController.dispose();
-    _phoneFocusNode.dispose();
     _passwordFocusNode.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -461,27 +456,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           
                           const SizedBox(height: 32),
                           
-                          // Phone number field
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: _phoneFocusNode.hasFocus 
-                                    ? const Color(0xFF4A90E2) 
-                                    : Colors.grey[300]!,
-                                width: 2,
-                              ),
-                            ),
-                            child: TextField(
-                              controller: _phoneController,
-                              focusNode: _phoneFocusNode,
-                              decoration: InputDecoration(
-                                hintText: 'Номер телефона',
-                                border: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                              ),
-                            ),
+                          // Phone number field with formatting
+                          PhoneInputField(
+                            controller: _phoneController,
+                            hintText: 'Номер телефона',
                           ),
                           const SizedBox(height: 16),
                           
