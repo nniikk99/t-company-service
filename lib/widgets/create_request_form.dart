@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../models/service_request.dart';
 import '../models/equipment.dart';
-import '../services/storage_service.dart';
+import '../services/supabase_service.dart';
 
 class CreateRequestForm extends StatefulWidget {
   final User user;
@@ -85,23 +85,24 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
     setState(() => _isLoading = true);
 
     try {
-      final allRequests = await StorageService.getRequests();
-      
-      final newRequest = ServiceRequest(
-        id: 'request_${DateTime.now().millisecondsSinceEpoch}',
-        clientId: widget.user.companyId!,
+      if (widget.user.companyId == null) {
+        throw Exception('Не указана компания пользователя');
+      }
+
+      // Определяем, требуется ли согласование
+      final requiresApproval = !widget.user.canManageRequestsWithoutApproval;
+
+      // Создаем заявку через Supabase
+      await SupabaseService.createServiceRequest(
+        companyId: widget.user.companyId!,
+        equipmentId: _selectedEquipment!.id,
         userId: widget.user.id,
-        type: _selectedType,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        status: RequestStatus.pending,
-        priority: _selectedPriority,
-        equipmentId: _selectedEquipment!.id,
-        createdAt: DateTime.now(),
+        type: _selectedType.toString().split('.').last, // repair, specialistVisit, etc.
+        priority: _selectedPriority.toString().split('.').last, // low, normal, high, urgent
+        requiresApproval: requiresApproval,
       );
-
-      final updatedRequests = [...allRequests, newRequest];
-      await StorageService.saveRequest(updatedRequests.first);
 
       if (mounted) {
         Navigator.pop(context, true); // Возвращаем true для обозначения успеха
@@ -113,10 +114,11 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
         );
       }
     } catch (e) {
+      print('❌ Ошибка создания заявки: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ошибка создания заявки'),
+          SnackBar(
+            content: Text('Ошибка создания заявки: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

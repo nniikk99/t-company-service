@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import '../widgets/tab_navigation.dart';
 import '../widgets/animated_card.dart';
 import '../widgets/animated_status_badge.dart';
+import '../widgets/assign_engineer_dialog.dart';
 
 class RequestsListScreen extends StatefulWidget {
   final User user;
@@ -42,11 +43,32 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
     try {
       List<ServiceRequest> filteredRequests;
       
+      // Для поставщиков - загружаем заявки на их оборудование
+      if (widget.user.role == UserRole.supplier) {
+        filteredRequests = await SupabaseService.getSupplierRequests(widget.user.id);
+      }
       // Для инженеров загружаем только назначенные заявки
-      if (widget.user.role == UserRole.engineer) {
+      else if (widget.user.role == UserRole.engineer) {
         filteredRequests = await SupabaseService.getEngineerAssignedRequests(widget.user.id);
-      } else {
-        // Для остальных ролей используем старую логику
+      }
+      // Для создателей заявок (operatorPM, siteManager, companyResponsible)
+      else if (widget.user.role == UserRole.operatorPM || 
+               widget.user.role == UserRole.siteManager || 
+               widget.user.role == UserRole.companyResponsible) {
+        // Загружаем заявки, созданные этим пользователем
+        filteredRequests = await SupabaseService.getUserServiceRequests(widget.user.id);
+        // Преобразуем в ServiceRequest объекты
+        filteredRequests = filteredRequests.map((json) {
+          try {
+            return ServiceRequest.fromJson(json);
+          } catch (e) {
+            print('⚠️ Ошибка парсинга заявки: $e');
+            return null;
+          }
+        }).whereType<ServiceRequest>().toList();
+      }
+      // Для остальных ролей используем старую логику
+      else {
         final allRequests = await StorageService.getRequests();
         
         // Фильтруем по роли пользователя
@@ -288,6 +310,24 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
             ],
           ),
           
+          // Кнопка "Назначить инженера" для поставщиков
+          if (_canAssignEngineer(request)) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _handleAssignEngineer(request),
+                icon: const Icon(Icons.person_add, size: 18),
+                label: const Text('Назначить инженера'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4A90E2),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+          
           // Кнопки действий (только для определенных ролей)
           if (_canManageRequest(request)) ...[
             const SizedBox(height: 12),
@@ -394,13 +434,52 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
   }
 
   bool _canManageRequest(ServiceRequest request) {
+    // Поставщики могут управлять заявками на свое оборудование
+    if (widget.user.role == UserRole.supplier) {
+      return request.supplierId == widget.user.id;
+    }
+    
     // Инженеры могут управлять только назначенными им заявками
     if (widget.user.role == UserRole.engineer) {
       return request.assignedEngineerId == widget.user.id;
     }
     
+    // Создатели заявок могут управлять своими заявками
+    if (widget.user.role == UserRole.operatorPM || 
+        widget.user.role == UserRole.siteManager || 
+        widget.user.role == UserRole.companyResponsible) {
+      return request.userId == widget.user.id;
+    }
+    
     // Остальные роли используют старую логику
     return widget.user.canApproveRequests || widget.user.canManageClients;
+  }
+
+  bool _canAssignEngineer(ServiceRequest request) {
+    // Поставщик может назначить инженера, если:
+    // 1. Это его заявка
+    // 2. Инженер еще не назначен
+    // 3. Статус заявки позволяет назначение (pending или approved)
+    if (widget.user.role == UserRole.supplier) {
+      return request.supplierId == widget.user.id &&
+             request.assignedEngineerId == null &&
+             (request.status == RequestStatus.pending || 
+              request.status == RequestStatus.approved);
+    }
+    return false;
+  }
+
+  void _handleAssignEngineer(ServiceRequest request) {
+    showDialog(
+      context: context,
+      builder: (context) => AssignEngineerDialog(
+        requestId: request.id,
+        supplierUserId: widget.user.id,
+        onEngineerAssigned: () {
+          _loadRequests(); // Перезагружаем список после назначения
+        },
+      ),
+    );
   }
 
   void _showRequestDetails(ServiceRequest request) {

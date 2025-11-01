@@ -248,14 +248,37 @@ class SupabaseService {
     DateTime? scheduledDate,
     String? notes,
     List<String>? attachments,
+    bool requiresApproval = true, // Требуется ли согласование
   }) async {
+    // Получаем supplier_id из equipment
+    String? supplierId;
+    try {
+      final equipmentResponse = await _client
+          .from('equipment')
+          .select('supplier_id')
+          .eq('id', equipmentId)
+          .maybeSingle();
+      
+      if (equipmentResponse != null && equipmentResponse['supplier_id'] != null) {
+        supplierId = equipmentResponse['supplier_id'];
+      }
+    } catch (e) {
+      print('⚠️ Ошибка получения supplier_id из equipment: $e');
+      // Продолжаем создание заявки даже если не удалось получить supplier_id
+    }
+
+    // Определяем начальный статус
+    final initialStatus = requiresApproval ? 'pending' : 'approved';
+
     final response = await _client.from('service_requests').insert({
       'company_id': companyId,
       'equipment_id': equipmentId,
       'user_id': userId,
+      'supplier_id': supplierId, // Сохраняем supplier_id из equipment
       'title': title,
       'description': description,
       'type': type,
+      'status': initialStatus,
       'priority': priority,
       'estimated_cost': estimatedCost,
       'scheduled_date': scheduledDate?.toIso8601String(),
@@ -1133,6 +1156,124 @@ class SupabaseService {
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
+  }
+
+  /// Получение заявок для поставщика
+  /// Поставщик видит только заявки на оборудование, которое он поставил
+  static Future<List<ServiceRequest>> getSupplierRequests(String supplierUserId) async {
+    try {
+      final response = await _client
+          .from('service_requests')
+          .select('*, equipment(name, model, manufacturer), user_profiles(first_name, last_name, phone)')
+          .eq('supplier_id', supplierUserId)
+          .neq('status', 'cancelled')
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) => ServiceRequest.fromJson(json))
+          .toList();
+    } catch (e) {
+      print('❌ Ошибка загрузки заявок поставщика: $e');
+      return [];
+    }
+  }
+
+  /// Получение инженеров поставщика
+  /// Возвращает список всех инженеров, принадлежащих данному поставщику
+  static Future<List<AppUserModel.User>> getSupplierEngineers(String supplierUserId) async {
+    try {
+      print('🔍 Загружаем инженеров поставщика $supplierUserId...');
+      
+      // Получаем ID поставщика из таблицы suppliers или напрямую из user_profiles
+      // Предполагаем, что supplierUserId это ID пользователя с ролью supplier
+      // и инженеры имеют supplier_id = supplierUserId в таблице user_profiles
+      
+      final response = await _client
+          .from('user_profiles')
+          .select('*')
+          .eq('role', 'engineer')
+          .eq('supplier_id', supplierUserId) // Инженеры должны иметь supplier_id
+          .order('first_name');
+
+      print('📋 Получено инженеров: ${response.length}');
+      
+      final engineers = (response as List)
+          .map((json) => AppUserModel.User.fromJson(json))
+          .toList();
+      
+      print('👥 Инженеры: ${engineers.map((e) => '${e.firstName} ${e.lastName}').join(', ')}');
+      return engineers;
+    } catch (e) {
+      print('❌ Ошибка загрузки инженеров поставщика: $e');
+      return [];
+    }
+  }
+
+  /// Назначение инженера поставщиком к заявке
+  /// Включает проверки прав и принадлежности
+  static Future<void> assignEngineerToRequest({
+    required String requestId,
+    required String engineerId,
+    required String supplierUserId,
+    bool startWorkImmediately = false, // Начинать работу сразу или оставить approved
+  }) async {
+    try {
+      // Проверка 1: Заявка принадлежит этому поставщику
+      final requestResponse = await _client
+          .from('service_requests')
+          .select('supplier_id, status')
+          .eq('id', requestId)
+          .maybeSingle();
+
+      if (requestResponse == null) {
+        throw Exception('Заявка не найдена');
+      }
+
+      if (requestResponse['supplier_id'] != supplierUserId) {
+        throw Exception('Эта заявка не принадлежит вашему поставщику');
+      }
+
+      // Проверка 2: Инженер принадлежит этому поставщику
+      final engineerResponse = await _client
+          .from('user_profiles')
+          .select('id, role, supplier_id')
+          .eq('id', engineerId)
+          .maybeSingle();
+
+      if (engineerResponse == null) {
+        throw Exception('Инженер не найден');
+      }
+
+      if (engineerResponse['role'] != 'engineer') {
+        throw Exception('Пользователь не является инженером');
+      }
+
+      if (engineerResponse['supplier_id'] != supplierUserId) {
+        throw Exception('Этот инженер не принадлежит вашему поставщику');
+      }
+
+      // Обновляем заявку: назначаем инженера и меняем статус
+      final status = startWorkImmediately ? 'inProgress' : 'approved';
+      final updateData = {
+        'assigned_engineer_id': engineerId,
+        'status': status,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (startWorkImmediately) {
+        updateData['engineer_started_at'] = DateTime.now().toIso8601String();
+      }
+
+      await _client
+          .from('service_requests')
+          .update(updateData)
+          .eq('id', requestId);
+
+      print('✅ Инженер $engineerId успешно назначен на заявку $requestId');
+    } catch (e) {
+      print('❌ Ошибка назначения инженера: $e');
+      rethrow;
+    }
   }
 
   /// Начало работы инженера над заявкой

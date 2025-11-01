@@ -131,6 +131,9 @@ class User {
   // Права для инженеров
   bool get canWorkWithRequests => role == UserRole.engineer;
   bool get canViewAssignedRequests => role == UserRole.engineer;
+  
+  // Права для поставщиков
+  bool get canAssignEngineers => role == UserRole.supplier;
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(

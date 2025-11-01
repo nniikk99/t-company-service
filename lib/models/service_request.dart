@@ -26,6 +26,7 @@ class ServiceRequest {
   final String id;
   final String clientId;               // Для обратной совместимости
   final String? companyId;             // Новое поле для Supabase
+  final String? supplierId;            // ID поставщика, которому видна заявка (из equipment)
   final String userId;                    // Кто создал заявку
   final RequestType type;
   final String title;
@@ -60,6 +61,7 @@ class ServiceRequest {
     required this.id,
     required this.clientId,
     this.companyId,
+    this.supplierId,
     required this.userId,
     required this.type,
     required this.title,
@@ -152,6 +154,7 @@ class ServiceRequest {
       id: json['id'],
       clientId: json['client_id'] ?? json['company_id'] ?? '',
       companyId: json['company_id'],
+      supplierId: json['supplier_id'],
       userId: json['user_id'],
       type: RequestType.values.firstWhere(
         (e) => e.toString() == 'RequestType.${json['type']}',
@@ -202,6 +205,7 @@ class ServiceRequest {
       'id': id,
       'client_id': clientId,
       'company_id': companyId,
+      'supplier_id': supplierId,
       'user_id': userId,
       'type': type.toString().split('.').last,
       'title': title,
@@ -229,6 +233,8 @@ class ServiceRequest {
   ServiceRequest copyWith({
     String? id,
     String? clientId,
+    String? companyId,
+    String? supplierId,
     String? userId,
     RequestType? type,
     String? title,
@@ -254,6 +260,8 @@ class ServiceRequest {
     return ServiceRequest(
       id: id ?? this.id,
       clientId: clientId ?? this.clientId,
+      companyId: companyId ?? this.companyId,
+      supplierId: supplierId ?? this.supplierId,
       userId: userId ?? this.userId,
       type: type ?? this.type,
       title: title ?? this.title,

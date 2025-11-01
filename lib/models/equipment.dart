@@ -10,6 +10,7 @@ class Equipment {
   final String? clientId;              // Для обратной совместимости
   final String? companyId;             // Новое поле для Supabase
   final String? companyInn;            // ИНН компании
+  final String? supplierId;            // ID поставщика, который поставил оборудование
   final String name;                   // Название оборудования
   final String manufacturer;          // Производитель
   final String model;                  // Модель
@@ -36,6 +37,7 @@ class Equipment {
     this.clientId,
     this.companyId,
     this.companyInn,
+    this.supplierId,
     required this.name,
     required this.manufacturer,
     required this.model,
@@ -88,6 +90,7 @@ class Equipment {
       clientId: json['client_id'] ?? json['company_id'] ?? '',
       companyId: json['company_id'],
       companyInn: json['company_inn'],
+      supplierId: json['supplier_id'],
       name: json['name'] ?? json['title'] ?? '',
       manufacturer: json['manufacturer'] ?? '',
       model: json['model'] ?? '',
@@ -130,6 +133,7 @@ class Equipment {
       'client_id': clientId,
       'company_id': companyId,
       'company_inn': companyInn,
+      'supplier_id': supplierId,
       'name': name,
       'manufacturer': manufacturer,
       'model': model,
@@ -158,6 +162,7 @@ class Equipment {
     String? clientId,
     String? companyId,
     String? companyInn,
+    String? supplierId,
     String? name,
     String? manufacturer,
     String? model,
@@ -184,6 +189,7 @@ class Equipment {
       clientId: clientId ?? this.clientId,
       companyId: companyId ?? this.companyId,
       companyInn: companyInn ?? this.companyInn,
+      supplierId: supplierId ?? this.supplierId,
       name: name ?? this.name,
       manufacturer: manufacturer ?? this.manufacturer,
       model: model ?? this.model,
