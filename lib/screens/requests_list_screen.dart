@@ -56,9 +56,9 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
                widget.user.role == UserRole.siteManager || 
                widget.user.role == UserRole.companyResponsible) {
         // Загружаем заявки, созданные этим пользователем
-        filteredRequests = await SupabaseService.getUserServiceRequests(widget.user.id);
+        final requestsJson = await SupabaseService.getUserServiceRequests(widget.user.id);
         // Преобразуем в ServiceRequest объекты
-        filteredRequests = filteredRequests.map((json) {
+        filteredRequests = requestsJson.map((json) {
           try {
             return ServiceRequest.fromJson(json);
           } catch (e) {

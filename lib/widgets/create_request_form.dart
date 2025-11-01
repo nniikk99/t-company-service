@@ -38,9 +38,18 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
 
   Future<void> _loadEquipment() async {
     try {
-      final allEquipment = await StorageService.getEquipment();
-      
       List<Equipment> available;
+      
+      if (widget.user.companyId == null) {
+        setState(() {
+          _availableEquipment = [];
+        });
+        return;
+      }
+
+      // Загружаем оборудование через Supabase
+      final allEquipment = await SupabaseService.getEquipment(widget.user.companyId!);
+      
       if (widget.user.role == UserRole.contactPerson && 
           widget.user.equipmentIds != null) {
         // Контактное лицо видит только назначенное оборудование
@@ -49,9 +58,7 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
             .toList();
       } else {
         // Остальные видят оборудование своего клиента
-        available = allEquipment
-            .where((e) => e.clientId == widget.user.companyId)
-            .toList();
+        available = allEquipment;
       }
 
       setState(() {
