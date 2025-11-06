@@ -126,7 +126,7 @@ class User {
   
   // Права на управление площадками и оборудованием
   bool get canManageSites => role == UserRole.companyResponsible || role == UserRole.superAdmin || role == UserRole.administrator;
-  bool get canManageEquipment => role == UserRole.companyResponsible || role == UserRole.siteManager || role == UserRole.superAdmin || role == UserRole.administrator;
+  bool get canManageEquipment => role == UserRole.companyResponsible || role == UserRole.siteManager || role == UserRole.operatorPM || role == UserRole.superAdmin || role == UserRole.administrator;
   
   // Права для инженеров
   bool get canWorkWithRequests => role == UserRole.engineer;
