@@ -146,12 +146,20 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
       String? supabaseError;
       
       try {
+        print('🔍 Попытка создания оборудования:');
+        print('  - User ID: ${widget.user.id}');
+        print('  - User Role: ${widget.user.role}');
+        print('  - Company ID: ${widget.user.companyId}');
+        print('  - Company INN: ${widget.user.companyInn}');
+        print('  - Equipment data: ${equipment.toJson()}');
+        
         await SupabaseService.createEquipment(equipment);
         supabaseSaved = true;
-        print('Equipment saved to Supabase successfully');
+        print('✅ Equipment saved to Supabase successfully');
       } catch (e) {
         supabaseError = e.toString();
-        print('Supabase error: $e');
+        print('❌ Supabase error: $e');
+        print('❌ Error details: ${e.runtimeType}');
       }
       
       // Всегда сохраняем локально
