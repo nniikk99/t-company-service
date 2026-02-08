@@ -3,8 +3,10 @@ import 'package:uuid/uuid.dart';
 import '../models/equipment.dart';
 import '../models/site.dart';
 import '../models/user.dart';
+import '../models/equipment_model.dart';
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
+import '../data/equipment_specifications.dart';
 
 class AddEquipmentDialog extends StatefulWidget {
   final User user;
@@ -28,37 +30,30 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
   bool _isLoading = false;
   bool _isLoadingSites = false;
   
-  String _selectedManufacturer = '';
-  String _selectedModel = '';
-  String _selectedModification = '';
-  String _selectedSiteId = '';
-  
   List<Site> _sites = [];
+  List<EquipmentModel> _availableModels = [];
+  EquipmentModel? _selectedModelObj;
+  String _selectedSiteId = '';
+  DateTime? _purchaseDate;
   
-  // Производители оборудования
-  final Map<String, List<String>> _equipmentModels = {
-    'Tennant': ['T2', 'T3', 'T300', 'T5', 'T500', 'T7', 'T12', 'T16', 'M17', 'T20', 'M20'],
-    'Gadlee': ['GT30', 'GT50', 'GT55', 'GT70', 'GT85', 'GT110', 'GT180', 'GT260'],
-    'IPC': ['CT15', 'CT40', 'CT71'],
-    'T-line': ['T-Mop', 'T-wac', 'TLO-1500'],
-    'Gausium': ['Scrubber 50', 'Phantas', 'Ecobot Scrub', 'Vacuum 40'],
-  };
-  
-  // Модификации для специфических моделей
-  final Map<String, List<String>> _modelModifications = {
-    'T5': ['600 (стандарт)', '700'],
-    'T3': ['43', '50'],
-    'T500': ['600 (стандарт)', '700'],
-    'GT180': ['75RS', 'B95'],
-    'GT85': ['BT70'],
-    'GT260': ['B106'],
-    'GT50': ['C50', 'B50'],
-  };
+  // Убираем хардкодные данные производителей
 
   @override
   void initState() {
     super.initState();
-    _loadSites();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    await Future.wait([
+      _loadSites(),
+      _loadModels(),
+    ]);
+  }
+
+  Future<void> _loadModels() async {
+    final models = await SupabaseService().getEquipmentModels();
+    setState(() => _availableModels = models);
   }
 
   @override
@@ -99,9 +94,9 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
 
   Future<void> _saveEquipment() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedManufacturer.isEmpty || _selectedModel.isEmpty) {
+    if (_selectedModelObj == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пожалуйста, выберите производителя и модель')),
+        const SnackBar(content: Text('Пожалуйста, выберите модель оборудования')),
       );
       return;
     }
@@ -126,10 +121,10 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
         clientId: widget.user.companyId,
         companyId: widget.user.companyId,
         companyInn: widget.user.companyInn,
-        name: '${_selectedManufacturer} ${_selectedModel}${_selectedModification.isNotEmpty ? ' ${_selectedModification}' : ''}',
-        manufacturer: _selectedManufacturer,
-        model: _selectedModel,
-        modification: _selectedModification.isNotEmpty ? _selectedModification : null,
+        name: '${_selectedModelObj!.manufacturer} ${_selectedModelObj!.model}',
+        manufacturer: _selectedModelObj!.manufacturer,
+        model: _selectedModelObj!.model,
+        modification: null,
         serialNumber: _serialNumberController.text.trim().isNotEmpty 
             ? _serialNumberController.text.trim() : null,
         siteId: _selectedSiteId.isNotEmpty ? _selectedSiteId : null,
@@ -139,6 +134,10 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
         description: _descriptionController.text.trim().isNotEmpty 
             ? _descriptionController.text.trim() : null,
         createdAt: DateTime.now(),
+        type: _selectedModelObj!.specifications['type']?.toString() ?? 'Поломоечная машина',
+        purchaseDate: _purchaseDate,
+        specifications: _selectedModelObj!.specifications,
+        imageUrl: _selectedModelObj!.imageUrl,
       );
 
       // Сохранить в Supabase и локально
@@ -201,7 +200,23 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
         SnackBar(content: Text('Ошибка при сохранении: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+
+  Future<void> _selectPurchaseDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _purchaseDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      // Убираем locale если нет уверенности в инициализации Intl
+    );
+    if (picked != null && picked != _purchaseDate) {
+      setState(() {
+        _purchaseDate = picked;
+      });
     }
   }
 
@@ -257,14 +272,6 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final availableModels = _selectedManufacturer.isNotEmpty 
-        ? _equipmentModels[_selectedManufacturer] ?? []
-        : <String>[];
-    
-    final availableModifications = _selectedModel.isNotEmpty 
-        ? _modelModifications[_selectedModel] ?? []
-        : <String>[];
-
     // Calculate dynamic height
     final screenHeight = MediaQuery.of(context).size.height;
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
@@ -341,9 +348,9 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                         
                         const SizedBox(height: 20),
                         
-                        // Производитель
+                        // Выбор модели оборудования (от поставщика)
                         const Text(
-                          'Производитель',
+                          'Модель оборудования',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -351,57 +358,8 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: _selectedManufacturer.isNotEmpty ? _selectedManufacturer : null,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: const Color(0xFFF9FAFB),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          ),
-                          hint: const Text('Выберите производителя'),
-                          items: _equipmentModels.keys.map((manufacturer) {
-                            return DropdownMenuItem(
-                              value: manufacturer,
-                              child: Text(manufacturer),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedManufacturer = value ?? '';
-                              _selectedModel = '';
-                              _selectedModification = '';
-                            });
-                          },
-                          validator: (value) => value?.isEmpty == true 
-                              ? 'Выберите производителя' : null,
-                        ),
-                        
-                        const SizedBox(height: 20),
-                        
-                        // Модель
-                        const Text(
-                          'Модель',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF1F2937),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: _selectedModel.isNotEmpty ? _selectedModel : null,
+                        DropdownButtonFormField<EquipmentModel>(
+                          value: _selectedModelObj,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: const Color(0xFFF9FAFB),
@@ -420,67 +378,20 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
                           hint: const Text('Выберите модель'),
-                          items: availableModels.map((model) {
-                            return DropdownMenuItem(
+                          items: _availableModels.map<DropdownMenuItem<EquipmentModel>>((model) {
+                            return DropdownMenuItem<EquipmentModel>(
                               value: model,
-                              child: Text(model),
+                              child: Text('${model.manufacturer} ${model.model}'),
                             );
                           }).toList(),
-                          onChanged: availableModels.isNotEmpty ? (value) {
+                          onChanged: (value) {
                             setState(() {
-                              _selectedModel = value ?? '';
-                              _selectedModification = '';
+                              _selectedModelObj = value;
                             });
-                          } : null,
-                          validator: (value) => value?.isEmpty == true 
-                              ? 'Выберите модель' : null,
+                          },
+                          validator: (value) => value == null 
+                              ? 'Пожалуйста, выберите модель' : null,
                         ),
-                        
-                        // Модификация (на отдельной строке)
-                        if (availableModifications.isNotEmpty) ...[
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Модификация',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF1F2937),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            value: _selectedModification.isNotEmpty ? _selectedModification : null,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: const Color(0xFFF9FAFB),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            ),
-                            hint: const Text('Выберите модификацию'),
-                            items: availableModifications.map((modification) {
-                              return DropdownMenuItem(
-                                value: modification,
-                                child: Text(modification),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedModification = value ?? '';
-                              });
-                            },
-                          ),
-                        ],
                         
                         const SizedBox(height: 20),
                         
@@ -514,8 +425,8 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           ),
                           hint: Text(_isLoadingSites ? 'Загрузка...' : 'Выберите площадку'),
-                          items: _sites.map((site) {
-                            return DropdownMenuItem(
+                          items: _sites.map<DropdownMenuItem<String>>((site) {
+                            return DropdownMenuItem<String>(
                               value: site.id,
                               child: Text(site.name),
                             );
@@ -528,6 +439,44 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                         ),
                         
                         const SizedBox(height: 20),
+                        
+                        const SizedBox(height: 20),
+                        
+                        // Дата реализации
+                        const Text(
+                          'Дата реализации (покупки)',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: _selectPurchaseDate,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9FAFB),
+                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                                const SizedBox(width: 12),
+                                Text(
+                                  _purchaseDate == null 
+                                      ? 'Выберите дату' 
+                                      : '${_purchaseDate!.day}.${_purchaseDate!.month}.${_purchaseDate!.year}',
+                                  style: TextStyle(
+                                    color: _purchaseDate == null ? Colors.grey[600] : Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                         
                         // Описание
                         const Text(

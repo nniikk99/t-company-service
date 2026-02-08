@@ -18,6 +18,9 @@ import 'engineer_management_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'engineer_statistics_screen.dart';
+import 'supplier_equipment_screen.dart';
+import 'supplier_clients_screen.dart';
+import 'supplier_partners_screen.dart';
 import '../widgets/add_site_dialog.dart';
 import '../widgets/add_equipment_dialog.dart';
 
@@ -160,6 +163,45 @@ class _MainScreenState extends State<MainScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => EmployeeManagementScreen(responsibleUser: _currentUser),
+      ),
+    );
+  }
+
+  void _handleSupplierEquipment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SupplierEquipmentScreen(supplier: _currentUser),
+      ),
+    );
+  }
+
+  void _handleAdminEquipment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SupplierEquipmentScreen(
+          supplier: _currentUser,
+          isAdminMode: true,
+        ),
+      ),
+    );
+  }
+
+  void _handleSupplierClients() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SupplierClientsScreen(supplier: _currentUser),
+      ),
+    );
+  }
+
+  void _handleSupplierPartners() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SupplierPartnersScreen(supplier: _currentUser),
       ),
     );
   }
@@ -730,7 +772,20 @@ class _MainScreenState extends State<MainScreen> {
                         _handleNotificationsClick();
                       },
                     ),
-                    if (_currentUser.canManageClients) 
+                    // Админ-панель скрыта по просьбе пользователя
+                    // if (_currentUser.role == UserRole.admin || _currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) ...
+
+                    // Прямой доступ к инструментам БД для исправления прав
+                    if (_currentUser.role == UserRole.admin || _currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator)
+                      _buildDrawerItem(
+                        icon: Icons.admin_panel_settings,
+                        title: 'Инструменты БД',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/database-check');
+                        },
+                      ),
+                    if (_currentUser.canManageSites) 
                       _buildDrawerItem(
                         icon: Icons.location_on_outlined,
                         title: 'Управление площадками',
@@ -757,6 +812,15 @@ class _MainScreenState extends State<MainScreen> {
                           _handleEngineerManagement();
                         },
                       ),
+                    if (_currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator)
+                      _buildDrawerItem(
+                        icon: Icons.precision_manufacturing_outlined,
+                        title: 'Оборудование',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _handleAdminEquipment();
+                        },
+                      ),
                     // Сотрудники - только для ответственного лица
                     if (_currentUser.role == UserRole.companyResponsible)
                       _buildDrawerItem(
@@ -767,6 +831,32 @@ class _MainScreenState extends State<MainScreen> {
                           _handleEmployeeManagement();
                         },
                       ),
+                    if (_currentUser.role == UserRole.supplier) ...[
+                      _buildDrawerItem(
+                        icon: Icons.add_to_photos_outlined,
+                        title: 'Оборудование +',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _handleSupplierEquipment();
+                        },
+                      ),
+                      _buildDrawerItem(
+                        icon: Icons.people_alt_outlined,
+                        title: 'Клиенты',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _handleSupplierClients();
+                        },
+                      ),
+                      _buildDrawerItem(
+                        icon: Icons.build_circle_outlined,
+                        title: 'Сервис',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _handleSupplierPartners();
+                        },
+                      ),
+                    ],
                     if (_currentUser.canManageClients)
                       _buildDrawerItem(
                         icon: Icons.telegram,

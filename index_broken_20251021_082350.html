@@ -249,7 +249,7 @@
         <div id="requests-page" class="page-content">
             <div class="header">
                 <h2>Заявки</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showCreateRequestModal()">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" id="add-request-btn">+</button>
             </div>
             
             <div id="requests-list">
@@ -260,7 +260,7 @@
         <div id="engineers-page" class="page-content hidden">
             <div class="header">
                 <h2>Персонал</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showAddPersonModal()">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" id="add-engineer-btn">+</button>
             </div>
             
             <div id="engineers-list">
@@ -271,7 +271,7 @@
         <div id="equipment-page" class="page-content hidden">
             <div class="header">
                 <h2>Оборудование</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showAddEquipmentModal()">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" id="add-equipment-btn">+</button>
             </div>
             
             <div id="equipment-list">
@@ -298,7 +298,7 @@
                 <button class="button" onclick="showSitesManagement()" style="margin-bottom: 10px;">Управление площадками</button>
             </div>
             
-            <button class="button" onclick="logout()">Выйти</button>
+            <button class="button" id="logout-btn">Выйти</button>
         </div>
     </div>
 
@@ -345,12 +345,6 @@
             'client': 'Клиент'
         };
 
-        const authPage = document.getElementById('auth-page');
-        const registerModal = document.getElementById('register-modal');
-        const mainApp = document.getElementById('main-app');
-        const phoneInput = document.getElementById('phone');
-        const passwordInput = document.getElementById('password');
-
         // Telegram WebApp init
         if (window.Telegram && window.Telegram.WebApp) {
             const tg = window.Telegram.WebApp;
@@ -366,27 +360,8 @@
             console.log('Not in Telegram WebApp');
         }
 
-        // Phone mask
-        phoneInput.addEventListener('input', function (e) {
-            let value = e.target.value.replace(/\D/g, '');
-            let maskedValue = '';
-            if (value.length > 0) {
-                maskedValue += '+7 (';
-                if (value.length > 1) {
-                    maskedValue += value.substring(1, 4);
-                }
-                if (value.length > 4) {
-                    maskedValue += ') ' + value.substring(4, 7);
-                }
-                if (value.length > 7) {
-                    maskedValue += '-' + value.substring(7, 9);
-                }
-                if (value.length > 9) {
-                    maskedValue += '-' + value.substring(9, 11);
-                }
-            }
-            e.target.value = maskedValue;
-        });
+        // Declare global variables
+        let authPage, registerModal, mainApp, phoneInput, passwordInput;
 
         function phoneToEmail(phoneDigits) {
             // Превращаем телефон в технический email для Supabase
@@ -507,48 +482,44 @@
             }
         }
 
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                e.preventDefault();
-                showPage(this.dataset.page);
-            });
-        });
+        // Navigation will be initialized in DOMContentLoaded
 
         // Registration flow
-        document.getElementById('register-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            authPage.classList.add('hidden');
-            registerModal.classList.remove('hidden');
-        });
-
-        document.getElementById('to-login').addEventListener('click', (e) => {
-            e.preventDefault();
-            registerModal.classList.add('hidden');
-            authPage.classList.remove('hidden');
-        });
-
-        document.getElementById('do-register').addEventListener('click', async () => {
+        // Registration function
+        async function register() {
+            console.log('Register function called');
             const phone = document.getElementById('reg-phone').value.replace(/\D/g, '');
             const password = document.getElementById('reg-password').value;
+            
+            console.log('Registration phone:', phone, 'Password length:', password.length);
+            
             if (phone.length < 11 || password.length < 6) {
                 alert('Введите корректный номер и пароль не короче 6 символов.');
                 return;
             }
+            
             try {
                 const { data, error } = await supabase.auth.signUp({
                     email: phoneToEmail(phone),
                     password,
                     options: { data: { phone } }
                 });
-                if (error) { alert(error.message); return; }
-                alert('Регистрация выполнена. Теперь войдите.');
+                
+                if (error) {
+                    console.error('Registration error:', error);
+                    alert('Ошибка регистрации: ' + error.message);
+                    return;
+                }
+                
+                console.log('Registration successful');
+                alert('✅ Регистрация выполнена! Теперь войдите.');
                 registerModal.classList.add('hidden');
                 authPage.classList.remove('hidden');
             } catch (e) {
+                console.error('Unexpected registration error:', e);
                 alert('Ошибка регистрации');
-                console.error(e);
             }
-        });
+        }
 
         // Обновляем профиль пользователя
         function updateUserProfile() {
@@ -864,7 +835,46 @@
 
         // Добавляем обработчики событий после загрузки DOM
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, adding event listeners...');
+            console.log('=== DOM LOADED ===');
+            
+            // Initialize elements
+            authPage = document.getElementById('auth-page');
+            registerModal = document.getElementById('register-modal');
+            mainApp = document.getElementById('main-app');
+            phoneInput = document.getElementById('phone');
+            passwordInput = document.getElementById('password');
+            
+            console.log('Elements initialized:', {
+                authPage: !!authPage,
+                mainApp: !!mainApp,
+                phoneInput: !!phoneInput,
+                passwordInput: !!passwordInput
+            });
+            
+            // Phone mask
+            if (phoneInput) {
+                phoneInput.addEventListener('input', function (e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    let maskedValue = '';
+                    if (value.length > 0) {
+                        maskedValue += '+7 (';
+                        if (value.length > 1) {
+                            maskedValue += value.substring(1, 4);
+                        }
+                        if (value.length > 4) {
+                            maskedValue += ') ' + value.substring(4, 7);
+                        }
+                        if (value.length > 7) {
+                            maskedValue += '-' + value.substring(7, 9);
+                        }
+                        if (value.length > 9) {
+                            maskedValue += '-' + value.substring(9, 11);
+                        }
+                    }
+                    e.target.value = maskedValue;
+                });
+                console.log('Phone mask added');
+            }
             
             // Кнопка входа
             const loginBtn = document.getElementById('login-btn');
@@ -917,6 +927,56 @@
                     authPage.classList.remove('hidden');
                 });
             }
+
+            // Кнопка добавления заявки
+            const addRequestBtn = document.getElementById('add-request-btn');
+            if (addRequestBtn) {
+                addRequestBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Add request button clicked');
+                    showCreateRequestModal();
+                });
+            }
+
+            // Кнопка добавления персонала
+            const addEngineerBtn = document.getElementById('add-engineer-btn');
+            if (addEngineerBtn) {
+                addEngineerBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Add engineer button clicked');
+                    showAddPersonModal();
+                });
+            }
+
+            // Кнопка добавления оборудования
+            const addEquipmentBtn = document.getElementById('add-equipment-btn');
+            if (addEquipmentBtn) {
+                addEquipmentBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Add equipment button clicked');
+                    showAddEquipmentModal();
+                });
+            }
+
+            // Кнопка выхода
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Logout button clicked');
+                    logout();
+                });
+            }
+
+            // Навигация
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Nav clicked:', this.dataset.page);
+                    showPage(this.dataset.page);
+                });
+            });
+            console.log('Navigation initialized');
         });
     </script>
 </body>

@@ -249,7 +249,7 @@
         <div id="requests-page" class="page-content">
             <div class="header">
                 <h2>Заявки</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showCreateRequestModal()">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" id="add-request-btn">+</button>
             </div>
             
             <div id="requests-list">
@@ -260,7 +260,7 @@
         <div id="engineers-page" class="page-content hidden">
             <div class="header">
                 <h2>Персонал</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showAddPersonModal()">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" id="add-engineer-btn">+</button>
             </div>
             
             <div id="engineers-list">
@@ -271,7 +271,7 @@
         <div id="equipment-page" class="page-content hidden">
             <div class="header">
                 <h2>Оборудование</h2>
-                <button class="button" style="width: auto; padding: 10px 15px;" onclick="showAddEquipmentModal()">+</button>
+                <button class="button" style="width: auto; padding: 10px 15px;" id="add-equipment-btn">+</button>
             </div>
             
             <div id="equipment-list">
@@ -298,7 +298,7 @@
                 <button class="button" onclick="showSitesManagement()" style="margin-bottom: 10px;">Управление площадками</button>
             </div>
             
-            <button class="button" onclick="logout()">Выйти</button>
+            <button class="button" id="logout-btn">Выйти</button>
         </div>
     </div>
 
@@ -915,6 +915,46 @@
                     console.log('Back to login clicked');
                     registerModal.classList.add('hidden');
                     authPage.classList.remove('hidden');
+                });
+            }
+
+            // Кнопка добавления заявки
+            const addRequestBtn = document.getElementById('add-request-btn');
+            if (addRequestBtn) {
+                addRequestBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Add request button clicked');
+                    showCreateRequestModal();
+                });
+            }
+
+            // Кнопка добавления персонала
+            const addEngineerBtn = document.getElementById('add-engineer-btn');
+            if (addEngineerBtn) {
+                addEngineerBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Add engineer button clicked');
+                    showAddPersonModal();
+                });
+            }
+
+            // Кнопка добавления оборудования
+            const addEquipmentBtn = document.getElementById('add-equipment-btn');
+            if (addEquipmentBtn) {
+                addEquipmentBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Add equipment button clicked');
+                    showAddEquipmentModal();
+                });
+            }
+
+            // Кнопка выхода
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Logout button clicked');
+                    logout();
                 });
             }
         });

@@ -6,6 +6,7 @@ import '../models/site.dart';
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/error_dialog.dart';
+import '../data/equipment_specifications.dart';
 
 class EditEquipmentDialog extends StatefulWidget {
   final User user;
@@ -35,6 +36,10 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
   String _selectedModification = '';
   String _selectedSiteId = '';
   EquipmentStatus _selectedStatus = EquipmentStatus.active;
+  String _selectedType = '';
+  DateTime? _purchaseDate;
+  
+  Map<String, TextEditingController> _specControllers = {};
 
   List<Site> _availableSites = [];
   bool _isLoadingSites = true;
@@ -52,8 +57,23 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
     _selectedModification = widget.equipment.modification ?? '';
     _selectedSiteId = widget.equipment.siteId ?? '';
     _selectedStatus = widget.equipment.status;
-
+    _selectedType = widget.equipment.type ?? '';
+    _purchaseDate = widget.equipment.purchaseDate;
+    
+    _initSpecControllers();
     _loadSites();
+  }
+
+  void _initSpecControllers() {
+    if (_selectedType.isNotEmpty) {
+      final template = EquipmentSpecifications.getTypeTemplate(_selectedType);
+      final currentSpecs = widget.equipment.specifications ?? {};
+      
+      template.forEach((key, value) {
+        final val = currentSpecs[key]?['value']?.toString() ?? '';
+        _specControllers[key] = TextEditingController(text: val);
+      });
+    }
   }
 
   @override
@@ -62,6 +82,9 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
     _descriptionController.dispose();
     _locationController.dispose();
     _addressController.dispose();
+    for (var controller in _specControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -100,7 +123,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
     }
     if (_selectedSiteId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Пожалуйста, выберите площадку для оборудования')),
+        const SnackBar(content: Text('Пожалуйста, выберите площадка для оборудования')),
       );
       return;
     }
@@ -122,6 +145,9 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
         siteId: _selectedSiteId.isNotEmpty ? _selectedSiteId : null,
         status: _selectedStatus,
         updatedAt: DateTime.now(),
+        type: _selectedType.isNotEmpty ? _selectedType : null,
+        purchaseDate: _purchaseDate,
+        specifications: _getSpecsFromControllers(),
       );
 
       await SupabaseService.updateEquipment(updatedEquipment);
@@ -144,6 +170,60 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
       if (mounted) {
         setState(() => _isLoadingSites = false);
       }
+    }
+  }
+
+  Map<String, dynamic> _getSpecsFromControllers() {
+    if (_selectedType.isEmpty) return {};
+    
+    final template = EquipmentSpecifications.getTypeTemplate(_selectedType);
+    Map<String, dynamic> specs = {};
+    
+    _specControllers.forEach((key, controller) {
+      if (controller.text.isNotEmpty) {
+        final fieldTemplate = template[key];
+        specs[key] = {
+          'value': controller.text.trim(),
+          'unit': fieldTemplate?['unit'] ?? '',
+          'label': fieldTemplate?['label'] ?? key,
+        };
+      }
+    });
+    
+    return specs;
+  }
+
+  void _onTypeChanged(String? type) {
+    if (type == null) return;
+    
+    setState(() {
+      _selectedType = type;
+      // Очищаем старые контроллеры
+      for (var controller in _specControllers.values) {
+        controller.dispose();
+      }
+      _specControllers = {};
+      
+      // Создаем новые контроллеры на основе шаблона
+      final template = EquipmentSpecifications.getTypeTemplate(type);
+      template.forEach((key, value) {
+        _specControllers[key] = TextEditingController();
+      });
+    });
+  }
+
+  Future<void> _selectPurchaseDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _purchaseDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('ru', 'RU'),
+    );
+    if (picked != null && picked != _purchaseDate) {
+      setState(() {
+        _purchaseDate = picked;
+      });
     }
   }
 
@@ -219,6 +299,91 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Тип оборудования
+              const Text(
+                'Тип оборудования',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedType.isNotEmpty ? _selectedType : null,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: const Color(0xFFF9FAFB),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                hint: const Text('Выберите тип'),
+                items: EquipmentSpecifications.getEquipmentTypes().map((type) {
+                  return DropdownMenuItem(
+                    value: type,
+                    child: Text(type),
+                  );
+                }).toList(),
+                onChanged: _onTypeChanged,
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Дата реализации
+              const Text(
+                'Дата реализации (покупки)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 8),
+              InkWell(
+                onTap: _selectPurchaseDate,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
+                      const SizedBox(width: 12),
+                      Text(
+                        _purchaseDate == null 
+                            ? 'Выберите дату' 
+                            : '${_purchaseDate!.day}.${_purchaseDate!.month}.${_purchaseDate!.year}',
+                        style: TextStyle(
+                          color: _purchaseDate == null ? Colors.grey[600] : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Технические характеристики
+              if (_selectedType.isNotEmpty) ...[
+                _buildTechnicalSpecificationsSection(),
+                const SizedBox(height: 16),
+              ],
+              
               // Производитель
               const Text(
                 'Производитель',
@@ -638,5 +803,93 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
       default:
         return 'Неизвестно';
     }
+  }
+
+  Widget _buildTechnicalSpecificationsSection() {
+    final template = EquipmentSpecifications.getTypeTemplate(_selectedType);
+    if (template.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Технические характеристики',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1F2937),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withOpacity(0.1)),
+          ),
+          child: Column(
+            children: template.entries.map((entry) {
+              final key = entry.key;
+              final field = entry.value;
+              final controller = _specControllers[key];
+              final options = field['options'] as List<String>?;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${field['label']}${field['unit'].isNotEmpty ? ' (${field['unit']})' : ''}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    if (options != null)
+                      DropdownButtonFormField<String>(
+                        value: controller?.text.isNotEmpty == true ? controller?.text : null,
+                        decoration: _getSpecInputDecoration(),
+                        items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
+                        onChanged: (val) => setState(() => controller?.text = val ?? ''),
+                      )
+                    else
+                      TextFormField(
+                        controller: controller,
+                        decoration: _getSpecInputDecoration(hint: 'Введите значение'),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _getSpecInputDecoration({String? hint}) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    );
   }
 }

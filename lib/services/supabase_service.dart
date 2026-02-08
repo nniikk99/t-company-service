@@ -9,7 +9,7 @@ import '../models/site.dart';
 import '../models/service_request.dart';
 import '../models/price.dart';
 import '../models/user_company.dart';
-import '../models/notification.dart';
+import '../models/equipment_model.dart';
 import 'storage_service.dart';
 
 class SupabaseService {
@@ -467,14 +467,19 @@ class SupabaseService {
   // Sites (площадки)
   static Future<List<Site>> getSites(String companyId) async {
     try {
+      print('🔵 Загрузка площадок для companyId: $companyId');
+      
       // Пытаемся найти площадки по UUID
       var response = await _client
           .from('sites')
           .select()
           .eq('company_id', companyId);
       
+      print('🔵 Найдено площадок по UUID: ${(response as List).length}');
+      
       // Если не найдено, пытаемся найти по ИНН компании
       if ((response as List).isEmpty) {
+        print('🔵 Пытаемся найти по ИНН...');
         final company = await _client
             .from('companies')
             .select('id')
@@ -482,30 +487,48 @@ class SupabaseService {
             .maybeSingle();
         
         if (company != null) {
+          print('🔵 Найдена компания по ИНН: ${company['id']}');
           response = await _client
               .from('sites')
               .select()
               .eq('company_id', company['id']);
+          print('🔵 Найдено площадок по ИНН: ${(response as List).length}');
         }
       }
       
-      return (response as List)
+      final sites = (response as List)
           .map((json) => Site.fromJson(json))
           .toList();
+      
+      print('✅ Загружено площадок: ${sites.length}');
+      return sites;
     } catch (e) {
       print('❌ Ошибка загрузки площадок: $e');
+      print('❌ Тип ошибки: ${e.runtimeType}');
       return [];
     }
   }
 
   static Future<Site> createSite(Site site) async {
-    final response = await _client
-        .from('sites')
-        .insert(site.toJson())
-        .select()
-        .single();
-    
-    return Site.fromJson(response);
+    try {
+      print('🔵 Создание площадки: ${site.name}');
+      print('🔵 companyId: ${site.companyId}');
+      print('🔵 companyInn: ${site.companyInn}');
+      print('🔵 site.toJson(): ${site.toJson()}');
+      
+      final response = await _client
+          .from('sites')
+          .insert(site.toJson())
+          .select()
+          .single();
+      
+      print('✅ Площадка успешно создана: ${response['id']}');
+      return Site.fromJson(response);
+    } catch (e) {
+      print('❌ Ошибка создания площадки: $e');
+      print('❌ Тип ошибки: ${e.runtimeType}');
+      rethrow;
+    }
   }
 
   static Future<Site> updateSite(Site site) async {
@@ -1424,35 +1447,36 @@ class SupabaseService {
   }
 
   /// Получение всех сотрудников компании (для ответственного лица)
-  static Future<List<AppUserModel.User>> getCompanyEmployees(String companyId) async {
+  static Future<List<AppUserModel.User>> getCompanyEmployees({
+    String? companyId,
+    String? companyInn,
+  }) async {
     try {
-      print('🔍 Поиск сотрудников для companyId: $companyId');
+      print('🔍 Поиск сотрудников для companyId: $companyId, companyInn: $companyInn');
       
-      // Сначала пытаемся найти по company_id (UUID)
-      var response = await _client
+      // Формируем фильтр OR
+      String orFilter = '';
+      if (companyId != null && companyInn != null && companyId != companyInn) {
+        orFilter = 'company_id.eq.$companyId,company_inn.eq.$companyInn';
+      } else if (companyId != null) {
+        orFilter = 'company_id.eq.$companyId';
+      } else if (companyInn != null) {
+        orFilter = 'company_inn.eq.$companyInn';
+      }
+
+      if (orFilter.isEmpty) {
+        print('⚠️ Не переданы идентификаторы компании для поиска сотрудников');
+        return [];
+      }
+
+      final response = await _client
           .from('user_profiles')
           .select('*')
-          .eq('company_id', companyId)
-          .inFilter('role', ['siteManager', 'operatorPM', 'engineer']) // Добавлены инженеры
+          .or(orFilter)
+          .inFilter('role', ['siteManager', 'operatorPM', 'engineer'])
           .order('first_name');
       
-      print('🔍 Результат поиска по company_id: ${(response as List).length} сотрудников');
-      
-      // Если не найдено, пытаемся найти по company_inn
-      if ((response as List).isEmpty) {
-        print('🔍 Поиск по company_inn: $companyId');
-        response = await _client
-            .from('user_profiles')
-            .select('*')
-            .eq('company_inn', companyId)
-            .inFilter('role', ['siteManager', 'operatorPM', 'engineer']) // Добавлены инженеры
-            .order('first_name');
-        
-        print('🔍 Результат поиска по company_inn: ${(response as List).length} сотрудников');
-      }
-      
-      // УБИРАЕМ fallback на всех сотрудников - это было причиной проблемы!
-      // Теперь возвращаем только сотрудников конкретной компании
+      print('🔍 Результат поиска сотрудников компании: ${(response as List).length} чел.');
       
       return (response as List)
           .map((json) => AppUserModel.User.fromJson(json))
@@ -1982,6 +2006,157 @@ class SupabaseService {
     } catch (e) {
       print('❌ Ошибка принудительного обновления данных пользователя: $e');
       return null;
+    }
+  }
+
+  // --- Методы для работы с моделями оборудования (Equipment Models) ---
+
+  /// Получить все доступные модели оборудования
+  Future<List<EquipmentModel>> getEquipmentModels() async {
+    try {
+      print('🔍 Supabase: Fetching all equipment models...');
+      final response = await _client
+          .from('equipment_models')
+          .select()
+          .order('manufacturer', ascending: true)
+          .order('model', ascending: true);
+      
+      print('📊 Supabase Raw Response: $response');
+      
+      if (response == null) {
+        print('⚠️ Supabase: Response is null');
+        return [];
+      }
+
+      final list = (response as List).map((json) => EquipmentModel.fromJson(json)).toList();
+      print('✅ Supabase: Successfully fetched ${list.length} models');
+      return list;
+    } catch (e) {
+      print('❌ Supabase: Error fetching equipment models: $e');
+      return [];
+    }
+  }
+
+  /// Получить модели конкретного поставщика
+  Future<List<EquipmentModel>> getSupplierEquipmentModels(String supplierId) async {
+    try {
+      final response = await _client
+          .from('equipment_models')
+          .select()
+          .eq('supplier_id', supplierId)
+          .order('created_at', ascending: false);
+      
+      return (response as List).map((json) => EquipmentModel.fromJson(json)).toList();
+    } catch (e) {
+      print('❌ Ошибка получения моделей поставщика: $e');
+      return [];
+    }
+  }
+
+  /// Создать новую модель оборудования
+  Future<EquipmentModel?> createEquipmentModel(EquipmentModel model) async {
+    try {
+      final response = await _client
+          .from('equipment_models')
+          .insert(model.toJson())
+          .select()
+          .single();
+      
+      return EquipmentModel.fromJson(response);
+    } catch (e) {
+      print('❌ Ошибка создания модели оборудования: $e');
+      return null;
+    }
+  }
+
+  /// Обновить существующую модель оборудования
+  Future<EquipmentModel?> updateEquipmentModel(EquipmentModel model) async {
+    try {
+      final response = await _client
+          .from('equipment_models')
+          .update({
+            ...model.toJson(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', model.id)
+          .select()
+          .single();
+      
+      return EquipmentModel.fromJson(response);
+    } catch (e) {
+      print('❌ Ошибка обновления модели оборудования: $e');
+      return null;
+    }
+  }
+
+  /// Удалить модель оборудования
+  Future<bool> deleteEquipmentModel(String modelId) async {
+    try {
+      await _client.from('equipment_models').delete().eq('id', modelId);
+      return true;
+    } catch (e) {
+      print('❌ Ошибка удаления модели оборудования: $e');
+      return false;
+    }
+  }
+
+  /// Получить список клиентов, у которых есть оборудование данного поставщика
+  Future<List<Map<String, dynamic>>> getSupplierClients(String supplierId) async {
+    try {
+      // 1. Получаем модели этого поставщика (manufacturer + model)
+      final models = await getSupplierEquipmentModels(supplierId);
+      if (models.isEmpty) return [];
+
+      // 2. Ищем все оборудование, которое соответствует этим моделям
+      // В Supabase мы можем искать по списку условий в OR
+      final List<String> modelFilters = models.map((m) => 
+        'and(manufacturer.eq."${m.manufacturer}",model.eq."${m.model}")'
+      ).toList();
+      
+      final orFilter = modelFilters.join(',');
+      
+      final equipmentResponse = await _client
+          .from('equipment')
+          .select('company_id')
+          .or(orFilter);
+
+      final List<dynamic> equipmentList = equipmentResponse as List;
+      if (equipmentList.isEmpty) return [];
+
+      // 3. Собираем уникальные ID компаний/клиентов
+      final Set<String> companyIds = equipmentList
+          .map((e) => e['company_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+
+      if (companyIds.isEmpty) return [];
+
+      // 4. Получаем данные пользователей и их компаний
+      final usersResponse = await _client
+          .from('users')
+          .select('*, companies(*)')
+          .filter('company_id', 'in', companyIds.toList());
+
+      return List<Map<String, dynamic>>.from(usersResponse as List);
+    } catch (e) {
+      print('❌ Ошибка получения клиентов поставщика: $e');
+      return [];
+    }
+  }
+
+  /// Получить сервисных партнеров по ИНН
+  Future<List<Map<String, dynamic>>> getServicePartnersByInn(String inn) async {
+    try {
+      // Ищем пользователей/компании с таким же ИНН
+      final response = await _client
+          .from('users')
+          .select('*, companies(*)')
+          .eq('company_inn', inn);
+
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      print('❌ Ошибка получения сервисных партнеров: $e');
+      return [];
     }
   }
 }

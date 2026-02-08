@@ -4,6 +4,7 @@ import '../models/user.dart';
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/add_site_dialog.dart';
+import '../widgets/edit_site_dialog.dart';
 
 class SiteManagementScreen extends StatefulWidget {
   final User user;
@@ -19,6 +20,7 @@ class SiteManagementScreen extends StatefulWidget {
 
 class _SiteManagementScreenState extends State<SiteManagementScreen> {
   List<Site> _sites = [];
+  List<User> _employees = [];
   bool _isLoading = true;
 
   @override
@@ -48,6 +50,17 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
         _sites = sites;
         _isLoading = false;
       });
+      
+      // Загружаем сотрудников компании
+      if (widget.user.companyId != null) {
+        final employees = await SupabaseService.getCompanyEmployees(
+          companyId: widget.user.companyId,
+          companyInn: widget.user.companyInn,
+        );
+        setState(() {
+          _employees = employees;
+        });
+      }
     } catch (e) {
       print('Ошибка загрузки площадок: $e');
       setState(() => _isLoading = false);
@@ -113,6 +126,20 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
       builder: (context) => AddSiteDialog(
         user: widget.user,
         onSiteAdded: (site) {
+          _loadSites();
+        },
+      ),
+    );
+  }
+
+  void _showEditSiteDialog(Site site) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => EditSiteDialog(
+        currentUser: widget.user,
+        site: site,
+        onSiteUpdated: (updatedSite) {
           _loadSites();
         },
       ),
@@ -239,9 +266,16 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                   ),
                 ),
                 IconButton(
+                  onPressed: () => _showEditSiteDialog(site),
+                  icon: const Icon(Icons.edit, color: Color(0xFF4A90E2)),
+                  splashRadius: 20,
+                  tooltip: 'Редактировать',
+                ),
+                IconButton(
                   onPressed: () => _deleteSite(site),
                   icon: const Icon(Icons.delete, color: Colors.red),
                   splashRadius: 20,
+                  tooltip: 'Удалить',
                 ),
               ],
             ),
@@ -261,9 +295,62 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
               'Создано',
               '${site.createdAt.day}.${site.createdAt.month.toString().padLeft(2, '0')}.${site.createdAt.year}',
             ),
+            
+            // Ответственные лица
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            const Text(
+              'Ответственные:',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 4),
+            _buildResponsiblesList(site),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildResponsiblesList(Site site) {
+    final responsibles = _employees
+        .where((e) => e.assignedSiteIds?.contains(site.id) == true)
+        .toList();
+
+    if (responsibles.isEmpty) {
+      return Text(
+        'Не назначены',
+        style: TextStyle(
+          fontSize: 13,
+          fontStyle: FontStyle.italic,
+          color: Colors.grey[500],
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: responsibles.map((e) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF4A90E2).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF4A90E2).withOpacity(0.2)),
+        ),
+        child: Text(
+          e.fullName,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF4A90E2),
+          ),
+        ),
+      )).toList(),
     );
   }
 

@@ -16,6 +16,7 @@
         "shared_preferences",
         "supabase_flutter",
         "url_launcher",
+        "url_strategy",
         "uuid"
       ],
       "devDependencies": [
@@ -46,6 +47,13 @@
         "stream_channel",
         "test_api",
         "vector_math"
+      ]
+    },
+    {
+      "name": "url_strategy",
+      "version": "0.2.0",
+      "dependencies": [
+        "flutter_web_plugins"
       ]
     },
     {
@@ -247,6 +255,13 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "flutter_web_plugins",
+      "version": "0.0.0",
+      "dependencies": [
+        "flutter"
       ]
     },
     {
@@ -644,13 +659,6 @@
       "name": "mime",
       "version": "2.0.0",
       "dependencies": []
-    },
-    {
-      "name": "flutter_web_plugins",
-      "version": "0.0.0",
-      "dependencies": [
-        "flutter"
-      ]
     },
     {
       "name": "flutter_plugin_android_lifecycle",

@@ -39,7 +39,10 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
       print('🔍 EmployeeManagementScreen: companyInn = ${widget.responsibleUser.companyInn}');
       
       final futures = await Future.wait([
-        SupabaseService.getCompanyEmployees(widget.responsibleUser.companyId!),
+        SupabaseService.getCompanyEmployees(
+          companyId: widget.responsibleUser.companyId,
+          companyInn: widget.responsibleUser.companyInn,
+        ),
         SupabaseService.getSites(widget.responsibleUser.companyId!),
       ]);
 

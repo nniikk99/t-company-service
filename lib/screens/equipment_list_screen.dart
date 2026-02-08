@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart';
+import 'package:uuid/uuid.dart';
 import '../models/equipment.dart';
 import '../models/site.dart';
 import '../services/storage_service.dart';
@@ -10,6 +11,7 @@ import '../widgets/tab_navigation.dart';
 import '../widgets/add_site_dialog.dart';
 import '../widgets/edit_equipment_dialog.dart';
 import '../widgets/equipment_specifications_widget.dart';
+import '../data/equipment_specifications.dart';
 
 class EquipmentListScreen extends StatefulWidget {
   final User user;
@@ -107,8 +109,11 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
 
   Future<void> _deleteEquipment(Equipment equipment) async {
     try {
-      final allEquipment = await StorageService.getEquipment(companyId: widget.user.companyId);
-      allEquipment.removeWhere((e) => e.id == equipment.id);
+      // Удаляем из Supabase
+      await SupabaseService.deleteEquipment(equipment.id);
+      
+      // Удаляем из локального хранилища (для обратной совместимости)
+      await StorageService.deleteEquipment(equipment.id);
       
       if (mounted) {
         setState(() {
@@ -592,46 +597,305 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     );
   }
 
+  void _showEquipmentDetails(Equipment equipment) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Содержимое с прокруткой
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Заголовок с изображением (адаптивный)
+                      Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(
+                          minHeight: 140,
+                          maxHeight: 300,
+                        ),
+                        decoration: const BoxDecoration(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                          ),
+                          color: Colors.white, // Фон теперь белый
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                          ),
+                          child: _buildEquipmentImage(equipment, fit: BoxFit.contain),
+                        ),
+                      ),
+                      
+                      // Информация
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Название
+                            Text(
+                              '${equipment.manufacturer} ${equipment.model}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Тип оборудования
+                            if (equipment.type != null) ...[
+                              _buildDetailRow(Icons.category_outlined, 'Тип', equipment.type!),
+                              const SizedBox(height: 8),
+                            ],
+                            
+                            // Дата реализации
+                            if (equipment.purchaseDate != null) ...[
+                              _buildDetailRow(Icons.calendar_today_outlined, 'Дата реализации', 
+                                '${equipment.purchaseDate!.day}.${equipment.purchaseDate!.month}.${equipment.purchaseDate!.year}'),
+                              const SizedBox(height: 8),
+                            ],
+                            
+                            // Характеристики
+                            _buildDetailRow(Icons.numbers, 'Серийный номер', equipment.serialNumber ?? 'Не указан'),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(Icons.location_on, 'Площадка', equipment.address.isNotEmpty ? equipment.address : equipment.location),
+                            const SizedBox(height: 8),
+                            _buildDetailRow(Icons.info_outline, 'Статус', _getEquipmentStatusText(equipment.status)),
+                            const SizedBox(height: 16),
+                            
+                            // Кнопки действий
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      widget.onPartsClick?.call(equipment.id);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF3B82F6),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.folder_open, size: 18),
+                                    label: const Text('Запчасти'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: OutlinedButton.icon(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      widget.onServiceClick?.call(equipment.id);
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(color: Colors.red, width: 2),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.build_outlined, size: 18),
+                                    label: const Text('Сервис'),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Технические характеристики
+                            EquipmentSpecificationsWidget(
+                              manufacturer: equipment.manufacturer,
+                              model: equipment.model,
+                              customSpecs: equipment.specifications,
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            // Кнопка редактирования
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _editEquipment(equipment);
+                                },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFF3B82F6),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                icon: const Icon(Icons.edit, size: 18),
+                                label: const Text('Редактировать'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+
   Widget _buildModernEquipmentCard(Equipment equipment) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            offset: const Offset(0, 4),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            offset: const Offset(0, 1),
+            blurRadius: 3,
           ),
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Изображение сверху с улучшенным дизайном
-            _buildEquipmentImageHeader(equipment),
-            
-            // Контент под изображением
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Информация об оборудовании
-                  _buildEquipmentInfo(equipment),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Кнопки действий
-                  _buildActionButtons(equipment),
-                ],
-              ),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () => _showEquipmentDetails(equipment),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Круглая иконка слева (аватар)
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _buildEquipmentImage(equipment),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                // Информация справа
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Производитель и модель
+                      Text(
+                        '${equipment.manufacturer} ${equipment.model}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      
+                      const SizedBox(height: 2),
+                      
+                      // Серийный номер
+                      if (equipment.serialNumber != null && equipment.serialNumber!.isNotEmpty)
+                        Text(
+                          'S/N: ${equipment.serialNumber}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      
+                      const SizedBox(height: 2),
+                      
+                      // Площадка
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, size: 14, color: Colors.grey[500]),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              equipment.address.isNotEmpty ? equipment.address : equipment.location,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      // Краткие характеристики
+                      if (_shouldShowSpecsPreview(equipment)) ...[
+                        const SizedBox(height: 4),
+                        _buildSpecsPreview(equipment),
+                      ],
+                    ],
+                  ),
+                ),
+                
+                // Стрелка справа
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey[400],
+                  size: 20,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -646,7 +910,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
         ),
-        color: Colors.grey[100],
+        color: Colors.white,
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.only(
@@ -880,7 +1144,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     );
   }
 
-  Widget _buildEquipmentImage(Equipment equipment) {
+  Widget _buildEquipmentImage(Equipment equipment, {BoxFit fit = BoxFit.cover}) {
     // Получаем возможные пути к изображениям
     final possiblePaths = ImageService.getPossibleImagePaths(
       equipment.manufacturer, 
@@ -889,7 +1153,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: Colors.white,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
@@ -900,24 +1164,24 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
         ),
-        child: _buildImageWithFallback(possiblePaths, equipment),
+        child: _buildImageWithFallback(possiblePaths, equipment, fit: fit),
       ),
     );
   }
 
-  Widget _buildImageWithFallback(List<String> paths, Equipment equipment) {
+  Widget _buildImageWithFallback(List<String> paths, Equipment equipment, {BoxFit fit = BoxFit.cover}) {
     // Пробуем загрузить первое изображение
     return Image.asset(
       paths.first,
-      fit: BoxFit.cover,
+      fit: fit,
       errorBuilder: (context, error, stackTrace) {
         // Если первое изображение не загрузилось, пробуем остальные
-        return _tryNextImage(paths, 1, equipment);
+        return _tryNextImage(paths, 1, equipment, fit: fit);
       },
     );
   }
 
-  Widget _tryNextImage(List<String> paths, int index, Equipment equipment) {
+  Widget _tryNextImage(List<String> paths, int index, Equipment equipment, {BoxFit fit = BoxFit.cover}) {
     if (index >= paths.length) {
       // Если все пути исчерпаны, показываем изображение по умолчанию
       return _buildDefaultImage();
@@ -925,11 +1189,61 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
 
     return Image.asset(
       paths[index],
-      fit: BoxFit.cover,
+      fit: fit,
       errorBuilder: (context, error, stackTrace) {
         // Пробуем следующий путь
         return _tryNextImage(paths, index + 1, equipment);
       },
+    );
+  }
+
+  bool _shouldShowSpecsPreview(Equipment equipment) {
+    return equipment.specifications != null && equipment.specifications!.isNotEmpty;
+  }
+
+  Widget _buildSpecsPreview(Equipment equipment) {
+    final specs = equipment.specifications;
+    if (specs == null || specs.isEmpty) return const SizedBox.shrink();
+
+    // Выбираем ключевые характеристики (порядок важен)
+    final keys = ['productivity', 'cleaningWidth', 'warranty', 'batteryType'];
+    List<Widget> chips = [];
+
+    for (var key in keys) {
+      if (specs[key] != null) {
+        final spec = specs[key];
+        final value = spec['value']?.toString() ?? '';
+        final unit = spec['unit']?.toString() ?? '';
+        
+        if (value.isNotEmpty) {
+          chips.add(
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blue.withOpacity(0.1)),
+              ),
+              child: Text(
+                '$value${unit.isNotEmpty ? ' ' + unit : ''}',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.blue[700],
+                ),
+              ),
+            ),
+          );
+        }
+      }
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: chips,
     );
   }
 
@@ -1011,298 +1325,6 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
               ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showEquipmentDetails(Equipment equipment) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      isDismissible: true, // Позволяет закрыть по клику на фон
-      enableDrag: true, // Позволяет закрыть перетаскиванием
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Handle
-              const SizedBox(height: 12),
-              Container(
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              
-              // Контент
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Заголовок с кнопкой назад
-                      Row(
-                        children: [
-                          // Кнопка назад
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.grey[100],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  equipment.fullTitle,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  equipment.model,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Статус (кликабельный для оператора ПМ)
-                          if (_canChangeStatus()) ...[
-                            GestureDetector(
-                              onTap: () => _showStatusChangeDialog(equipment),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(equipment.status).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: _getStatusColor(equipment.status).withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: _getStatusColor(equipment.status),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      equipment.statusDisplayName,
-                                      style: TextStyle(
-                                        color: _getStatusColor(equipment.status),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.edit,
-                                      size: 12,
-                                      color: _getStatusColor(equipment.status),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            StatusBadgeNew(
-                              text: equipment.statusDisplayName,
-                              color: _getStatusColor(equipment.status),
-                            ),
-                          ],
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Основная информация (как в ваших скриншотах)
-                      _buildInfoSection('Основная информация', [
-                        _buildInfoRow('Серийный номер', equipment.serialNumber ?? 'AIC123456789'),
-                        _buildInfoRow('Год производства', '2022'),
-                        _buildInfoRow('Категория', 'Компрессорное оборудование'),
-                      ]),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Размещение
-                      _buildInfoSection('Размещение', [
-                        _buildInfoRow('Местоположение', equipment.location),
-                        _buildInfoRow('Ответственный', 'Иванов А.С.'),
-                      ]),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Технические характеристики (используем новый виджет)
-                      EquipmentSpecificationsWidget(
-                        manufacturer: equipment.manufacturer,
-                        model: equipment.model,
-                      ),
-                      
-                      const SizedBox(height: 32),
-                      
-                      // Кнопки действий
-                      Row(
-                        children: [
-                          // Запчасти (синяя кнопка слева)
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                // TODO: Implement parts functionality
-                              },
-                              icon: const Icon(Icons.folder_open, color: Colors.white),
-                              label: const Text('Запчасти', style: TextStyle(color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF3B82F6), // Blue
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Сервис (красная кнопка с белым фоном справа)
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                // TODO: Implement service functionality
-                              },
-                              icon: const Icon(Icons.build_outlined, color: Colors.red),
-                              label: const Text('Сервис', style: TextStyle(color: Colors.red)),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.red),
-                                backgroundColor: Colors.white, // Белый фон
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 12),
-                      
-                      // Редактировать (синяя по контуру с прозрачным фоном снизу)
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            print('Edit button pressed for equipment: ${equipment.id}');
-                            Navigator.pop(context); // Закрываем модальное окно
-                            // Используем Future.delayed для корректного открытия диалога
-                            Future.delayed(const Duration(milliseconds: 200), () {
-                              if (mounted) {
-                                _showEditEquipmentDialog(equipment);
-                              }
-                            });
-                          },
-                          icon: const Icon(Icons.edit_outlined, color: Color(0xFF3B82F6)),
-                          label: const Text('Редактировать', style: TextStyle(color: Color(0xFF3B82F6))),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF3B82F6)),
-                            backgroundColor: Colors.transparent, // Прозрачный фон
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoSection(String title, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, {IconData? icon, Color? iconColor}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 16, color: iconColor ?? Colors.grey[600]),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1465,54 +1487,72 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
 
   Future<void> _addNewEquipment(String title, String model, String serial, String location) async {
     try {
+      // Находим выбранную площадку
+      final selectedSite = _sites.firstWhere(
+        (site) => site.name == location,
+        orElse: () => Site(
+          id: '', 
+          companyId: widget.user.companyId ?? '', // Используем ID компании пользователя или пустую строку
+          companyInn: widget.user.companyInn ?? '',
+          name: '',
+          address: '',
+          createdAt: DateTime.now(),
+        ),
+      );
+
       // Создаем новое оборудование
       final newEquipment = Equipment(
-        id: 'eq_${DateTime.now().millisecondsSinceEpoch}',
+        id: const Uuid().v4(), // Генерируем настоящий UUID
         clientId: widget.user.companyId ?? '1',
         companyId: widget.user.companyId,
+        companyInn: widget.user.companyInn,
+        siteId: selectedSite.id.isNotEmpty ? selectedSite.id : null,
         name: title,
-        manufacturer: 'Неизвестно', // Временное значение для старого диалога
+        manufacturer: 'Неизвестно', // Временное значение
         model: model,
         serialNumber: serial.isNotEmpty ? serial : null,
         location: location,
-        address: location,
+        address: selectedSite.address.isNotEmpty ? selectedSite.address : location,
         status: EquipmentStatus.active,
         createdAt: DateTime.now(),
       );
 
-      // Получаем текущий список оборудования из хранилища
-      final allEquipment = await StorageService.getEquipment(companyId: widget.user.companyId);
+      // Сохраняем в Supabase
+      await SupabaseService.createEquipment(newEquipment);
       
-      // Добавляем новое оборудование
-      allEquipment.add(newEquipment);
-      
-      // Сохраняем обновленный список
+      // Сохраняем в локальное хранилище (для совместимости)
+      await StorageService.saveEquipment(newEquipment);
 
-      setState(() {
-        _equipment.add(newEquipment);
-        // Добавляем модель в фильтры если её нет
-        if (!_models.contains(model)) {
-          _models.add(model);
-        }
-        // Добавляем локацию в фильтры если её нет
-        if (!_locations.contains(location)) {
-          _locations.add(location);
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _equipment.add(newEquipment);
+          // Добавляем модель в фильтры если её нет
+          if (!_models.contains(model)) {
+            _models.add(model);
+          }
+          // Добавляем локацию в фильтры если её нет
+          if (!_locations.contains(location)) {
+            _locations.add(location);
+          }
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Оборудование успешно добавлено'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Оборудование успешно добавлено'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка при добавлении оборудования: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Error adding equipment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при добавлении оборудования: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

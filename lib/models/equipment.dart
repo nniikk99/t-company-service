@@ -28,6 +28,8 @@ class Equipment {
   final DateTime? installationDate;   // Дата установки
   final DateTime? lastServiceDate;    // Дата последнего обслуживания
   final DateTime? nextServiceDate;    // Дата следующего обслуживания
+  final String? type;                 // Тип оборудования (например, поломоечная машина)
+  final DateTime? purchaseDate;       // Дата реализации (покупки)
   final Map<String, dynamic>? specifications; // Технические характеристики
   final List<String>? manuals;        // Инструкции/мануалы
   final List<String>? photos;         // Фотографии оборудования
@@ -58,6 +60,8 @@ class Equipment {
     this.specifications,
     this.manuals,
     this.photos,
+    this.type,
+    this.purchaseDate,
   });
 
   // Геттеры для удобства
@@ -124,6 +128,10 @@ class Equipment {
       photos: json['photos'] != null 
           ? List<String>.from(json['photos'])
           : null,
+      type: json['type'],
+      purchaseDate: json['purchase_date'] != null
+          ? DateTime.parse(json['purchase_date'])
+          : null,
     );
   }
 
@@ -154,6 +162,8 @@ class Equipment {
       'specifications': specifications,
       'manuals': manuals,
       'photos': photos,
+      'type': type,
+      'purchase_date': purchaseDate?.toIso8601String(),
     };
   }
 
@@ -183,6 +193,8 @@ class Equipment {
     Map<String, dynamic>? specifications,
     List<String>? manuals,
     List<String>? photos,
+    String? type,
+    DateTime? purchaseDate,
   }) {
     return Equipment(
       id: id ?? this.id,
@@ -210,6 +222,8 @@ class Equipment {
       specifications: specifications ?? this.specifications,
       manuals: manuals ?? this.manuals,
       photos: photos ?? this.photos,
+      type: type ?? this.type,
+      purchaseDate: purchaseDate ?? this.purchaseDate,
     );
   }
 }

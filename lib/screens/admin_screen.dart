@@ -11,6 +11,15 @@ class AdminScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Админ-панель'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.storage),
+            tooltip: 'Инструменты БД',
+            onPressed: () {
+              Navigator.pushNamed(context, '/database-check');
+            },
+          ),
+        ],
       ),
       body: DefaultTabController(
         length: 3,

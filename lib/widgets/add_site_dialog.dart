@@ -29,6 +29,30 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
   final _emailController = TextEditingController();
   
   bool _isLoading = false;
+  List<Map<String, dynamic>> _companies = [];
+  String? _selectedCompanyId;
+  String? _selectedCompanyInn;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCompanies();
+  }
+
+  Future<void> _loadCompanies() async {
+    if (widget.user.canManageClients) {
+      try {
+        final companies = await SupabaseService.getAllCompanies();
+        if (mounted) {
+          setState(() {
+            _companies = companies;
+          });
+        }
+      } catch (e) {
+        print('Error loading companies: $e');
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -50,8 +74,8 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
     try {
       final site = Site(
         id: const Uuid().v4(),
-        companyId: widget.user.companyId ?? '',
-        companyInn: widget.user.companyInn,
+        companyId: widget.user.companyId ?? _selectedCompanyId,
+        companyInn: widget.user.companyInn ?? _selectedCompanyInn,
         name: _nameController.text.trim(),
         address: _addressController.text.trim(),
         contactPersonId: null, // Пока не связываем с пользователем
@@ -140,6 +164,67 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
               ),
               
               const SizedBox(height: 16),
+
+              if (widget.user.canManageClients) ...[
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Text(
+                          'Компания',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '*',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCompanyId,
+                      items: _companies.map((company) {
+                        return DropdownMenuItem<String>(
+                          value: company['id'],
+                          child: Text(company['name'] ?? 'Без названия'),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedCompanyId = value;
+                          final selectedCompany = _companies.firstWhere((c) => c['id'] == value);
+                          _selectedCompanyInn = selectedCompany['inn'] ?? selectedCompany['company_inn'];
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Выберите компанию',
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (widget.user.companyId == null && value == null) {
+                          return 'Выберите компанию (обязательно для админа)';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ],
               
               _buildTextField(
                 controller: _addressController,

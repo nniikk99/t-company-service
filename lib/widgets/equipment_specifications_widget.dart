@@ -2,127 +2,136 @@ import 'package:flutter/material.dart';
 import '../data/equipment_specifications.dart';
 
 /// Виджет для отображения технических характеристик оборудования
-class EquipmentSpecificationsWidget extends StatelessWidget {
+class EquipmentSpecificationsWidget extends StatefulWidget {
   final String manufacturer;
   final String model;
+  final Map<String, dynamic>? customSpecs;
 
   const EquipmentSpecificationsWidget({
     Key? key,
     required this.manufacturer,
     required this.model,
+    this.customSpecs,
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final specs = EquipmentSpecifications.getSpecifications(manufacturer, model);
+  State<EquipmentSpecificationsWidget> createState() => _EquipmentSpecificationsWidgetState();
+}
 
-    if (specs == null) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Center(
-            child: Text(
-              'Технические характеристики пока не добавлены',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-        ),
-      );
+class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsWidget> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final rawSpecs = widget.customSpecs;
+
+    if (rawSpecs == null || rawSpecs.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Фильтруем характеристики по шаблону (показываем только то, что есть в эталоне)
+    final template = EquipmentSpecifications.getTypeTemplate(''); // Берем базовый шаблон
+    final Map<String, dynamic> specs = {};
+    
+    rawSpecs.forEach((key, value) {
+      if (template.containsKey(key)) {
+        specs[key] = value;
+      }
+    });
+
+    if (specs.isEmpty) {
+      return const SizedBox.shrink();
     }
 
     return Card(
-      elevation: 2,
+      elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.withOpacity(0.2)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Заголовок
-            const Row(
-              children: [
-                Icon(
-                  Icons.analytics_outlined,
-                  color: Color(0xFF3B82F6),
-                  size: 24,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Технические характеристики',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _isExpanded = expanded;
+            });
+          },
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3B82F6).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-            
-            // Основные характеристики (с иконками)
-            if (specs['power'] != null)
-              _buildSpecRow(
-                icon: Icons.flash_on,
-                iconColor: Colors.orange,
-                spec: specs['power'],
+            child: const Icon(
+              Icons.analytics_outlined,
+              color: Color(0xFF3B82F6),
+              size: 20,
+            ),
+          ),
+          title: const Text(
+            'Технические характеристики',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          trailing: Icon(
+            _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+            color: Colors.grey,
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 1, thickness: 1),
+                  const SizedBox(height: 16),
+                  
+                  // Основные характеристики (с иконками)
+                  if (specs['power'] != null)
+                    _buildSpecRow(
+                      icon: Icons.flash_on,
+                      iconColor: Colors.orange,
+                      spec: specs['power'],
+                    ),
+                  if (specs['voltage'] != null)
+                    _buildSpecRow(
+                      icon: Icons.electrical_services,
+                      iconColor: Colors.blue,
+                      spec: specs['voltage'],
+                    ),
+                  if (specs['warranty'] != null)
+                    _buildSpecRow(
+                      icon: Icons.verified_user_outlined,
+                      iconColor: Colors.teal,
+                      spec: specs['warranty'],
+                    ),
+                  if (specs['dimensions'] != null)
+                    _buildSpecRow(
+                      icon: Icons.square_foot,
+                      iconColor: Colors.purple,
+                      spec: specs['dimensions'],
+                    ),
+                  
+                  if (specs['power'] != null || specs['voltage'] != null || specs['weight'] != null || specs['dimensions'] != null) ...[
+                    const SizedBox(height: 8),
+                    const Divider(height: 1, thickness: 0.5),
+                    const SizedBox(height: 16),
+                  ],
+                  
+                  // Остальные характеристики (без иконок)
+                  ...specs.entries
+                      .where((e) => !['power', 'voltage', 'warranty', 'dimensions', 'type'].contains(e.key))
+                      .map((e) => _buildSimpleSpecRow(e.value))
+                      .toList(),
+                ],
               ),
-            if (specs['voltage'] != null)
-              _buildSpecRow(
-                icon: Icons.electrical_services,
-                iconColor: Colors.blue,
-                spec: specs['voltage'],
-              ),
-            if (specs['weight'] != null)
-              _buildSpecRow(
-                icon: Icons.fitness_center,
-                iconColor: Colors.grey,
-                spec: specs['weight'],
-              ),
-            if (specs['dimensions'] != null)
-              _buildSpecRow(
-                icon: Icons.square_foot,
-                iconColor: Colors.purple,
-                spec: specs['dimensions'],
-              ),
-            
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-            
-            // Остальные характеристики (без иконок)
-            if (specs['operatorPosition'] != null)
-              _buildSimpleSpecRow(specs['operatorPosition']),
-            if (specs['productivity'] != null)
-              _buildSimpleSpecRow(specs['productivity']),
-            if (specs['cleaningWidth'] != null)
-              _buildSimpleSpecRow(specs['cleaningWidth']),
-            if (specs['squeegeeWidth'] != null)
-              _buildSimpleSpecRow(specs['squeegeeWidth']),
-            if (specs['brushCount'] != null)
-              _buildSimpleSpecRow(specs['brushCount']),
-            if (specs['brushDiameter'] != null)
-              _buildSimpleSpecRow(specs['brushDiameter']),
-            if (specs['brushPressure'] != null)
-              _buildSimpleSpecRow(specs['brushPressure']),
-            if (specs['brushSpeed'] != null)
-              _buildSimpleSpecRow(specs['brushSpeed']),
-            if (specs['cleaningType'] != null)
-              _buildSimpleSpecRow(specs['cleaningType']),
-            if (specs['cleanWaterTank'] != null)
-              _buildSimpleSpecRow(specs['cleanWaterTank']),
-            if (specs['dirtyWaterTank'] != null)
-              _buildSimpleSpecRow(specs['dirtyWaterTank']),
-            if (specs['maxClimb'] != null)
-              _buildSimpleSpecRow(specs['maxClimb']),
-            if (specs['powerType'] != null)
-              _buildSimpleSpecRow(specs['powerType']),
+            ),
           ],
         ),
       ),

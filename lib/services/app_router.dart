@@ -9,6 +9,7 @@ import '../screens/main_screen.dart';
 import '../screens/registration_screen.dart';
 import '../screens/password_recovery_screen.dart';
 import '../screens/telegram_bot_test_screen.dart';
+import '../screens/database_check_screen.dart';
 
 class AppRouter {
   static const String auth = '/auth';
@@ -19,6 +20,7 @@ class AppRouter {
   static const String equipment = '/equipment';
   static const String requests = '/requests';
   static const String admin = '/admin';
+  static const String databaseCheck = '/database-check';
   static const String profile = '/profile';
   static const String notifications = '/notifications';
 
@@ -35,6 +37,9 @@ class AppRouter {
       
       case telegramBotTest:
         return MaterialPageRoute(builder: (_) => const TelegramBotTestScreen());
+      
+      case databaseCheck:
+        return MaterialPageRoute(builder: (_) => const DatabaseCheckScreen());
       
       case dashboard:
         final user = settings.arguments as User?;
@@ -59,7 +64,7 @@ class AppRouter {
       
       case admin:
         final user = settings.arguments as User?;
-        if (user == null || !(user.role == UserRole.admin || user.role == UserRole.superAdmin)) {
+        if (user == null || !(user.role == UserRole.admin || user.role == UserRole.superAdmin || user.role == UserRole.administrator)) {
           return MaterialPageRoute(
             builder: (_) => const Scaffold(
               body: Center(

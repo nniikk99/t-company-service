@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/user.dart';
+import '../models/user.dart' as AppUserModel;
 import '../services/supabase_service.dart';
 
 class UserProvider with ChangeNotifier {
-  AppUser? _currentUser;
+  AppUserModel.User? _currentUser;
   bool _isLoading = false;
   String? _error;
 
-  AppUser? get currentUser => _currentUser;
+  AppUserModel.User? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -19,7 +19,7 @@ class UserProvider with ChangeNotifier {
     try {
       final supabaseUser = Supabase.instance.client.auth.currentUser;
       if (supabaseUser != null) {
-        final user = await SupabaseService.getUserById(supabaseUser.id);
+        final user = await SupabaseService.refreshUserData(supabaseUser.id);
         _currentUser = user;
       }
     } catch (e) {
@@ -29,7 +29,7 @@ class UserProvider with ChangeNotifier {
     }
   }
 
-  Future<void> updateUser(AppUser user) async {
+  Future<void> updateUser(AppUserModel.User user) async {
     _setLoading(true);
     _clearError();
 
