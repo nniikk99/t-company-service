@@ -6,17 +6,16 @@ import '../models/user.dart';
 import '../models/equipment_model.dart';
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
-import '../data/equipment_specifications.dart';
 
 class AddEquipmentDialog extends StatefulWidget {
   final User user;
   final Function(Equipment)? onEquipmentAdded;
 
   const AddEquipmentDialog({
-    Key? key,
+    super.key,
     required this.user,
     this.onEquipmentAdded,
-  }) : super(key: key);
+  });
 
   @override
   State<AddEquipmentDialog> createState() => _AddEquipmentDialogState();
@@ -138,6 +137,7 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
         purchaseDate: _purchaseDate,
         specifications: _selectedModelObj!.specifications,
         imageUrl: _selectedModelObj!.imageUrl,
+        responsibleUserId: widget.user.id, // Назначаем создателя ответственным за оборудование
       );
 
       // Сохранить в Supabase и локально
@@ -185,13 +185,13 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('⚠️ Оборудование сохранено локально'),
+                const Text('⚠️ Оборудование сохранено локально'),
                 Text('Ошибка синхронизации: ${supabaseError ?? "неизвестная"}', 
-                     style: TextStyle(fontSize: 12)),
+                     style: const TextStyle(fontSize: 12)),
               ],
             ),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 5),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -359,7 +359,7 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<EquipmentModel>(
-                          value: _selectedModelObj,
+                          initialValue: _selectedModelObj,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: const Color(0xFFF9FAFB),
@@ -406,7 +406,7 @@ class _AddEquipmentDialogState extends State<AddEquipmentDialog> {
                         ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
-                          value: _selectedSiteId.isNotEmpty ? _selectedSiteId : null,
+                          initialValue: _selectedSiteId.isNotEmpty ? _selectedSiteId : null,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: const Color(0xFFF9FAFB),

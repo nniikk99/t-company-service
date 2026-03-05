@@ -16,23 +16,35 @@ class AdminScreen extends StatelessWidget {
             icon: const Icon(Icons.storage),
             tooltip: 'Инструменты БД',
             onPressed: () {
-              Navigator.pushNamed(context, '/database-check');
+              Navigator.pushNamed(context, '/database-check', arguments: user);
             },
           ),
         ],
       ),
-      body: DefaultTabController(
+      body: const DefaultTabController(
         length: 3,
         child: Column(
           children: [
-            const TabBar(
+            TabBar(
+              indicatorColor: Color(0xFF4A90E2),
+              labelColor: Color(0xFF4A90E2),
+              unselectedLabelColor: Colors.grey,
               tabs: [
-                Tab(text: 'Пользователи'),
-                Tab(text: 'Заявки'),
-                Tab(text: 'Цены'),
+                Tab(
+                  icon: Icon(Icons.people),
+                  text: 'Пользователи',
+                ),
+                Tab(
+                  icon: Icon(Icons.assignment),
+                  text: 'Заявки',
+                ),
+                Tab(
+                  icon: Icon(Icons.payments),
+                  text: 'Цены',
+                ),
               ],
             ),
-            const Expanded(
+            Expanded(
               child: TabBarView(
                 children: [
                   Center(child: Text('Управление пользователями')),

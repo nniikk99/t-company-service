@@ -3,6 +3,7 @@ class Site {
   final String? companyId;
   final String? companyInn; // Добавляем ИНН компании
   final String name;
+  final String? region;
   final String address;
   final String? contactPersonId;
   final String? phone;
@@ -15,6 +16,7 @@ class Site {
     this.companyId,
     this.companyInn,
     required this.name,
+    this.region,
     required this.address,
     this.contactPersonId,
     this.phone,
@@ -29,6 +31,7 @@ class Site {
       companyId: json['company_id'],
       companyInn: json['company_inn'],
       name: json['name'],
+      region: json['region'],
       address: json['address'] ?? '',
       contactPersonId: json['contact_person_id'],
       phone: json['phone'],
@@ -44,6 +47,7 @@ class Site {
       'company_id': companyId,
       'company_inn': companyInn,
       'name': name,
+      'region': region,
       'address': address,
       'contact_person_id': contactPersonId,
       'phone': phone,
@@ -58,6 +62,7 @@ class Site {
     String? companyId,
     String? companyInn,
     String? name,
+    String? region,
     String? address,
     String? contactPersonId,
     String? phone,
@@ -70,6 +75,7 @@ class Site {
       companyId: companyId ?? this.companyId,
       companyInn: companyInn ?? this.companyInn,
       name: name ?? this.name,
+      region: region ?? this.region,
       address: address ?? this.address,
       contactPersonId: contactPersonId ?? this.contactPersonId,
       phone: phone ?? this.phone,

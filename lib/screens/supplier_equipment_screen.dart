@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../models/user.dart';
 import '../models/equipment_model.dart';
 import '../services/supabase_service.dart';
-import '../data/equipment_specifications.dart';
 import 'package:uuid/uuid.dart';
 
 class SupplierEquipmentScreen extends StatefulWidget {
@@ -10,10 +10,10 @@ class SupplierEquipmentScreen extends StatefulWidget {
   final bool isAdminMode;
 
   const SupplierEquipmentScreen({
-    Key? key, 
+    super.key, 
     required this.supplier,
     this.isAdminMode = false,
-  }) : super(key: key);
+  });
 
   @override
   _SupplierEquipmentScreenState createState() => _SupplierEquipmentScreenState();
@@ -23,6 +23,7 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
   final SupabaseService _supabaseService = SupabaseService();
   bool _isLoading = true;
   List<EquipmentModel> _models = [];
+  List<String> _approvedBrands = [];
 
   @override
   void initState() {
@@ -33,6 +34,19 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
   Future<void> _loadModels() async {
     setState(() => _isLoading = true);
     
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('equipment_brands')
+          .select()
+          .eq('supplier_id', widget.supplier.id)
+          .eq('status', 'approved');
+      
+      _approvedBrands = (response as List).map((e) => e['name'] as String).toList();
+    } catch (e) {
+      print('Ошибка загрузки брендов: $e');
+    }
+
     List<EquipmentModel> models;
     if (widget.isAdminMode) {
       models = await _supabaseService.getEquipmentModels();
@@ -51,21 +65,42 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
     final modelController = TextEditingController(text: model?.model);
     final imageUrlController = TextEditingController(text: model?.imageUrl);
     
-    // Определяем начальный тип (если редактируем существующий, пытаемся угадать или ставим дефолт)
-    String selectedType = 'Поломоечная машина'; 
-    final Map<String, TextEditingController> specControllers = {};
+    List<TextEditingController> specLabelControllers = [];
+    List<TextEditingController> specValueControllers = [];
 
-    void updateControllers(String type, Map<String, dynamic>? existingSpecs) {
-      specControllers.clear();
-      final template = EquipmentSpecifications.getTypeTemplate(type);
-      template.forEach((key, field) {
-        specControllers[key] = TextEditingController(
-          text: existingSpecs?[key]?['value']?.toString() ?? '',
-        );
+    final instructionUrlController = TextEditingController();
+    final manualUrlController = TextEditingController();
+    
+    final maintenanceMonthsController = TextEditingController();
+    final maintenanceHoursController = TextEditingController();
+
+    if (model != null && model.specifications.isNotEmpty) {
+      if (model.specifications.containsKey('_instruction_url')) {
+        instructionUrlController.text = model.specifications['_instruction_url'];
+      }
+      if (model.specifications.containsKey('_manual_url')) {
+        manualUrlController.text = model.specifications['_manual_url'];
+      }
+      if (model.specifications.containsKey('_maintenance_months')) {
+        maintenanceMonthsController.text = model.specifications['_maintenance_months'].toString();
+      }
+      if (model.specifications.containsKey('_maintenance_hours')) {
+        maintenanceHoursController.text = model.specifications['_maintenance_hours'].toString();
+      }
+      
+      model.specifications.forEach((key, data) {
+        if (!key.startsWith('_') && data is Map && data.containsKey('label') && data.containsKey('value')) {
+          specLabelControllers.add(TextEditingController(text: data['label']?.toString() ?? ''));
+          specValueControllers.add(TextEditingController(text: data['value']?.toString() ?? ''));
+        }
       });
     }
 
-    updateControllers(selectedType, model?.specifications);
+    // Ensure at least 2 characteristics by default
+    while (specLabelControllers.length < 2) {
+      specLabelControllers.add(TextEditingController());
+      specValueControllers.add(TextEditingController());
+    }
 
     showDialog(
       context: context,
@@ -79,16 +114,27 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 10),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
-                    child: TextField(
-                      controller: manufacturerController,
-                      decoration: const InputDecoration(
-                        labelText: 'Производитель',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    child: _approvedBrands.isEmpty 
+                    ? const Text('У вас нет одобренных товарных знаков. Пожалуйста, добавьте их в разделе "Товарный знак".', style: TextStyle(color: Colors.red))
+                    : DropdownButtonFormField<String>(
+                        value: _approvedBrands.contains(manufacturerController.text) ? manufacturerController.text : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Производитель',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                        items: _approvedBrands.map((brand) {
+                          return DropdownMenuItem(value: brand, child: Text(brand));
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            manufacturerController.text = value;
+                          }
+                        },
                       ),
-                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12.0),
@@ -113,44 +159,199 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Тип оборудования',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    ),
-                    items: EquipmentSpecifications.getEquipmentTypes().map((type) {
-                      return DropdownMenuItem(value: type, child: Text(type));
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setDialogState(() {
-                          selectedType = val;
-                          updateControllers(selectedType, model?.specifications);
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  const Text('Технические характеристики', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Документация (прямая ссылка или Google Диск)', style: TextStyle(fontWeight: FontWeight.bold)),
                   const Divider(),
-                  ...specControllers.entries.map((entry) {
-                    final template = EquipmentSpecifications.getTypeTemplate(selectedType);
-                    final field = template[entry.key];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: TextField(
-                        controller: entry.value,
-                        decoration: InputDecoration(
-                          labelText: field['label'],
-                          suffixText: field['unit'],
-                          border: const OutlineInputBorder(),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: TextField(
+                      controller: instructionUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Инструкция по эксплуатации (URL)',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: TextField(
+                      controller: manualUrlController,
+                      decoration: const InputDecoration(
+                        labelText: 'Мануал (URL)',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Периодичность технического обслуживания *', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  const Divider(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: maintenanceMonthsController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'В месяцах (напр. 3)',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
                         ),
                       ),
-                    );
-                  }).toList(),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: maintenanceHoursController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'В моточасах (напр. 500)',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Технические характеристики', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Divider(),
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      canvasColor: Colors.transparent, // Для корректного drag-and-drop фона
+                    ),
+                    child: ReorderableListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      buildDefaultDragHandles: false,
+                      itemCount: specLabelControllers.length,
+                      onReorder: (int oldIndex, int newIndex) {
+                        setDialogState(() {
+                          if (oldIndex < newIndex) {
+                            newIndex -= 1;
+                          }
+                          final labelItem = specLabelControllers.removeAt(oldIndex);
+                          final valueItem = specValueControllers.removeAt(oldIndex);
+                          specLabelControllers.insert(newIndex, labelItem);
+                          specValueControllers.insert(newIndex, valueItem);
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        final isMobile = MediaQuery.of(context).size.width < 600;
+                        return Container(
+                          key: ValueKey(specLabelControllers[index]),
+                          margin: const EdgeInsets.only(bottom: 12.0),
+                          padding: const EdgeInsets.all(12.0),
+                          decoration: BoxDecoration(
+                            color: Colors.blueGrey.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: isMobile ? CrossAxisAlignment.center : CrossAxisAlignment.center,
+                            children: [
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: const Padding(
+                                  padding: EdgeInsets.only(right: 12.0),
+                                  child: Icon(Icons.drag_indicator, color: Colors.grey),
+                                ),
+                              ),
+                              Expanded(
+                                child: isMobile
+                                    ? Column(
+                                        children: [
+                                          TextField(
+                                            controller: specLabelControllers[index],
+                                            decoration: InputDecoration(
+                                              labelText: 'Название х-ки ${index + 1}',
+                                              border: const OutlineInputBorder(),
+                                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          TextField(
+                                            controller: specValueControllers[index],
+                                            decoration: const InputDecoration(
+                                              labelText: 'Значение',
+                                              border: OutlineInputBorder(),
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                    : Row(
+                                        children: [
+                                          Expanded(
+                                            child: TextField(
+                                              controller: specLabelControllers[index],
+                                              decoration: InputDecoration(
+                                                labelText: 'Название х-ки ${index + 1}',
+                                                border: const OutlineInputBorder(),
+                                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: specValueControllers[index],
+                                              decoration: const InputDecoration(
+                                                labelText: 'Значение',
+                                                border: OutlineInputBorder(),
+                                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                                filled: true,
+                                                fillColor: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    specLabelControllers[index].dispose();
+                                    specValueControllers[index].dispose();
+                                    specLabelControllers.removeAt(index);
+                                    specValueControllers.removeAt(index);
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (specLabelControllers.length < 50)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setDialogState(() {
+                            specLabelControllers.add(TextEditingController());
+                            specValueControllers.add(TextEditingController());
+                          });
+                        },
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Добавить характеристику'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -159,17 +360,38 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Отмена')),
             ElevatedButton(
               onPressed: () async {
-                final template = EquipmentSpecifications.getTypeTemplate(selectedType);
+                if (maintenanceMonthsController.text.trim().isEmpty || maintenanceHoursController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Пожалуйста, заполните поля периодичности ТО'), backgroundColor: Colors.red),
+                  );
+                  return;
+                }
+
                 Map<String, dynamic> specs = {};
-                specControllers.forEach((key, controller) {
-                  if (controller.text.isNotEmpty) {
-                    specs[key] = {
-                      'value': controller.text,
-                      'unit': template[key]['unit'] ?? '',
-                      'label': template[key]['label'],
+                
+                if (instructionUrlController.text.trim().isNotEmpty) {
+                  specs['_instruction_url'] = instructionUrlController.text.trim();
+                }
+                if (manualUrlController.text.trim().isNotEmpty) {
+                  specs['_manual_url'] = manualUrlController.text.trim();
+                }
+                
+                specs['_maintenance_months'] = maintenanceMonthsController.text.trim();
+                specs['_maintenance_hours'] = maintenanceHoursController.text.trim();
+
+                int validSpecIndex = 0;
+                for (int i = 0; i < specLabelControllers.length; i++) {
+                  final label = specLabelControllers[i].text.trim();
+                  final value = specValueControllers[i].text.trim();
+                  if (label.isNotEmpty && value.isNotEmpty) {
+                    specs['spec_$validSpecIndex'] = {
+                      'label': label,
+                      'value': value,
+                      'unit': '',
                     };
+                    validSpecIndex++;
                   }
-                });
+                }
 
                 final newModel = EquipmentModel(
                   id: model?.id ?? const Uuid().v4(),
@@ -181,13 +403,30 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
                   createdAt: model?.createdAt ?? DateTime.now(),
                 );
 
-                if (model == null) {
-                  await _supabaseService.createEquipmentModel(newModel);
-                } else {
-                  await _supabaseService.updateEquipmentModel(newModel);
+                try {
+                  if (model == null) {
+                    await _supabaseService.createEquipmentModel(newModel);
+                  } else {
+                    await _supabaseService.updateEquipmentModel(newModel);
+                  }
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Успешно сохранено'), backgroundColor: Colors.green),
+                    );
+                  }
+                  _loadModels();
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Ошибка сохранения: $e', style: const TextStyle(fontSize: 12)),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
                 }
-                Navigator.pop(context);
-                _loadModels();
               },
               child: const Text('Сохранить'),
             ),
@@ -239,8 +478,25 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
                                 ),
                               );
                               if (confirm == true) {
-                                await _supabaseService.deleteEquipmentModel(model.id);
-                                _loadModels();
+                                try {
+                                  await SupabaseService.deleteEquipmentModel(model.id);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Модель успешно удалена'), backgroundColor: Colors.green),
+                                    );
+                                  }
+                                  _loadModels();
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Ошибка удаления. Возможно, модель используется: $e', style: const TextStyle(fontSize: 12)),
+                                        backgroundColor: Colors.red,
+                                        duration: const Duration(seconds: 5),
+                                      ),
+                                    );
+                                  }
+                                }
                               }
                             },
                           ),

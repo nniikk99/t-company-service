@@ -110,15 +110,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> with Ticker
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
+        title: const Row(
           children: [
             Icon(
               Icons.check_circle,
               color: Colors.green,
               size: 28,
             ),
-            const SizedBox(width: 12),
-            const Text(
+            SizedBox(width: 12),
+            Text(
               'Пароль изменен!',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),

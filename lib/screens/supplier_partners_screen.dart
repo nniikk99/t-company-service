@@ -5,7 +5,7 @@ import '../services/supabase_service.dart';
 class SupplierPartnersScreen extends StatefulWidget {
   final User supplier;
 
-  const SupplierPartnersScreen({Key? key, required this.supplier}) : super(key: key);
+  const SupplierPartnersScreen({super.key, required this.supplier});
 
   @override
   State<SupplierPartnersScreen> createState() => _SupplierPartnersScreenState();

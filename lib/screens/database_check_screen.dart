@@ -14,6 +14,7 @@ class _DatabaseCheckScreenState extends State<DatabaseCheckScreen> {
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _companies = [];
   List<Map<String, dynamic>> _equipmentModels = [];
+  List<Map<String, dynamic>> _brands = [];
   bool _isLoading = false;
 
   @override
@@ -43,6 +44,18 @@ class _DatabaseCheckScreenState extends State<DatabaseCheckScreen> {
           .from('equipment_models')
           .select('*');
       _equipmentModels = List<Map<String, dynamic>>.from(modelsResponse);
+      
+      // Загружаем бренды
+      try {
+        final brandsResponse = await Supabase.instance.client
+            .from('equipment_brands')
+            .select('*')
+            .order('created_at', ascending: false);
+        _brands = List<Map<String, dynamic>>.from(brandsResponse);
+      } catch (e) {
+        print('Ошибка загрузки брендов: $e');
+        _brands = [];
+      }
       
     } catch (e) {
       print('Ошибка загрузки данных: $e');
@@ -140,6 +153,82 @@ class _DatabaseCheckScreenState extends State<DatabaseCheckScreen> {
       await _loadData();
     } catch (e) {
       print('Ошибка удаления компании: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка удаления: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _updateBrandStatus(String brandId, String newStatus) async {
+    setState(() => _isLoading = true);
+    try {
+      await Supabase.instance.client
+          .from('equipment_brands')
+          .update({'status': newStatus})
+          .eq('id', brandId);
+          
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Статус успешно изменен на $newStatus'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await _loadData();
+    } catch (e) {
+      print('Ошибка обновления статуса бренда: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Ошибка обновления статуса: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteBrand(String brandId, String brandName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить товарный знак?'),
+        content: Text('Вы уверены, что хотите удалить товарный знак "$brandName"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await Supabase.instance.client
+          .from('equipment_brands')
+          .delete()
+          .eq('id', brandId);
+          
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Товарный знак удален'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await _loadData();
+    } catch (e) {
+      print('Ошибка удаления бренда: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Ошибка удаления: $e'),
@@ -398,6 +487,82 @@ class _DatabaseCheckScreenState extends State<DatabaseCheckScreen> {
                   
                   const SizedBox(height: 16),
                   
+                  // Товарные знаки
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Товарные знаки (${_brands.length})',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (_brands.isEmpty)
+                            const Text('Список товарных знаков пуст', style: TextStyle(color: Colors.grey)),
+                          ..._brands.map((brand) => Container(
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        brand['name'] ?? 'Неизвестно',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      ),
+                                    ),
+                                    _buildBrandStatusBadge(brand['status']),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Supplier ID: ${brand['supplier_id']}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    if (brand['status'] == 'pending' || brand['status'] == 'rejected')
+                                      TextButton.icon(
+                                        onPressed: () => _updateBrandStatus(brand['id'], 'approved'),
+                                        icon: const Icon(Icons.check, color: Colors.green),
+                                        label: const Text('Принять', style: TextStyle(color: Colors.green)),
+                                      ),
+                                    if (brand['status'] == 'pending' || brand['status'] == 'approved')
+                                      TextButton.icon(
+                                        onPressed: () => _updateBrandStatus(brand['id'], 'rejected'),
+                                        icon: const Icon(Icons.close, color: Colors.orange),
+                                        label: const Text('Отклонить', style: TextStyle(color: Colors.orange)),
+                                      ),
+                                    TextButton.icon(
+                                      onPressed: () => _deleteBrand(brand['id'], brand['name']),
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      label: const Text('Удалить', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          )),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
                   // Кнопка обновления
                   SizedBox(
                     width: double.infinity,
@@ -413,6 +578,39 @@ class _DatabaseCheckScreenState extends State<DatabaseCheckScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildBrandStatusBadge(String? status) {
+    Color color;
+    String text;
+    switch (status) {
+      case 'approved':
+        color = Colors.green;
+        text = 'Подтвержден';
+        break;
+      case 'rejected':
+        color = Colors.red;
+        text = 'Отклонен';
+        break;
+      case 'pending':
+      default:
+        color = Colors.orange;
+        text = 'На модерации';
+        break;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }

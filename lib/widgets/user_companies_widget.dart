@@ -9,10 +9,10 @@ class UserCompaniesWidget extends StatefulWidget {
   final Function()? onCompanySwitched;
 
   const UserCompaniesWidget({
-    Key? key,
+    super.key,
     required this.user,
     this.onCompanySwitched,
-  }) : super(key: key);
+  });
 
   @override
   State<UserCompaniesWidget> createState() => _UserCompaniesWidgetState();

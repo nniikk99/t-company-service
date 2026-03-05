@@ -11,7 +11,7 @@ import '../widgets/tab_navigation.dart';
 import '../widgets/add_site_dialog.dart';
 import '../widgets/edit_equipment_dialog.dart';
 import '../widgets/equipment_specifications_widget.dart';
-import '../data/equipment_specifications.dart';
+import '../widgets/equipment_maintenance_widget.dart';
 
 class EquipmentListScreen extends StatefulWidget {
   final User user;
@@ -420,6 +420,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Фильтры (только для определенных ролей)
           if (_canUseFilters()) ...[
@@ -427,136 +428,123 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.04),
-                    offset: const Offset(0, 1),
-                    blurRadius: 3,
+                    offset: const Offset(0, 4),
+                    blurRadius: 12,
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Блок площадки (показываем только если пользователь может использовать фильтр площадок)
-                  if (_canUseSiteFilter()) ...[
-                    const Text(
-                      'Площадка',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    FilterDropdown(
-                      hint: 'Все площадки',
-                      value: _selectedLocation,
-                      items: _locations,
-                      onChanged: (value) {
-                        setState(() => _selectedLocation = value);
-                        _loadEquipment();
-                      },
-                    ),
-                    
-                    // Кнопка добавления площадки (только для ответственного лица и администраторов)
-                    if (widget.user.canManageSites) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: widget.onAddSite ?? _showAddLocationDialog,
-                          icon: const Icon(Icons.add_location_alt, size: 18),
-                          label: const Text('Добавить площадку'),
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF4A90E2)),
-                            foregroundColor: const Color(0xFF4A90E2),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                  // Фильтры в ряд
+                  Row(
+                    children: [
+                      // Блок площадки
+                      if (_canUseSiteFilter())
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Площадка',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1F2937),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              FilterDropdown(
+                                hint: 'Все площадки',
+                                value: _selectedLocation,
+                                items: _locations,
+                                onChanged: (value) {
+                                  setState(() => _selectedLocation = value);
+                                  _loadEquipment();
+                                },
+                              ),
+                            ],
                           ),
+                        ),
+                      
+                      if (_canUseSiteFilter()) const SizedBox(width: 12),
+                      
+                      // Блок модели
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Модель', // На скриншоте оба "Площадка", но логично "Модель"
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1F2937),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            FilterDropdown(
+                              hint: 'Все модели',
+                              value: _selectedModel,
+                              items: _models,
+                              onChanged: (value) {
+                                setState(() => _selectedModel = value);
+                                _loadEquipment();
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                    
-                    const SizedBox(height: 16),
-                  ],
-                  
-                  // Блок модели
-                  const Text(
-                    'Модель',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  FilterDropdown(
-                    hint: 'Все модели',
-                    value: _selectedModel,
-                    items: _models,
-                    onChanged: (value) {
-                      setState(() => _selectedModel = value);
-                      _loadEquipment();
-                    },
                   ),
                   
-                  // Кнопка добавления техники
-                  if (_canManageEquipment()) ...[
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 20),
+                  
+                  // Кнопки добавления
+                  if (widget.user.canManageSites) ...[
                     SizedBox(
                       width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: widget.onAddSite ?? _showAddLocationDialog,
+                        icon: const Icon(Icons.add_location_alt_rounded, size: 20, color: Color(0xFF4285F4)),
+                        label: const Text('Добавить площадку'),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF4285F4), width: 1.5),
+                          foregroundColor: const Color(0xFF4285F4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  
+                  if (_canManageEquipment()) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
                       child: ElevatedButton.icon(
                         onPressed: widget.onAddEquipment ?? _showAddEquipmentDialog,
-                        icon: const Icon(Icons.add, size: 18),
+                        icon: const Icon(Icons.add_rounded, size: 22),
                         label: const Text('Добавить технику'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4A90E2),
+                          backgroundColor: const Color(0xFF4285F4),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(12),
                           ),
+                          elevation: 0,
                         ),
                       ),
                     ),
                   ],
                 ],
-              ),
-            ),
-          ] else if (_canManageEquipment()) ...[
-            // Кнопка добавления техники для ролей без фильтров
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    offset: const Offset(0, 1),
-                    blurRadius: 3,
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: widget.onAddEquipment ?? _showAddEquipmentDialog,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Добавить технику'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A90E2),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
               ),
             ),
           ],
@@ -673,6 +661,14 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                             _buildDetailRow(Icons.location_on, 'Площадка', equipment.address.isNotEmpty ? equipment.address : equipment.location),
                             const SizedBox(height: 8),
                             _buildDetailRow(Icons.info_outline, 'Статус', _getEquipmentStatusText(equipment.status)),
+                            if (equipment.siteManagerContact != null && equipment.siteManagerContact!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              _buildDetailRow(Icons.person_outline, 'Менеджер', equipment.siteManagerContact!),
+                            ],
+                            if (equipment.operatorContact != null && equipment.operatorContact!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              _buildDetailRow(Icons.engineering_outlined, 'Оператор ПМ', equipment.operatorContact!),
+                            ],
                             const SizedBox(height: 16),
                             
                             // Кнопки действий
@@ -687,13 +683,17 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF3B82F6),
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      minimumSize: const Size(double.infinity, 50),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
+                                      elevation: 0,
                                     ),
-                                    icon: const Icon(Icons.folder_open, size: 18),
-                                    label: const Text('Запчасти'),
+                                    icon: const Icon(Icons.folder_open, size: 20),
+                                    label: const Text(
+                                      'Запчасти',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -705,14 +705,17 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                                     },
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.red,
-                                      side: const BorderSide(color: Colors.red, width: 2),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      side: const BorderSide(color: Colors.red, width: 1.5),
+                                      minimumSize: const Size(double.infinity, 50),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
                                     ),
-                                    icon: const Icon(Icons.build_outlined, size: 18),
-                                    label: const Text('Сервис'),
+                                    icon: const Icon(Icons.build_outlined, size: 20),
+                                    label: const Text(
+                                      'Сервис',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -725,6 +728,18 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                               manufacturer: equipment.manufacturer,
                               model: equipment.model,
                               customSpecs: equipment.specifications,
+                            ),
+                            
+                            // График ТО
+                            EquipmentMaintenanceWidget(
+                              equipment: equipment,
+                              onUpdated: () async {
+                                Navigator.pop(context);
+                                await _loadEquipment();
+                                if (mounted) {
+                                  _showEquipmentDetails(_equipment.firstWhere((e) => e.id == equipment.id));
+                                }
+                              }
                             ),
                             
                             const SizedBox(height: 8),
@@ -905,8 +920,8 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     return Container(
       height: 200, // Увеличиваем высоту
       width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.only(
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.only(
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
         ),
@@ -1152,9 +1167,9 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     );
     
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           topLeft: Radius.circular(16),
           topRight: Radius.circular(16),
         ),
@@ -1225,7 +1240,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                 border: Border.all(color: Colors.blue.withOpacity(0.1)),
               ),
               child: Text(
-                '$value${unit.isNotEmpty ? ' ' + unit : ''}',
+                '$value${unit.isNotEmpty ? ' $unit' : ''}',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
@@ -1336,7 +1351,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     required VoidCallback onPressed,
     required bool isPrimary,
   }) {
-    return Container(
+    return SizedBox(
       height: 48,
       child: ElevatedButton.icon(
         onPressed: onPressed,
@@ -1438,7 +1453,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedLocation,
+                  initialValue: selectedLocation,
                   decoration: const InputDecoration(
                     labelText: 'Площадка',
                     border: OutlineInputBorder(),

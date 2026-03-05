@@ -5,11 +5,13 @@ class TabNavigationItem {
   final String title;
   final bool isActive;
   final VoidCallback onTap;
+  final IconData? icon;
 
   TabNavigationItem({
     required this.title,
     required this.isActive,
     required this.onTap,
+    this.icon,
   });
 }
 
@@ -31,20 +33,33 @@ class TabNavigation extends StatelessWidget {
             child: GestureDetector(
               onTap: item.onTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
-                  color: item.isActive ? AppTheme.primaryColor : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  color: item.isActive ? AppTheme.primaryColor.withOpacity(0.12) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  item.title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: item.isActive ? Colors.white : Colors.grey[600],
-                    fontSize: 14,
-                    fontWeight: item.isActive ? FontWeight.w600 : FontWeight.w500,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (item.icon != null) ...[
+                      Icon(
+                        item.icon,
+                        color: item.isActive ? AppTheme.primaryColor : Colors.grey[400],
+                        size: 20,
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    Text(
+                      item.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: item.isActive ? AppTheme.primaryColor : Colors.grey[600],
+                        fontSize: item.icon != null ? 10 : 14,
+                        fontWeight: item.isActive ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -74,9 +89,9 @@ class FilterDropdown extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
+        color: const Color(0xFFF1F5F9), // Softer light-blue gray
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(

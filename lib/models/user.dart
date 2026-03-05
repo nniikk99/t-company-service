@@ -41,6 +41,7 @@ class User {
   final String? supplierId;                  // ID поставщика (для роли supplier)
   final String? createdBy;                   // Кто создал/одобрил пользователя
   final String? passwordHash;               // Хэш пароля для безопасности
+  final List<String>? serviceRegions;       // Регионы обслуживания для инженера
   
   // Telegram интеграция
   final String? telegramId;
@@ -73,6 +74,7 @@ class User {
     this.supplierId,
     this.createdBy,
     this.passwordHash,
+    this.serviceRegions,
     this.telegramId,
     this.telegramUserId,
     this.telegramUsername,
@@ -126,7 +128,7 @@ class User {
   
   // Права на управление площадками и оборудованием
   bool get canManageSites => role == UserRole.companyResponsible || role == UserRole.superAdmin || role == UserRole.administrator;
-  bool get canManageEquipment => role == UserRole.companyResponsible || role == UserRole.siteManager || role == UserRole.operatorPM || role == UserRole.superAdmin || role == UserRole.administrator;
+  bool get canManageEquipment => role == UserRole.supplier || role == UserRole.companyResponsible || role == UserRole.siteManager || role == UserRole.operatorPM || role == UserRole.superAdmin || role == UserRole.administrator;
   
   // Права для инженеров
   bool get canWorkWithRequests => role == UserRole.engineer;
@@ -158,6 +160,9 @@ class User {
       supplierId: json['supplier_id'],
       createdBy: json['created_by'],
       passwordHash: json['password_hash'],
+      serviceRegions: json['service_regions'] != null 
+          ? List<String>.from(json['service_regions'])
+          : null,
       telegramId: json['telegram_id']?.toString(),
       telegramUserId: json['telegram_user_id'],
       telegramUsername: json['telegram_username'],
@@ -236,6 +241,7 @@ class User {
       'supplier_id': supplierId,
       'created_by': createdBy,
       'password_hash': passwordHash,
+      'service_regions': serviceRegions,
       'telegram_id': telegramId,
       'telegram_user_id': telegramUserId,
       'telegram_username': telegramUsername,

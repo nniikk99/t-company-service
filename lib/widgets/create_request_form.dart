@@ -260,7 +260,7 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<Equipment>(
-                      value: _selectedEquipment,
+                      initialValue: _selectedEquipment,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         hintText: 'Выберите оборудование',

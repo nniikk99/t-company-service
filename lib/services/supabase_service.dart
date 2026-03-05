@@ -1,13 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/user.dart' as AppUserModel;
 import '../models/equipment.dart';
-import '../models/client.dart';
 import '../models/site.dart';
 import '../models/service_request.dart';
-import '../models/price.dart';
 import '../models/user_company.dart';
 import '../models/equipment_model.dart';
 import 'storage_service.dart';
@@ -39,19 +36,12 @@ class SupabaseService {
     final response = await _client.auth.signUp(
       email: email,
       password: password,
+      data: {
+        'first_name': firstName,
+        'last_name': lastName,
+        'role': role,
+      },
     );
-
-    if (response.user != null) {
-      // Создаем профиль пользователя
-      await createUserProfile(
-        userId: response.user!.id,
-        email: email,
-        firstName: firstName,
-        lastName: lastName,
-        role: role,
-        companyId: companyId,
-      );
-    }
 
     return response;
   }
@@ -150,6 +140,7 @@ class SupabaseService {
     DateTime? birthDate,
     String? comments,
     bool? isOnVacation,
+    String? role,
   }) async {
     final updateData = <String, dynamic>{
       'updated_at': DateTime.now().toIso8601String(),
@@ -169,11 +160,24 @@ class SupabaseService {
     if (birthDate != null) updateData['birth_date'] = birthDate.toIso8601String().split('T')[0];
     if (comments != null) updateData['comments'] = comments;
     if (isOnVacation != null) updateData['is_on_vacation'] = isOnVacation;
+    if (role != null) updateData['role'] = role;
 
     await _client
         .from('user_profiles')
         .update(updateData)
         .eq('id', userId);
+  }
+
+  static Future<void> deleteUserProfile(String userId) async {
+    await _client.from('user_profiles').delete().eq('id', userId);
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final response = await _client
+        .from('user_profiles')
+        .select('*')
+        .order('last_name');
+    return List<Map<String, dynamic>>.from(response);
   }
 
   // === COMPANIES ===
@@ -217,6 +221,14 @@ class SupabaseService {
     return response;
   }
 
+  static Future<void> updateCompany(String companyId, Map<String, dynamic> updates) async {
+    await _client.from('companies').update(updates).eq('id', companyId);
+  }
+
+  static Future<void> deleteCompany(String companyId) async {
+    await _client.from('companies').delete().eq('id', companyId);
+  }
+
   // === SITES === (удалены старые методы, оставлены новые в конце файла)
 
   // === EQUIPMENT ===
@@ -243,6 +255,7 @@ class SupabaseService {
     required String title,
     required String description,
     required String type,
+    String? companyInn,
     String priority = 'medium',
     double? estimatedCost,
     DateTime? scheduledDate,
@@ -270,21 +283,30 @@ class SupabaseService {
     // Определяем начальный статус
     final initialStatus = requiresApproval ? 'pending' : 'approved';
 
-    final response = await _client.from('service_requests').insert({
-      'company_id': companyId,
+    // Подготавливаем данные для вставки
+    final Map<String, dynamic> insertData = {
       'equipment_id': equipmentId,
       'user_id': userId,
       'supplier_id': supplierId, // Сохраняем supplier_id из equipment
       'title': title,
       'description': description,
+      'message': description, // Совместимость с полем message
       'type': type,
       'status': initialStatus,
-      'priority': priority,
+      'priority': priority == 'medium' ? 'normal' : priority,
       'estimated_cost': estimatedCost,
-      'scheduled_date': scheduledDate?.toIso8601String(),
+      'scheduled_at': scheduledDate?.toIso8601String(),
       'notes': notes,
       'attachments': attachments,
-    }).select().single();
+      'company_inn': companyInn,
+    };
+
+    // Добавляем company_id только если он не пустой
+    if (companyId.isNotEmpty) {
+      insertData['company_id'] = companyId;
+    }
+
+    final response = await _client.from('service_requests').insert(insertData).select().single();
 
     return response['id'];
   }
@@ -292,8 +314,51 @@ class SupabaseService {
   static Future<List<Map<String, dynamic>>> getCompanyServiceRequests(String companyId) async {
     final response = await _client
         .from('service_requests')
-        .select('*, equipment(name, model), user_profiles(first_name, last_name)')
+        .select('*, equipment(name, model), author:user_profiles!service_requests_user_id_fkey(first_name, last_name)')
         .eq('company_id', companyId)
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllServiceRequests() async {
+    final response = await _client
+        .from('service_requests')
+        .select('''
+          *,
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role),
+          equipment(
+            name, model, serial_number,
+            site:sites(
+              name, address,
+              manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
+            ),
+            operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
+          ),
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
+        ''')
+        .order('created_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  static Future<List<Map<String, dynamic>>> getCompanyRequestsByInn(String inn) async {
+    final response = await _client
+        .from('service_requests')
+        .select('''
+          *,
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role),
+          equipment(
+            name, model, serial_number,
+            site:sites(
+              name, address,
+              manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
+            ),
+            operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
+          ),
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
+        ''')
+        .eq('company_inn', inn)
         .order('created_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);
@@ -302,7 +367,19 @@ class SupabaseService {
   static Future<List<Map<String, dynamic>>> getUserServiceRequests(String userId) async {
     final response = await _client
         .from('service_requests')
-        .select('*, equipment(name, model)')
+        .select('''
+          *,
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role),
+          equipment(
+            name, model, serial_number,
+            site:sites(
+              name, address,
+              manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
+            ),
+            operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
+          ),
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
+        ''')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
@@ -802,6 +879,10 @@ class SupabaseService {
     }
   }
 
+  static Future<void> deleteUserCompany(String userCompanyId) async {
+    await _client.from('user_companies').delete().eq('id', userCompanyId);
+  }
+
   /// Получение одобренных компаний пользователя
   static Future<List<UserCompany>> getApprovedUserCompanies(String userId) async {
     try {
@@ -1127,7 +1208,7 @@ class SupabaseService {
   static Future<List<ServiceRequest>> getEngineerAssignedRequests(String engineerId) async {
     final response = await _client
         .from('service_requests')
-        .select()
+        .select('*, equipment(name, model, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone)')
         .eq('assigned_engineer_id', engineerId)
         .or('status.eq.approved,status.eq.inProgress')
         .order('created_at', ascending: false);
@@ -1187,7 +1268,7 @@ class SupabaseService {
     try {
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer), user_profiles(first_name, last_name, phone)')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
           .eq('supplier_id', supplierUserId)
           .neq('status', 'cancelled')
           .order('created_at', ascending: false);
@@ -1296,6 +1377,59 @@ class SupabaseService {
     } catch (e) {
       print('❌ Ошибка назначения инженера: $e');
       rethrow;
+    }
+  }
+
+  /// Получение доступных заявок для инженера (по его регионам)
+  static Future<List<ServiceRequest>> getAvailableServiceRequests(AppUserModel.User engineer) async {
+    try {
+      final regions = engineer.serviceRegions ?? [];
+      if (regions.isEmpty) return [];
+
+      // 1. Получаем все sites из регионов инженера
+      final sitesResponse = await _client
+          .from('sites')
+          .select('id')
+          .inFilter('region', regions);
+          
+      final List<String> siteIds = (sitesResponse as List)
+          .map((s) => s['id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+          
+      if (siteIds.isEmpty) return [];
+
+      // 2. Ищем свободные заявки на этих площадках
+      final response = await _client
+          .from('service_requests')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
+          .inFilter('site_id', siteIds)
+          .isFilter('assigned_engineer_id', null)
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((json) {
+            return ServiceRequest.fromJson(json);
+          })
+          .toList();
+    } catch (e) {
+      print('❌ Ошибка загрузки доступных заявок: $e');
+      return [];
+    }
+  }
+
+  /// Инженер берет заявку в работу (Атомарно!)
+  static Future<bool> takeServiceRequest(String requestId, String engineerId) async {
+    try {
+      final response = await _client.rpc('take_service_request', params: {
+        'p_request_id': requestId,
+        'p_engineer_id': engineerId,
+      });
+      return response == true;
+    } catch (e) {
+      print('❌ Ошибка взятия заявки: $e');
+      return false;
     }
   }
 
@@ -2022,11 +2156,6 @@ class SupabaseService {
           .order('model', ascending: true);
       
       print('📊 Supabase Raw Response: $response');
-      
-      if (response == null) {
-        print('⚠️ Supabase: Response is null');
-        return [];
-      }
 
       final list = (response as List).map((json) => EquipmentModel.fromJson(json)).toList();
       print('✅ Supabase: Successfully fetched ${list.length} models');
@@ -2065,77 +2194,87 @@ class SupabaseService {
       return EquipmentModel.fromJson(response);
     } catch (e) {
       print('❌ Ошибка создания модели оборудования: $e');
-      return null;
+      rethrow;
     }
   }
 
   /// Обновить существующую модель оборудования
   Future<EquipmentModel?> updateEquipmentModel(EquipmentModel model) async {
     try {
-      final response = await _client
-          .from('equipment_models')
-          .update({
-            ...model.toJson(),
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', model.id)
-          .select()
-          .single();
-      
-      return EquipmentModel.fromJson(response);
+      await _client.rpc('update_equipment_model', params: {
+        'p_model_id': model.id,
+        'p_manufacturer': model.manufacturer,
+        'p_model': model.model,
+        'p_image_url': model.imageUrl,
+        'p_specs': model.specifications,
+      });
+
+      // Мы после успешного вызова RPC просто возвращаем переданную модель 
+      // с обновленным временем (так как RPC не возвращает саму запись)
+      return model.copyWith(updatedAt: DateTime.now());
     } catch (e) {
       print('❌ Ошибка обновления модели оборудования: $e');
-      return null;
+      rethrow;
     }
   }
 
-  /// Удалить модель оборудования
-  Future<bool> deleteEquipmentModel(String modelId) async {
-    try {
-      await _client.from('equipment_models').delete().eq('id', modelId);
-      return true;
-    } catch (e) {
-      print('❌ Ошибка удаления модели оборудования: $e');
-      return false;
-    }
-  }
 
   /// Получить список клиентов, у которых есть оборудование данного поставщика
   Future<List<Map<String, dynamic>>> getSupplierClients(String supplierId) async {
     try {
-      // 1. Получаем модели этого поставщика (manufacturer + model)
-      final models = await getSupplierEquipmentModels(supplierId);
-      if (models.isEmpty) return [];
+      // 1. Получаем одобренные бренды поставщика
+      final brandsResponse = await _client
+          .from('equipment_brands')
+          .select('name')
+          .eq('supplier_id', supplierId)
+          .eq('status', 'approved');
+          
+      final brands = (brandsResponse as List).map((e) => e['name'] as String).toList();
+      if (brands.isEmpty) return [];
 
-      // 2. Ищем все оборудование, которое соответствует этим моделям
-      // В Supabase мы можем искать по списку условий в OR
-      final List<String> modelFilters = models.map((m) => 
-        'and(manufacturer.eq."${m.manufacturer}",model.eq."${m.model}")'
-      ).toList();
-      
-      final orFilter = modelFilters.join(',');
-      
+      // 2. Ищем всё оборудование этих брендов
       final equipmentResponse = await _client
           .from('equipment')
-          .select('company_id')
-          .or(orFilter);
+          .select('company_id, client_id, responsible_user_id')
+          .inFilter('manufacturer', brands);
 
       final List<dynamic> equipmentList = equipmentResponse as List;
       if (equipmentList.isEmpty) return [];
 
-      // 3. Собираем уникальные ID компаний/клиентов
+      // 3. Собираем уникальные ID компаний
       final Set<String> companyIds = equipmentList
           .map((e) => e['company_id']?.toString() ?? '')
           .where((id) => id.isNotEmpty)
           .toSet();
 
-      if (companyIds.isEmpty) return [];
+      // Собираем прямые ID пользователей (частников, старых клиентов)
+      final Set<String> directUserIds = {};
+      for (var e in equipmentList) {
+        if (e['client_id'] != null && e['client_id'].toString().isNotEmpty) {
+          directUserIds.add(e['client_id'].toString());
+        }
+        if (e['responsible_user_id'] != null && e['responsible_user_id'].toString().isNotEmpty) {
+          directUserIds.add(e['responsible_user_id'].toString());
+        }
+      }
 
-      // 4. Получаем данные пользователей и их компаний
+      if (companyIds.isEmpty && directUserIds.isEmpty) return [];
+
+      // 4. Получаем данные пользователей
+      String orFilter = '';
+      final conditions = <String>[];
+      if (companyIds.isNotEmpty) {
+        conditions.add('company_id.in.(${companyIds.join(',')})');
+      }
+      if (directUserIds.isNotEmpty) {
+        conditions.add('id.in.(${directUserIds.join(',')})');
+      }
+      orFilter = conditions.join(',');
+
       final usersResponse = await _client
-          .from('users')
+          .from('user_profiles')
           .select('*, companies(*)')
-          .filter('company_id', 'in', companyIds.toList());
+          .or(orFilter);
 
       return List<Map<String, dynamic>>.from(usersResponse as List);
     } catch (e) {
@@ -2149,7 +2288,7 @@ class SupabaseService {
     try {
       // Ищем пользователей/компании с таким же ИНН
       final response = await _client
-          .from('users')
+          .from('user_profiles')
           .select('*, companies(*)')
           .eq('company_inn', inn);
 
@@ -2158,5 +2297,17 @@ class SupabaseService {
       print('❌ Ошибка получения сервисных партнеров: $e');
       return [];
     }
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllEquipmentModels() async {
+    final response = await _client
+        .from('equipment_models')
+        .select('*')
+        .order('manufacturer');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  static Future<void> deleteEquipmentModel(String modelId) async {
+    await _client.from('equipment_models').delete().eq('id', modelId);
   }
 }

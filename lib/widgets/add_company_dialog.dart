@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/user.dart' as AppUserModel;
-import '../models/user_company.dart';
 import '../services/supabase_service.dart';
 
 class AddCompanyDialog extends StatefulWidget {
@@ -9,10 +8,10 @@ class AddCompanyDialog extends StatefulWidget {
   final Function()? onCompanyAdded;
 
   const AddCompanyDialog({
-    Key? key,
+    super.key,
     required this.user,
     this.onCompanyAdded,
-  }) : super(key: key);
+  });
 
   @override
   State<AddCompanyDialog> createState() => _AddCompanyDialogState();
@@ -329,7 +328,7 @@ class _AddCompanyDialogState extends State<AddCompanyDialog> {
               // Тип организации (только для новых компаний)
               if (_existingCompany == null)
                 DropdownButtonFormField<String>(
-                  value: _selectedOrgType,
+                  initialValue: _selectedOrgType,
                   decoration: const InputDecoration(
                     labelText: 'Тип организации',
                     prefixIcon: Icon(Icons.apartment),

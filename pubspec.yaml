@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
+  cupertino_icons: ^1.0.8
   provider: ^6.0.5
   http: ^1.1.0
   logger: ^2.0.2+1
@@ -19,15 +19,25 @@ dependencies:
   uuid: ^4.2.1
   image_picker: ^1.0.4
   url_strategy: ^0.2.0
+  lucide_icons: ^0.257.0
+  postgres: ^3.5.9
+  intl: ^0.20.2
 
+  crypto: any
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
 
+  supabase: any
 flutter:
   uses-material-design: true
   
   assets:
     - assets/images/equipment/
+    - assets/images/equipment/tennant/
+    - assets/images/equipment/gadlee/
+    - assets/images/equipment/ipc/
+    - assets/images/equipment/t-line/
+    - assets/images/equipment/gausium/
     - assets/images/logo/

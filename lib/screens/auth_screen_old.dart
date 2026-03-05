@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/telegram_webapp_service.dart';
 import '../services/storage_service.dart';
-import '../models/user.dart';
-import '../theme/app_theme.dart';
-import '../widgets/modern_card.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});

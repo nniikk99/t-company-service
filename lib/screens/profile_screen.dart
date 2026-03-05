@@ -10,7 +10,6 @@ import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/error_dialog.dart';
 import '../widgets/change_password_dialog.dart';
-import '../widgets/user_companies_widget.dart';
 import '../widgets/add_company_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -637,7 +636,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               });
               _saveVacationStatus(value);
             },
-            activeColor: Colors.orange,
+            activeThumbColor: Colors.orange,
             activeTrackColor: Colors.orange.withOpacity(0.3),
           ),
         ],
@@ -663,15 +662,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.person,
-                color: const Color(0xFF4A90E2),
+                color: Color(0xFF4A90E2),
                 size: 20,
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Основная информация',
                 style: TextStyle(
                   fontSize: 18,
@@ -757,9 +756,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           child: Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.business,
-                color: const Color(0xFF4A90E2),
+                color: Color(0xFF4A90E2),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -823,15 +822,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.business,
-                color: const Color(0xFF4A90E2),
+                color: Color(0xFF4A90E2),
                 size: 20,
               ),
-              const SizedBox(width: 8),
-              const Expanded(
+              SizedBox(width: 8),
+              Expanded(
                 child: Text(
                   'Информация о компании',
                   style: TextStyle(
@@ -915,9 +914,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.business_outlined,
-                color: const Color(0xFF4A90E2),
+                color: Color(0xFF4A90E2),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -979,9 +978,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.business_outlined,
-                color: const Color(0xFF4A90E2),
+                color: Color(0xFF4A90E2),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -1077,15 +1076,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.info_outline,
-                color: const Color(0xFF4A90E2),
+                color: Color(0xFF4A90E2),
                 size: 20,
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Дополнительная информация',
                 style: TextStyle(
                   fontSize: 18,

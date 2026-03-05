@@ -170,7 +170,7 @@ class _SiteManagementScreenState extends State<SiteManagementScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4A90E2),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      minimumSize: const Size(double.infinity, 50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),

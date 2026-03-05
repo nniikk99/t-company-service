@@ -5,6 +5,7 @@ import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/phone_input_field.dart';
 import 'package:uuid/uuid.dart';
+import '../constants/regions.dart';
 
 class AddSiteDialog extends StatefulWidget {
   final User user;
@@ -32,6 +33,7 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
   List<Map<String, dynamic>> _companies = [];
   String? _selectedCompanyId;
   String? _selectedCompanyInn;
+  String? _selectedRegion;
 
   @override
   void initState() {
@@ -68,6 +70,13 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+    
+    if (_selectedRegion == null || _selectedRegion!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Пожалуйста, выберите регион'), backgroundColor: Colors.red),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -77,8 +86,9 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
         companyId: widget.user.companyId ?? _selectedCompanyId,
         companyInn: widget.user.companyInn ?? _selectedCompanyInn,
         name: _nameController.text.trim(),
+        region: _selectedRegion,
         address: _addressController.text.trim(),
-        contactPersonId: null, // Пока не связываем с пользователем
+        contactPersonId: widget.user.id, // Назначаем создателя ответственным лицом по умолчанию
         phone: _phoneController.text.trim(),
         email: _emailController.text.trim(),
         createdAt: DateTime.now(),
@@ -191,7 +201,7 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _selectedCompanyId,
+                      initialValue: _selectedCompanyId,
                       items: _companies.map((company) {
                         return DropdownMenuItem<String>(
                           value: company['id'],
@@ -233,6 +243,44 @@ class _AddSiteDialogState extends State<AddSiteDialog> {
                 isRequired: true,
               ),
               
+              const SizedBox(height: 16),
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   const Row(
+                     children: [
+                       Text('Регион', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+                       SizedBox(width: 4),
+                       Text('*', style: TextStyle(color: Colors.red, fontSize: 14)),
+                     ],
+                   ),
+                   const SizedBox(height: 8),
+                   DropdownMenu<String>(
+                     width: screenWidth > 600 ? 500 - 48 : screenWidth - 88, // учитываем padding
+                     initialSelection: _selectedRegion,
+                     hintText: 'Выберите регион',
+                     enableFilter: true,
+                     enableSearch: true,
+                     onSelected: (value) {
+                       setState(() => _selectedRegion = value);
+                     },
+                     dropdownMenuEntries: Regions.list.map((region) {
+                       return DropdownMenuEntry<String>(
+                         value: region,
+                         label: region,
+                       );
+                     }).toList(),
+                     inputDecorationTheme: InputDecorationTheme(
+                       filled: true,
+                       fillColor: Colors.grey[50],
+                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                     ),
+                   ),
+                ]
+              ),
+
               const SizedBox(height: 16),
               
               _buildTextField(

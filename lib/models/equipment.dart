@@ -62,7 +62,12 @@ class Equipment {
     this.photos,
     this.type,
     this.purchaseDate,
+    this.siteManagerContact,
+    this.operatorContact,
   });
+
+  final String? siteManagerContact; // Контакты менеджера площадки
+  final String? operatorContact;    // Контакты оператора ПМ
 
   // Геттеры для удобства
   String get statusDisplayName {
@@ -132,6 +137,8 @@ class Equipment {
       purchaseDate: json['purchase_date'] != null
           ? DateTime.parse(json['purchase_date'])
           : null,
+      siteManagerContact: json['site_manager_contact'],
+      operatorContact: json['operator_contact'],
     );
   }
 
@@ -164,6 +171,8 @@ class Equipment {
       'photos': photos,
       'type': type,
       'purchase_date': purchaseDate?.toIso8601String(),
+      'site_manager_contact': siteManagerContact,
+      'operator_contact': operatorContact,
     };
   }
 
@@ -195,6 +204,8 @@ class Equipment {
     List<String>? photos,
     String? type,
     DateTime? purchaseDate,
+    String? siteManagerContact,
+    String? operatorContact,
   }) {
     return Equipment(
       id: id ?? this.id,
@@ -224,6 +235,8 @@ class Equipment {
       photos: photos ?? this.photos,
       type: type ?? this.type,
       purchaseDate: purchaseDate ?? this.purchaseDate,
+      siteManagerContact: siteManagerContact ?? this.siteManagerContact,
+      operatorContact: operatorContact ?? this.operatorContact,
     );
   }
 }

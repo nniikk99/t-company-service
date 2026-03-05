@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart';
-import '../models/notification.dart';
 import '../services/app_router.dart';
 import '../services/storage_service.dart';
-import '../services/supabase_service.dart';
 import '../widgets/admin_dashboard.dart';
 import '../widgets/responsible_dashboard.dart';
 import '../widgets/contact_dashboard.dart';
@@ -153,6 +151,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPressed: () {
               Navigator.pushReplacementNamed(context, AppRouter.auth);
             },
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(200, 50),
+            ),
             child: const Text('Выйти'),
           ),
         ],
@@ -179,6 +180,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => _navigateToEquipment(),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(200, 50),
+            ),
             child: const Text('Открыть полную версию'),
           ),
         ],
@@ -205,6 +209,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => _navigateToRequests(),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(200, 50),
+            ),
             child: const Text('Открыть полную версию'),
           ),
         ],
@@ -231,6 +238,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => _navigateToAdmin(),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(200, 50),
+            ),
             child: const Text('Открыть полную версию'),
           ),
         ],

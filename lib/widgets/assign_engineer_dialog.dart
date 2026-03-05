@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart' as AppUserModel;
-import '../models/service_request.dart';
 import '../services/supabase_service.dart';
 
 class AssignEngineerDialog extends StatefulWidget {

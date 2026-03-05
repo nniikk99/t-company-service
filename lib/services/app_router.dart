@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_screen.dart';
-import '../screens/dashboard_screen.dart';
 import '../screens/equipment_screen.dart';
 import '../screens/requests_screen.dart';
 import '../screens/main_screen.dart';
@@ -10,6 +9,7 @@ import '../screens/registration_screen.dart';
 import '../screens/password_recovery_screen.dart';
 import '../screens/telegram_bot_test_screen.dart';
 import '../screens/database_check_screen.dart';
+import '../screens/database_management_screen.dart';
 
 class AppRouter {
   static const String auth = '/auth';
@@ -39,7 +39,11 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const TelegramBotTestScreen());
       
       case databaseCheck:
-        return MaterialPageRoute(builder: (_) => const DatabaseCheckScreen());
+        final user = settings.arguments as User?;
+        if (user == null) {
+          return MaterialPageRoute(builder: (_) => const DatabaseCheckScreen());
+        }
+        return MaterialPageRoute(builder: (_) => DatabaseManagementScreen(adminUser: user));
       
       case dashboard:
         final user = settings.arguments as User?;
@@ -74,7 +78,7 @@ class AppRouter {
           );
         }
         return MaterialPageRoute(
-          builder: (_) => AdminScreen(user: user!),
+          builder: (_) => AdminScreen(user: user),
         );
       
       default:

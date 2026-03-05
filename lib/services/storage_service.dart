@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:crypto/crypto.dart';
 import '../models/user.dart';
 import '../models/client.dart';
 import '../models/service_request.dart';

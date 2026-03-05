@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../models/user.dart';
-import '../models/equipment.dart';
-import '../models/notification.dart';
-import '../theme/app_theme.dart';
-import '../widgets/tab_navigation.dart';
 import 'equipment_list_screen.dart';
 import 'requests_list_screen.dart';
 import 'analytics_screen.dart';
 import 'site_management_screen.dart';
-import 'database_check_screen.dart';
 import 'client_management_screen.dart';
 import 'employee_management_screen.dart';
 import 'engineer_management_screen.dart';
@@ -21,14 +15,21 @@ import 'engineer_statistics_screen.dart';
 import 'supplier_equipment_screen.dart';
 import 'supplier_clients_screen.dart';
 import 'supplier_partners_screen.dart';
+import 'supplier_brands_screen.dart';
+import 'supplier_fleet_screen.dart';
+import 'my_organizations_screen.dart';
 import '../widgets/add_site_dialog.dart';
 import '../widgets/add_equipment_dialog.dart';
+import '../widgets/service_request_dialog.dart';
 
 enum ViewType {
   equipment,
   equipmentDetails,
   requests,
+  cart,
   analytics,
+  profile,
+  brands,
 }
 
 class MainScreen extends StatefulWidget {
@@ -54,26 +55,64 @@ class _MainScreenState extends State<MainScreen> {
   int _unreadNotifications = 0; // Счетчик непрочитанных уведомлений
   
   // Модальные окна
-  bool _serviceModalOpen = false;
+  final bool _serviceModalOpen = false;
   bool _partsModalOpen = false;
-  bool _addEquipmentModalOpen = false;
+  final bool _addEquipmentModalOpen = false;
   bool _editEquipmentModalOpen = false;
-  bool _addSiteModalOpen = false;
+  final bool _addSiteModalOpen = false;
+
+  // Предотвращение удаления иконок при сборке на Web (Tree-shaking)
+  // Flutter Web агрессивно удаляет все иконки, кроме тех, что вызываются напрямую через const Icon(...)
+  final List<Icon> _dummyIconsForWeb = const [
+    Icon(Icons.list),
+    Icon(Icons.bar_chart),
+    Icon(Icons.build),
+    Icon(Icons.shopping_cart),
+    Icon(Icons.person),
+    Icon(Icons.apartment),
+    Icon(Icons.dns),
+    Icon(Icons.map),
+    Icon(Icons.people),
+    Icon(Icons.work),
+    Icon(Icons.settings),
+    Icon(Icons.badge),
+    Icon(Icons.add_box),
+    Icon(Icons.domain),
+    Icon(Icons.handshake),
+    Icon(Icons.notifications),
+    Icon(Icons.headset_mic),
+    Icon(Icons.info),
+    Icon(Icons.logout),
+  ];
   
   List<NavigationTab> get _navigationTabs {
     // Для инженеров показываем только заявки и статистику
     if (_currentUser.role == UserRole.engineer) {
       return [
-        NavigationTab(id: 'requests', label: 'Заявки'),
-        NavigationTab(id: 'analytics', label: 'Статистика'),
+        NavigationTab(id: 'requests', label: 'Заявки', icon: Icons.list),
+        NavigationTab(id: 'analytics', label: 'Статистика', icon: Icons.bar_chart),
+        NavigationTab(id: 'profile', label: 'Профиль', icon: Icons.person),
+      ];
+    }
+    
+    // Для поставщиков
+    if (_currentUser.role == UserRole.supplier) {
+      return [
+        NavigationTab(id: 'equipment', label: 'Оборудование +', icon: Icons.precision_manufacturing),
+        NavigationTab(id: 'requests', label: 'Заказы/Заявки', icon: Icons.assignment_outlined),
+        NavigationTab(id: 'analytics', label: 'Аналитика парка', icon: Icons.dashboard_outlined),
+        NavigationTab(id: 'brands', label: 'Товарный знак', icon: Icons.branding_watermark),
+        NavigationTab(id: 'profile', label: 'Профиль', icon: Icons.person),
       ];
     }
     
     // Для остальных ролей - стандартная навигация
     return [
-      NavigationTab(id: 'equipment', label: 'Оборудование'),
-      NavigationTab(id: 'requests', label: 'Заявки'),
-      NavigationTab(id: 'analytics', label: 'Анализ'),
+      NavigationTab(id: 'equipment', label: 'Оборудование', icon: Icons.build),
+      NavigationTab(id: 'requests', label: 'Заявки', icon: Icons.list),
+      NavigationTab(id: 'cart', label: 'Корзина', icon: Icons.shopping_cart),
+      NavigationTab(id: 'analytics', label: 'Анализ', icon: Icons.bar_chart),
+      NavigationTab(id: 'profile', label: 'Профиль', icon: Icons.person),
     ];
   }
 
@@ -100,18 +139,28 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   // Обработчики событий (как в React коде)
-  void _handleLogout() {
-    () async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('current_user_id');
-      await prefs.setBool('is_logged_in', false);
-      // флаг блокировки автологина через Telegram на один раз
-      await prefs.setBool('skip_auto_login_once', true);
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Выход'),
+        content: const Text('Вы уверены, что хотите выйти из аккаунта?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Выйти'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await StorageService.clearAll();
       try { await SupabaseService.signOut(); } catch (_) {}
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, '/auth', (route) => false);
-      }
-    }();
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   void _handleProfileClick() {
@@ -128,7 +177,7 @@ class _MainScreenState extends State<MainScreen> {
           },
         ),
       ),
-    );
+    ).then((_) => _loadUnreadNotifications());
   }
 
   void _handleSiteManagement() {
@@ -180,10 +229,7 @@ class _MainScreenState extends State<MainScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SupplierEquipmentScreen(
-          supplier: _currentUser,
-          isAdminMode: true,
-        ),
+        builder: (context) => SupplierEquipmentScreen(supplier: _currentUser, isAdminMode: true),
       ),
     );
   }
@@ -216,7 +262,7 @@ class _MainScreenState extends State<MainScreen> {
       MaterialPageRoute(
         builder: (context) => NotificationsScreen(user: _currentUser),
       ),
-    ).then((_) => _loadUnreadNotifications()); // Обновляем счетчик после возврата
+    ).then((_) => _loadUnreadNotifications());
   }
 
   Future<void> _loadUnreadNotifications() async {
@@ -263,10 +309,20 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _handleServiceClick(String equipmentId) {
-    setState(() {
-      _selectedEquipmentId = equipmentId;
-      _serviceModalOpen = true;
-    });
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ServiceRequestDialog(
+        equipmentId: equipmentId,
+        user: _currentUser,
+        onRequestCreated: () {
+          // После создания заявки переходим на вкладку заявок
+          setState(() {
+            _currentView = ViewType.requests;
+          });
+        },
+      ),
+    );
   }
 
   void _handlePartsClick(String equipmentId) {
@@ -301,7 +357,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5), // telegram-background
-      endDrawer: _buildProfileDrawer(),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -310,18 +365,13 @@ class _MainScreenState extends State<MainScreen> {
             ? IconButton(
                 onPressed: () {
                   // Возвращаемся в меню управления клиентами
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ClientManagementScreen(adminUser: widget.adminUser!),
-                    ),
-                  );
+                  Navigator.pop(context);
                 },
                 icon: const Icon(
                   Icons.arrow_back,
                   color: Colors.black87,
                 ),
-                tooltip: 'Назад к управлению клиентами',
+                tooltip: 'Вернуться к управлению',
               )
             : null,
         title: LayoutBuilder(
@@ -331,28 +381,12 @@ class _MainScreenState extends State<MainScreen> {
             final isMobile = screenWidth < 600;
             
             if (isMobile) {
-              // Мобильная версия - только логотип и меню
-              return Row(
+              // Мобильная версия - только заголовок
+              return const Row(
                 children: [
-                  // Логотип T-Co
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4A90E2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'T-Co',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
+                  Spacer(),
                   // Заголовок по центру
-                  const Text(
+                  Text(
                     'Сервисная служба',
                     style: TextStyle(
                       color: Colors.black87,
@@ -360,32 +394,16 @@ class _MainScreenState extends State<MainScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Spacer(),
+                  Spacer(),
                 ],
               );
             } else {
               // Десктопная версия - полная информация
-              return Row(
+              return const Row(
                 children: [
-                  // Логотип T-Co
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4A90E2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'T-Co',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
+                  Spacer(),
                   // Заголовок по центру
-                  const Text(
+                  Text(
                     'Сервисная служба',
                     style: TextStyle(
                       color: Colors.black87,
@@ -393,67 +411,7 @@ class _MainScreenState extends State<MainScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const Spacer(),
-                  // Профиль пользователя
-                  GestureDetector(
-                    onTap: _showProfileMenu,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Аватар с инициалами
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4A90E2),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _getUserInitials(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Имя и роль
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '${_currentUser.firstName} ${_currentUser.lastName}',
-                              style: const TextStyle(
-                                color: Colors.black87,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: _getRoleColor(),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                _currentUser.roleDisplayName,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                    ),
-                  ),
+                  Spacer(),
                 ],
               );
             }
@@ -461,81 +419,72 @@ class _MainScreenState extends State<MainScreen> {
         ),
       ),
       body: Container(
-        padding: const EdgeInsets.all(12), // container mx-auto px-3 py-3
-        child: Column(
-          children: [
-            // Navigation Tabs - показываем только если не в режиме просмотра деталей
-            if (_currentView != ViewType.equipmentDetails) ...[
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final isMobile = screenWidth < 600;
-                  
-                  return Container(
-                    margin: EdgeInsets.only(
-                      bottom: 12,
-                      left: isMobile ? 0 : 0,
-                      right: isMobile ? 0 : 0,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(isMobile ? 12 : 12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          offset: const Offset(0, 1),
-                          blurRadius: 3,
-                        ),
-                      ],
-                    ),
-                    padding: EdgeInsets.all(isMobile ? 3 : 4),
-                    child: Row(
-                      children: _navigationTabs.map((tab) {
-                        final isActive = _getActiveTabId() == tab.id;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => _setCurrentView(tab.id),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                vertical: isMobile ? 10 : 8,
-                                horizontal: isMobile ? 8 : 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isActive 
-                                    ? const Color(0xFF4A90E2) // telegram-blue
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
+        color: const Color(0xFFF8FAFC),
+        child: _buildMainContent(),
+      ),
+      bottomNavigationBar: _currentView != ViewType.equipmentDetails 
+        ? Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: _navigationTabs.map((tab) {
+                    final isActive = _getActiveTabId() == tab.id;
+                    return Expanded(
+                      child: Tooltip(
+                        message: tab.label,
+                        child: InkWell(
+                          onTap: () => _setCurrentView(tab.id),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: isActive ? const Color(0xFFEFF6FF) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  tab.icon,
+                                  color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
+                                  size: 26, // Increased from 24
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
                                   tab.label,
                                   style: TextStyle(
-                                    fontSize: isMobile ? 14 : 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: isActive 
-                                        ? Colors.white 
-                                        : Colors.black87, // telegram-text
+                                    fontSize: 11, // Increased from 10
+                                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                                    color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
+                                    letterSpacing: 0.2,
                                   ),
-                                  textAlign: TextAlign.center,
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                  );
-                },
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
-            ],
-            
-            // Main Content
-            Expanded(
-              child: _buildMainContent(),
             ),
-          ],
-        ),
-      ),
+          )
+        : null,
     );
   }
 
@@ -550,8 +499,14 @@ class _MainScreenState extends State<MainScreen> {
         return 'equipment';
       case ViewType.requests:
         return 'requests';
+      case ViewType.cart:
+        return 'cart';
       case ViewType.analytics:
         return 'analytics';
+      case ViewType.profile:
+        return 'profile';
+      case ViewType.brands:
+        return 'brands';
     }
   }
 
@@ -567,8 +522,17 @@ class _MainScreenState extends State<MainScreen> {
         case 'requests':
           _currentView = ViewType.requests;
           break;
+        case 'cart':
+          _currentView = ViewType.cart;
+          break;
         case 'analytics':
           _currentView = ViewType.analytics;
+          break;
+        case 'profile':
+          _currentView = ViewType.profile;
+          break;
+        case 'brands':
+          _currentView = ViewType.brands;
           break;
       }
     });
@@ -577,6 +541,9 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMainContent() {
     switch (_currentView) {
       case ViewType.equipment:
+        if (_currentUser.role == UserRole.supplier) {
+          return SupplierEquipmentScreen(supplier: _currentUser);
+        }
         return EquipmentListScreen(
           key: ValueKey('equipment_${DateTime.now().millisecondsSinceEpoch}'),
           user: _currentUser,
@@ -600,12 +567,436 @@ class _MainScreenState extends State<MainScreen> {
         return RequestsListScreen(user: _currentUser);
         
       case ViewType.analytics:
+        if (_currentUser.role == UserRole.supplier) {
+          return SupplierFleetScreen(supplier: _currentUser);
+        }
         // Для инженеров показываем специальную статистику
         if (_currentUser.role == UserRole.engineer) {
           return EngineerStatisticsScreen(engineerId: _currentUser.id);
         }
         return AnalyticsScreen(user: _currentUser);
+      case ViewType.cart:
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.shopping_cart_outlined, size: 64, color: Color(0xFF94A3B8)),
+              SizedBox(height: 16),
+              Text(
+                'Корзина пуста',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Здесь будут отображаться заказанные детали',
+                style: TextStyle(color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+        );
+      case ViewType.profile:
+        return _buildProfileTabContent();
+      case ViewType.brands:
+        return SupplierBrandsScreen(supplier: _currentUser);
     }
+  }
+
+  Widget _buildProfileTabContent() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Column(
+        children: [
+          // Header section
+          Center(
+            child: Column(
+              children: [
+                // Avatar with blue circle and inner border
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF2563EB), width: 2),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Colors.white, Color(0xFFE0F2FE)],
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _getUserInitials(),
+                      style: const TextStyle(
+                        fontFamily: 'Liberation Sans',
+                        fontSize: 36,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1E40AF),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Full Name
+                Text(
+                  _currentUser.fullName,
+                  style: const TextStyle(
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Phone Number
+                Text(
+                  _currentUser.phone.isNotEmpty ? _currentUser.phone : '+7 (XXX) XXX-XX-XX',
+                  style: const TextStyle(
+                    fontFamily: 'Liberation Sans',
+                    fontSize: 16,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _currentUser.roleDisplayName.toUpperCase(),
+                    style: const TextStyle(
+                      fontFamily: 'Liberation Sans',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2563EB),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Group 1: Profile
+          _buildProfileSectionCard([
+            _buildProfileMenuItem(
+              icon: Icons.person,
+              title: 'Личные данные',
+              onTap: _handleProfileClick,
+            ),
+            _buildProfileMenuItem(
+              icon: Icons.apartment,
+              title: 'Мои организации',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MyOrganizationsScreen(user: _currentUser)),
+                );
+              },
+              showDivider: false,
+            ),
+          ]),
+          const SizedBox(height: 16),
+
+          // Group 2: Admin Panel (if any)
+          ..._buildAdminPanel(),
+
+          // Group 3: System
+          _buildProfileSectionCard([
+            _buildProfileMenuItem(
+              icon: Icons.notifications,
+              title: 'Настройки уведомлений',
+              badge: _unreadNotifications > 0 ? _unreadNotifications.toString() : null,
+              onTap: _handleNotificationsClick,
+            ),
+            _buildProfileMenuItem(
+              icon: Icons.headset_mic,
+              title: 'Техподдержка',
+              onTap: () {},
+            ),
+            _buildProfileMenuItem(
+              icon: Icons.info,
+              title: 'О приложении',
+              onTap: () {
+                showAboutDialog(
+                  context: context,
+                  applicationName: 'T-Co Service',
+                  applicationVersion: '1.0.0',
+                  applicationIcon: const Icon(Icons.settings, size: 48, color: Color(0xFF2563EB)),
+                );
+              },
+              showDivider: false,
+            ),
+          ]),
+
+          const SizedBox(height: 32),
+          
+          // Logout
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton.icon(
+              onPressed: _handleLogout,
+              icon: const Icon(Icons.logout, color: Color(0xFFEF4444), size: 18),
+              label: const Text(
+                'Выйти',
+                style: TextStyle(
+                  fontFamily: 'Liberation Sans',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFFEF4444),
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0xFFFEE2E2), width: 1.5),
+                backgroundColor: const Color(0xFFFFFBFA),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'T-Co Service v1.0.0',
+            style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildAdminPanel() {
+    List<Widget> items = [];
+    
+    if (_currentUser.role == UserRole.admin || _currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) {
+      items.add(_buildProfileMenuItem(
+        icon: Icons.admin_panel_settings_rounded,
+        title: 'Инструменты БД',
+        onTap: () => Navigator.pushNamed(context, '/database-check', arguments: _currentUser),
+      ));
+    }
+    
+    if (_currentUser.canManageSites) {
+      items.add(_buildProfileMenuItem(
+        icon: Icons.location_on_rounded,
+        title: 'Управление площадками',
+        onTap: _handleSiteManagement,
+      ));
+    }
+    
+    if (_currentUser.canManageClients) {
+      items.add(_buildProfileMenuItem(
+        icon: Icons.apartment_rounded,
+        title: 'Управление пользователями',
+        onTap: _handleClientManagement,
+      ));
+      items.add(_buildProfileMenuItem(
+        icon: Icons.engineering_rounded,
+        title: 'Управление инженерами',
+        onTap: _handleEngineerManagement,
+      ));
+    }
+    
+    if (_currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) {
+      items.add(_buildProfileMenuItem(
+        icon: Icons.precision_manufacturing_rounded,
+        title: 'Оборудование (Админ)',
+        onTap: _handleAdminEquipment,
+      ));
+    }
+    
+    if (_currentUser.role == UserRole.companyResponsible) {
+      items.add(_buildProfileMenuItem(
+        icon: Icons.people_rounded,
+        title: 'Сотрудники',
+        onTap: _handleEmployeeManagement,
+      ));
+    }
+      
+    if (_currentUser.role == UserRole.supplier) {
+      items.add(_buildProfileMenuItem(
+        icon: Icons.add_business_rounded,
+        title: 'Оборудование +',
+        onTap: _handleSupplierEquipment,
+      ));
+      items.add(_buildProfileMenuItem(
+        icon: Icons.people_alt_rounded,
+        title: 'Клиенты',
+        onTap: _handleSupplierClients,
+      ));
+      items.add(_buildProfileMenuItem(
+        icon: Icons.handshake_rounded,
+        title: 'Партнеры',
+        onTap: _handleSupplierPartners,
+      ));
+    }
+
+    if (items.isEmpty) return [];
+
+    // Set showDivider: false for the last item
+    if (items.isNotEmpty) {
+      // This is a bit hacky but works since _buildProfileMenuItem returns Column
+      // The original instruction had a complex hack here.
+      // The new approach is to use _buildAdminItemsList which handles dividers.
+    }
+    
+    // Better way: Re-implement _buildAdminPanel to take showDivider flag
+    return [
+      const Padding(
+        padding: EdgeInsets.only(left: 4, bottom: 8, top: 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'ПАНЕЛЬ УПРАВЛЕНИЯ',
+            style: TextStyle(
+              fontFamily: 'Liberation Sans',
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      ),
+      _buildProfileSectionCard(_buildAdminItemsList()),
+      const SizedBox(height: 16),
+    ];
+  }
+
+  List<Widget> _buildAdminItemsList() {
+    List<Map<String, dynamic>> itemsData = [];
+    
+    void add(IconData icon, String title, VoidCallback onTap) {
+      itemsData.add({'icon': icon, 'title': title, 'onTap': onTap});
+    }
+
+    if (_currentUser.role == UserRole.admin || _currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) {
+      add(Icons.dns, 'Инструменты БД', () => Navigator.pushNamed(context, '/database-check', arguments: _currentUser));
+    }
+    if (_currentUser.canManageSites) {
+      add(Icons.map, 'Управление площадками', _handleSiteManagement);
+    }
+    if (_currentUser.canManageClients) {
+      add(Icons.people, 'Управление пользователями', _handleClientManagement);
+      add(Icons.work, 'Управление инженерами', _handleEngineerManagement);
+    }
+    if (_currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) {
+      add(Icons.settings, 'Управление оборудованием', _handleAdminEquipment);
+    }
+    if (_currentUser.role == UserRole.companyResponsible) {
+      add(Icons.badge, 'Сотрудники', _handleEmployeeManagement);
+    }
+    if (_currentUser.role == UserRole.supplier) {
+      add(Icons.add_box, 'Оборудование +', _handleSupplierEquipment);
+      add(Icons.domain, 'Клиенты', _handleSupplierClients);
+      add(Icons.handshake, 'Партнеры', _handleSupplierPartners);
+    }
+
+    return List.generate(itemsData.length, (index) {
+      final data = itemsData[index];
+      return _buildProfileMenuItem(
+        icon: data['icon'],
+        title: data['title'],
+        onTap: data['onTap'],
+        showDivider: index < itemsData.length - 1,
+      );
+    });
+  }
+
+  Widget _buildProfileSectionCard(List<Widget> items) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            offset: const Offset(0, 4),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          children: items,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileMenuItem({
+    required IconData icon,
+    required String title,
+    String? badge,
+    required VoidCallback onTap,
+    bool showDivider = true,
+  }) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                // Icon background
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Title
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: 'Liberation Sans',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ),
+                // Badge if exists
+                if (badge != null)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      badge,
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                // Arrow
+                const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 24),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider)
+          const Divider(height: 1, indent: 72, endIndent: 16, color: Color(0xFFF1F5F9)),
+      ],
+    );
   }
 
   String _getUserInitials() {
@@ -617,379 +1008,12 @@ class _MainScreenState extends State<MainScreen> {
         : '';
     return '$firstInitial$lastInitial';
   }
-
-  Color _getRoleColor() {
-    switch (_currentUser.role) {
-      case UserRole.admin:
-      case UserRole.superAdmin:
-      case UserRole.administrator:
-        return Colors.red;
-      case UserRole.clientManager:
-        return Colors.purple;
-      case UserRole.clientResponsible:
-      case UserRole.companyResponsible:
-      case UserRole.supplier:
-        return Colors.orange;
-      case UserRole.contactPerson:
-      case UserRole.siteManager:
-      case UserRole.operatorPM:
-      case UserRole.engineer:
-        return Colors.green;
-      case UserRole.pendingApproval:
-        return Colors.grey;
-    }
-  }
-
-  void _showProfileMenu() {
-    Scaffold.of(context).openEndDrawer();
-  }
-
-  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap, {bool isDestructive = false}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: isDestructive ? Colors.red : Colors.grey[600],
-                size: 20,
-              ),
-              const SizedBox(width: 16),
-              Text(
-                title,
-                style: TextStyle(
-                  color: isDestructive ? Colors.red : Colors.black87,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileDrawer() {
-    return Drawer(
-      width: 320,
-      child: Container(
-        color: Colors.white,
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Заголовок
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF4A90E2),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    // Аватар
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                      child: Center(
-                        child: Text(
-                          _getUserInitials(),
-                          style: const TextStyle(
-                            color: Color(0xFF4A90E2),
-                            fontSize: 32,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    // Имя пользователя
-                    Text(
-                      _currentUser.fullName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Роль
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _currentUser.roleDisplayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Меню действий
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    _buildDrawerItem(
-                      icon: Icons.person_outline,
-                      title: 'Мой профиль',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _handleProfileClick();
-                      },
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.notifications_outlined,
-                      title: 'Уведомления',
-                      badge: _unreadNotifications > 0 ? _unreadNotifications.toString() : null,
-                      onTap: () {
-                        Navigator.pop(context);
-                        _handleNotificationsClick();
-                      },
-                    ),
-                    // Админ-панель скрыта по просьбе пользователя
-                    // if (_currentUser.role == UserRole.admin || _currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) ...
-
-                    // Прямой доступ к инструментам БД для исправления прав
-                    if (_currentUser.role == UserRole.admin || _currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator)
-                      _buildDrawerItem(
-                        icon: Icons.admin_panel_settings,
-                        title: 'Инструменты БД',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(context, '/database-check');
-                        },
-                      ),
-                    if (_currentUser.canManageSites) 
-                      _buildDrawerItem(
-                        icon: Icons.location_on_outlined,
-                        title: 'Управление площадками',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleSiteManagement();
-                        },
-                      ),
-                    if (_currentUser.canManageClients) 
-                      _buildDrawerItem(
-                        icon: Icons.apartment,
-                        title: 'Управление клиентами',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleClientManagement();
-                        },
-                      ),
-                    if (_currentUser.canManageClients) 
-                      _buildDrawerItem(
-                        icon: Icons.engineering,
-                        title: 'Управление инженерами',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleEngineerManagement();
-                        },
-                      ),
-                    if (_currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator)
-                      _buildDrawerItem(
-                        icon: Icons.precision_manufacturing_outlined,
-                        title: 'Оборудование',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleAdminEquipment();
-                        },
-                      ),
-                    // Сотрудники - только для ответственного лица
-                    if (_currentUser.role == UserRole.companyResponsible)
-                      _buildDrawerItem(
-                        icon: Icons.people_outline,
-                        title: 'Сотрудники',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleEmployeeManagement();
-                        },
-                      ),
-                    if (_currentUser.role == UserRole.supplier) ...[
-                      _buildDrawerItem(
-                        icon: Icons.add_to_photos_outlined,
-                        title: 'Оборудование +',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleSupplierEquipment();
-                        },
-                      ),
-                      _buildDrawerItem(
-                        icon: Icons.people_alt_outlined,
-                        title: 'Клиенты',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleSupplierClients();
-                        },
-                      ),
-                      _buildDrawerItem(
-                        icon: Icons.build_circle_outlined,
-                        title: 'Сервис',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _handleSupplierPartners();
-                        },
-                      ),
-                    ],
-                    if (_currentUser.canManageClients)
-                      _buildDrawerItem(
-                        icon: Icons.telegram,
-                        title: 'Тест Telegram бота',
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.pushNamed(context, '/telegram-bot-test');
-                        },
-                      ),
-                    _buildDrawerItem(
-                      icon: Icons.settings_outlined,
-                      title: 'Настройки',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _handleSettingsClick();
-                      },
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.help_outline,
-                      title: 'Помощь',
-                      onTap: () {
-                        Navigator.pop(context);
-                        // TODO: Открыть помощь
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const SizedBox(height: 16),
-                    _buildDrawerItem(
-                      icon: Icons.logout,
-                      title: 'Выйти',
-                      isDestructive: true,
-                      onTap: () {
-                        Navigator.pop(context);
-                        _handleLogout();
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Нижний блок
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Text(
-                      'T-Co Service',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      'Версия 1.0.0',
-                      style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildDrawerItem({
-    required IconData icon,
-    required String title,
-    String? badge,
-    bool isDestructive = false,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: isDestructive ? Colors.red : Colors.grey[700],
-                  size: 22,
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: isDestructive ? Colors.red : Colors.black87,
-                    ),
-                  ),
-                ),
-                if (badge != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      badge,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class NavigationTab {
   final String id;
   final String label;
+  final IconData icon;
   
-  NavigationTab({required this.id, required this.label});
+  NavigationTab({required this.id, required this.label, required this.icon});
 }

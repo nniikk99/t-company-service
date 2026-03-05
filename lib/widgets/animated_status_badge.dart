@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class AnimatedStatusBadge extends StatefulWidget {
   final String text;
@@ -8,12 +7,12 @@ class AnimatedStatusBadge extends StatefulWidget {
   final Duration delay;
 
   const AnimatedStatusBadge({
-    Key? key,
+    super.key,
     required this.text,
     required this.color,
     this.animationDuration = const Duration(milliseconds: 300),
     this.delay = Duration.zero,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedStatusBadge> createState() => _AnimatedStatusBadgeState();
@@ -118,11 +117,11 @@ class PulsingIndicator extends StatefulWidget {
   final Duration duration;
 
   const PulsingIndicator({
-    Key? key,
+    super.key,
     required this.color,
     this.size = 8.0,
     this.duration = const Duration(milliseconds: 1000),
-  }) : super(key: key);
+  });
 
   @override
   State<PulsingIndicator> createState() => _PulsingIndicatorState();
@@ -186,12 +185,12 @@ class ShimmerEffect extends StatefulWidget {
   final Duration duration;
 
   const ShimmerEffect({
-    Key? key,
+    super.key,
     required this.child,
     this.baseColor = const Color(0xFFE0E0E0),
     this.highlightColor = const Color(0xFFF5F5F5),
     this.duration = const Duration(milliseconds: 1500),
-  }) : super(key: key);
+  });
 
   @override
   State<ShimmerEffect> createState() => _ShimmerEffectState();
@@ -263,12 +262,12 @@ class BounceInWidget extends StatefulWidget {
   final Curve curve;
 
   const BounceInWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.duration = const Duration(milliseconds: 600),
     this.delay = Duration.zero,
     this.curve = Curves.elasticOut,
-  }) : super(key: key);
+  });
 
   @override
   State<BounceInWidget> createState() => _BounceInWidgetState();

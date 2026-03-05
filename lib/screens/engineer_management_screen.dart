@@ -246,7 +246,7 @@ class _EngineerManagementScreenState extends State<EngineerManagementScreen> {
   }
 
   void _loginAsEngineer(AppUserModel.User engineer) {
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => MainScreen(

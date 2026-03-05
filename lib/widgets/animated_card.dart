@@ -13,7 +13,7 @@ class AnimatedCard extends StatefulWidget {
   final double scaleOnTap;
 
   const AnimatedCard({
-    Key? key,
+    super.key,
     required this.child,
     this.onTap,
     this.padding,
@@ -23,7 +23,7 @@ class AnimatedCard extends StatefulWidget {
     this.borderRadius,
     this.animationDuration = const Duration(milliseconds: 150),
     this.scaleOnTap = 0.98,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedCard> createState() => _AnimatedCardState();
@@ -108,7 +108,7 @@ class AnimatedButton extends StatefulWidget {
   final double scaleOnTap;
 
   const AnimatedButton({
-    Key? key,
+    super.key,
     required this.child,
     this.onPressed,
     this.backgroundColor,
@@ -117,7 +117,7 @@ class AnimatedButton extends StatefulWidget {
     this.borderRadius,
     this.animationDuration = const Duration(milliseconds: 100),
     this.scaleOnTap = 0.95,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedButton> createState() => _AnimatedButtonState();
@@ -206,12 +206,12 @@ class FadeInWidget extends StatefulWidget {
   final Curve curve;
 
   const FadeInWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.duration = const Duration(milliseconds: 300),
     this.delay = Duration.zero,
     this.curve = Curves.easeOut,
-  }) : super(key: key);
+  });
 
   @override
   State<FadeInWidget> createState() => _FadeInWidgetState();
@@ -268,14 +268,14 @@ class SlideInWidget extends StatefulWidget {
   final Offset endOffset;
 
   const SlideInWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.duration = const Duration(milliseconds: 300),
     this.delay = Duration.zero,
     this.curve = Curves.easeOut,
     this.beginOffset = const Offset(0, 0.3),
     this.endOffset = Offset.zero,
-  }) : super(key: key);
+  });
 
   @override
   State<SlideInWidget> createState() => _SlideInWidgetState();

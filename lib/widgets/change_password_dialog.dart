@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/password_service.dart';
-import '../services/telegram_bot_service.dart';
 import '../widgets/error_dialog.dart';
 
 class ChangePasswordDialog extends StatefulWidget {

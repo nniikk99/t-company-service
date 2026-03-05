@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 import '../models/user.dart';
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
@@ -497,7 +495,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
           
           // Тип организации
           DropdownButtonFormField<String>(
-            value: _selectedOrgType,
+            initialValue: _selectedOrgType,
             decoration: const InputDecoration(
               labelText: 'Тип организации',
               prefixIcon: Icon(Icons.apartment),
@@ -623,7 +621,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
 
   Widget _buildRegisterButton() {
     return SizedBox(
-      height: 56,
+      height: 50,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _register,
         style: ElevatedButton.styleFrom(

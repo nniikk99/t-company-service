@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/service_request.dart';
 import '../services/supabase_service.dart';
-import '../theme/app_theme.dart';
 
 class EngineerStatisticsScreen extends StatefulWidget {
   final String engineerId;
@@ -463,7 +462,7 @@ class _EngineerStatisticsScreenState extends State<EngineerStatisticsScreen> {
     } else {
       final hours = (avgMinutes / 60).floor();
       final minutes = (avgMinutes % 60).round();
-      return '${hours}ч ${minutes}м';
+      return '$hoursч $minutesм';
     }
   }
 

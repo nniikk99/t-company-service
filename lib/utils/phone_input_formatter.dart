@@ -19,7 +19,7 @@ class PhoneInputFormatter extends TextInputFormatter {
     String formattedText = '+7';
     int digitIndex = 0;
 
-    if (digitsOnly.length > 0) {
+    if (digitsOnly.isNotEmpty) {
       // Skip initial '7' if present, as we add '+7' manually
       if (digitsOnly[0] == '7' && digitsOnly.length > 1) {
         digitIndex = 1;
@@ -30,13 +30,13 @@ class PhoneInputFormatter extends TextInputFormatter {
 
     // (XXX) XXX-XX-XX
     if (digitsOnly.length - digitIndex > 0) {
-      formattedText += ' (' + digitsOnly.substring(digitIndex, (digitIndex + 3).clamp(0, digitsOnly.length));
+      formattedText += ' (${digitsOnly.substring(digitIndex, (digitIndex + 3).clamp(0, digitsOnly.length))}';
       if (digitsOnly.length - digitIndex > 3) {
-        formattedText += ') ' + digitsOnly.substring((digitIndex + 3).clamp(0, digitsOnly.length), (digitIndex + 6).clamp(0, digitsOnly.length));
+        formattedText += ') ${digitsOnly.substring((digitIndex + 3).clamp(0, digitsOnly.length), (digitIndex + 6).clamp(0, digitsOnly.length))}';
         if (digitsOnly.length - digitIndex > 6) {
-          formattedText += '-' + digitsOnly.substring((digitIndex + 6).clamp(0, digitsOnly.length), (digitIndex + 8).clamp(0, digitsOnly.length));
+          formattedText += '-${digitsOnly.substring((digitIndex + 6).clamp(0, digitsOnly.length), (digitIndex + 8).clamp(0, digitsOnly.length))}';
           if (digitsOnly.length - digitIndex > 8) {
-            formattedText += '-' + digitsOnly.substring((digitIndex + 8).clamp(0, digitsOnly.length), (digitIndex + 10).clamp(0, digitsOnly.length));
+            formattedText += '-${digitsOnly.substring((digitIndex + 8).clamp(0, digitsOnly.length), (digitIndex + 10).clamp(0, digitsOnly.length))}';
           }
         }
       }

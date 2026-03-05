@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
 import '../services/telegram_webapp_service.dart';
 import '../services/storage_service.dart';
 import '../services/app_router.dart';
@@ -11,11 +8,8 @@ import '../services/supabase_service.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart' as AppUserModel;
 import '../theme/app_theme.dart';
-import '../widgets/modern_card.dart';
 import '../widgets/error_dialog.dart';
 import '../widgets/phone_input_field.dart';
-import 'supabase_test_screen.dart';
-import 'database_check_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -28,14 +22,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   bool _isLoading = false;
   bool _obscurePassword = true; // Для показа/скрытия пароля
   // согласие больше не требуется на экране входа
-  bool _consentGiven = true;
+  final bool _consentGiven = true;
   String? _telegramUser;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   
   // Фокус для полей ввода
-  FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
   
   // Контроллеры для полей ввода
   final TextEditingController _phoneController = TextEditingController();
@@ -359,7 +353,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       final users = await StorageService.getUsers();
       final user = users.firstWhere((u) => u.id == userId, orElse: () => users.first);
       
-      if (user != null && mounted) {
+      if (mounted) {
         Navigator.of(context).pushReplacementNamed('/dashboard', arguments: user);
       }
     } catch (e) {
@@ -415,8 +409,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           Container(
                             width: 80,
                             height: 80,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4A90E2),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF4A90E2),
                               shape: BoxShape.circle,
                             ),
                             child: const Center(
@@ -515,7 +509,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                 ),
                               ),
                               child: _isLoading
-                                  ? SizedBox(
+                                  ? const SizedBox(
                                       height: 20,
                                       width: 20,
                                       child: CircularProgressIndicator(

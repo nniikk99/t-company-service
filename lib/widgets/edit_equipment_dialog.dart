@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 import '../models/equipment.dart';
 import '../models/user.dart';
 import '../models/site.dart';
@@ -132,7 +131,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
 
     try {
       final updatedEquipment = widget.equipment.copyWith(
-        name: '${_selectedManufacturer} ${_selectedModel}${_selectedModification.isNotEmpty ? ' ${_selectedModification}' : ''}',
+        name: '$_selectedManufacturer $_selectedModel${_selectedModification.isNotEmpty ? ' $_selectedModification' : ''}',
         manufacturer: _selectedManufacturer,
         model: _selectedModel,
         modification: _selectedModification.isNotEmpty ? _selectedModification : null,
@@ -280,6 +279,10 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final canEditEquipmentBase = widget.user.role == UserRole.supplier || 
+                                 widget.user.role == UserRole.superAdmin || 
+                                 widget.user.role == UserRole.administrator;
+
     return AlertDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
@@ -310,7 +313,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedType.isNotEmpty ? _selectedType : null,
+                initialValue: _selectedType.isNotEmpty ? _selectedType : null,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: const Color(0xFFF9FAFB),
@@ -335,7 +338,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
                     child: Text(type),
                   );
                 }).toList(),
-                onChanged: _onTypeChanged,
+                onChanged: canEditEquipmentBase ? _onTypeChanged : null,
               ),
               
               const SizedBox(height: 16),
@@ -351,7 +354,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               ),
               const SizedBox(height: 8),
               InkWell(
-                onTap: _selectPurchaseDate,
+                onTap: canEditEquipmentBase ? _selectPurchaseDate : null,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
@@ -379,7 +382,10 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               const SizedBox(height: 16),
               
               // Технические характеристики
-              if (_selectedType.isNotEmpty) ...[
+              if (_selectedType.isNotEmpty && 
+                  (widget.user.role == UserRole.supplier || 
+                   widget.user.role == UserRole.superAdmin || 
+                   widget.user.role == UserRole.administrator)) ...[
                 _buildTechnicalSpecificationsSection(),
                 const SizedBox(height: 16),
               ],
@@ -395,7 +401,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedManufacturer.isNotEmpty && 
+                initialValue: _selectedManufacturer.isNotEmpty && 
                        ['Gadlee', 'Karcher', 'Tennant', 'Nilfisk', 'Comac'].contains(_selectedManufacturer) 
                        ? _selectedManufacturer : null,
                 decoration: InputDecoration(
@@ -422,13 +428,13 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
                           child: Text(manufacturer),
                         ))
                     .toList(),
-                onChanged: (value) {
+                onChanged: canEditEquipmentBase ? (value) {
                   setState(() {
                     _selectedManufacturer = value ?? '';
                     _selectedModel = ''; // Reset model when manufacturer changes
                     _selectedModification = ''; // Reset modification
                   });
-                },
+                } : null,
                 validator: (value) => value == null || value.isEmpty ? 'Обязательное поле' : null,
               ),
               const SizedBox(height: 20),
@@ -444,7 +450,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedModel.isNotEmpty && 
+                initialValue: _selectedModel.isNotEmpty && 
                        _getModelsForManufacturer(_selectedManufacturer).contains(_selectedModel)
                        ? _selectedModel : null,
                 decoration: InputDecoration(
@@ -471,12 +477,12 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
                           child: Text(model),
                         ))
                     .toList(),
-                onChanged: (value) {
+                onChanged: canEditEquipmentBase ? (value) {
                   setState(() {
                     _selectedModel = value ?? '';
                     _selectedModification = ''; // Reset modification
                   });
-                },
+                } : null,
                 validator: (value) => value == null || value.isEmpty ? 'Обязательное поле' : null,
               ),
               const SizedBox(height: 20),
@@ -492,7 +498,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedModification.isNotEmpty && 
+                initialValue: _selectedModification.isNotEmpty && 
                        _getModificationsForModel(_selectedModel).contains(_selectedModification)
                        ? _selectedModification : null,
                 decoration: InputDecoration(
@@ -519,11 +525,11 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
                           child: Text(modification),
                         ))
                     .toList(),
-                onChanged: (value) {
+                onChanged: canEditEquipmentBase ? (value) {
                   setState(() {
                     _selectedModification = value ?? '';
                   });
-                },
+                } : null,
               ),
               const SizedBox(height: 20),
 
@@ -539,6 +545,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _serialNumberController,
+                readOnly: !canEditEquipmentBase,
                 decoration: InputDecoration(
                   hintText: 'Введите серийный номер',
                   filled: true,
@@ -573,7 +580,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               _isLoadingSites
                   ? const Center(child: CircularProgressIndicator())
                   : DropdownButtonFormField<String>(
-                      value: _selectedSiteId.isNotEmpty && 
+                      initialValue: _selectedSiteId.isNotEmpty && 
                              _availableSites.any((site) => site.id == _selectedSiteId)
                              ? _selectedSiteId : null,
                       decoration: InputDecoration(
@@ -686,7 +693,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<EquipmentStatus>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 decoration: InputDecoration(
                   hintText: 'Выберите статус',
                   filled: true,
@@ -851,7 +858,7 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
                     const SizedBox(height: 6),
                     if (options != null)
                       DropdownButtonFormField<String>(
-                        value: controller?.text.isNotEmpty == true ? controller?.text : null,
+                        initialValue: controller?.text.isNotEmpty == true ? controller?.text : null,
                         decoration: _getSpecInputDecoration(),
                         items: options.map((opt) => DropdownMenuItem(value: opt, child: Text(opt))).toList(),
                         onChanged: (val) => setState(() => controller?.text = val ?? ''),

@@ -297,7 +297,7 @@ class AnalyticsScreen extends StatelessWidget {
 
   Widget _buildPieChart() {
     // Имитация круговой диаграммы
-    return Container(
+    return SizedBox(
       height: 200,
       child: Row(
         children: [
@@ -344,7 +344,7 @@ class AnalyticsScreen extends StatelessWidget {
 
   Widget _buildBarChart() {
     // Имитация столбчатой диаграммы
-    return Container(
+    return SizedBox(
       height: 200,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,

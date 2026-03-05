@@ -34,6 +34,7 @@ class ServiceRequest {
   final RequestStatus status;
   final RequestPriority priority;
   final String? equipmentId;
+  final String? companyInn;            // ИНН компании для фильтрации
   final Map<String, dynamic>? partsOrderDetails;
   
   // Поля для согласования
@@ -51,11 +52,23 @@ class ServiceRequest {
   final double? estimatedCost;            // Предварительная стоимость
   final Map<String, dynamic>? metadata;   // Дополнительные данные
   
-  // Поля для работы инженеров
-  final String? assignedEngineerId;       // ID назначенного инженера
-  final String? engineerComment;          // Комментарий инженера
-  final DateTime? engineerStartedAt;     // Время начала работы инженера
-  final DateTime? engineerCompletedAt;   // Время завершения работы инженера
+  // Поля данных из джойнов (Supabase)
+  final String? equipmentName;
+  final String? equipmentModel;
+  final String? serialNumber;
+  final String? siteName;
+  final String? engineerName;
+  final String? creatorName;
+  final String? operatorContact;
+  final String? siteManagerContact;
+  final String? responsibleContact;
+
+  
+  // Поля инженера
+  final String? assignedEngineerId;
+  final String? engineerComment;
+  final DateTime? engineerStartedAt;
+  final DateTime? engineerCompletedAt;
 
   ServiceRequest({
     required this.id,
@@ -83,6 +96,16 @@ class ServiceRequest {
     this.engineerComment,
     this.engineerStartedAt,
     this.engineerCompletedAt,
+    this.equipmentName,
+    this.equipmentModel,
+    this.serialNumber,
+    this.siteName,
+    this.engineerName,
+    this.creatorName,
+    this.companyInn,
+    this.operatorContact,
+    this.siteManagerContact,
+    this.responsibleContact,
   });
 
   // Геттеры для удобства
@@ -91,7 +114,7 @@ class ServiceRequest {
       case RequestStatus.draft:
         return 'Черновик';
       case RequestStatus.pending:
-        return 'На согласовании';
+        return 'Новая'; // Изменено с "На согласовании" для соответствия макету
       case RequestStatus.approved:
         return 'Одобрена';
       case RequestStatus.rejected:
@@ -150,6 +173,53 @@ class ServiceRequest {
   }
 
   factory ServiceRequest.fromJson(Map<String, dynamic> json) {
+    // Извлечение данных из вложенных объектов (джойнов)
+    final equipment = json['equipment'] as Map<String, dynamic>?;
+    final engineer = json['assigned_engineer'] as Map<String, dynamic>?;
+    final creator = json['user_profiles'] as Map<String, dynamic>?;
+
+    String? engineerFullName;
+    if (engineer != null) {
+      engineerFullName = '${engineer['first_name'] ?? ''} ${engineer['last_name'] ?? ''}'.trim();
+    }
+
+    // Новая логика: данные иерархии из вложенных объектов
+    final author = json['author'] as Map<String, dynamic>?;
+    final site = equipment?['site'] as Map<String, dynamic>?;
+    final siteManager = site?['manager'] as Map<String, dynamic>?;
+    final operatorPm = equipment?['operator'] as Map<String, dynamic>?;
+
+    String? creatorFullName;
+    String? creatorDetails; // ФИО (Роль) + Телефон
+    if (author != null) {
+      creatorFullName = '${author['first_name'] ?? ''} ${author['last_name'] ?? ''}'.trim();
+      
+      // Перевод ролей на русский
+      String roleName = author['role'] ?? 'Пользователь';
+      switch (roleName) {
+        case 'companyResponsible': roleName = 'Ответственное лицо'; break;
+        case 'siteManager': roleName = 'Менеджер площадки'; break;
+        case 'operatorPM': roleName = 'Оператор ПМ'; break;
+        case 'superAdmin': roleName = 'Супер-админ'; break;
+        case 'administrator': roleName = 'Администратор'; break;
+        case 'engineer': roleName = 'Инженер'; break;
+        case 'supplier': roleName = 'Поставщик'; break;
+      }
+
+      final phone = author['phone'] ?? '';
+      creatorDetails = '$creatorFullName ($roleName)${phone.isNotEmpty ? ' $phone' : ''}';
+    }
+
+    String? managerDetails;
+    if (siteManager != null) {
+      managerDetails = '${siteManager['first_name'] ?? ''} ${siteManager['last_name'] ?? ''} (${siteManager['phone'] ?? ''})'.trim();
+    }
+
+    String? operatorDetails;
+    if (operatorPm != null) {
+      operatorDetails = '${operatorPm['first_name'] ?? ''} ${operatorPm['last_name'] ?? ''} (${operatorPm['phone'] ?? ''})'.trim();
+    }
+
     return ServiceRequest(
       id: json['id'],
       clientId: json['client_id'] ?? json['company_id'] ?? '',
@@ -197,6 +267,16 @@ class ServiceRequest {
       engineerCompletedAt: json['engineer_completed_at'] != null 
           ? DateTime.parse(json['engineer_completed_at']) 
           : null,
+      equipmentName: equipment?['name'],
+      equipmentModel: equipment?['model'],
+      serialNumber: equipment?['serial_number'],
+      siteName: site?['name'] ?? equipment?['location'],
+      engineerName: engineerFullName,
+      creatorName: creatorFullName,
+      companyInn: json['company_inn'],
+      operatorContact: operatorDetails,
+      siteManagerContact: managerDetails,
+      responsibleContact: creatorDetails, // Здесь выводим данные автора заявки
     );
   }
 
