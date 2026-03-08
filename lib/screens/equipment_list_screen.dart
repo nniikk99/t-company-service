@@ -8,6 +8,8 @@ import '../services/supabase_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/tab_navigation.dart';
+import '../widgets/iframe_view_d.dart';
+import 'client_spare_parts_screen.dart';
 import '../widgets/add_site_dialog.dart';
 import '../widgets/edit_equipment_dialog.dart';
 import '../widgets/equipment_specifications_widget.dart';
@@ -740,6 +742,42 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                                   _showEquipmentDetails(_equipment.firstWhere((e) => e.id == equipment.id));
                                 }
                               }
+                            ),
+                            
+                            const SizedBox(height: 8),
+
+                            // Кнопка перехода к каталогу запчастей
+                            Card(
+                              elevation: 0,
+                              margin: const EdgeInsets.only(top: 8, bottom: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                              ),
+                              child: ListTile(
+                                leading: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(Icons.build_circle_outlined, color: Color(0xFF3B82F6), size: 24),
+                                ),
+                                title: const Text('Запчасти для этой модели', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                                subtitle: Text('Расходники, узлы и аксессуары для ${equipment.manufacturer} ${equipment.model}', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                                trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ClientSparePartsScreen(
+                                        user: widget.user,
+                                        modelName: '${equipment.manufacturer} ${equipment.model}',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
                             
                             const SizedBox(height: 8),

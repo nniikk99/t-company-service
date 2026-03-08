@@ -22,6 +22,7 @@ import 'my_organizations_screen.dart';
 import '../widgets/add_site_dialog.dart';
 import '../widgets/add_equipment_dialog.dart';
 import '../widgets/service_request_dialog.dart';
+import 'model_selection_screen.dart';
 
 enum ViewType {
   equipment,
@@ -588,6 +589,25 @@ class _MainScreenState extends State<MainScreen> {
               Text(
                 'Здесь будут отображаться заказанные детали',
                 style: TextStyle(color: Color(0xFF94A3B8)),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ModelSelectionScreen(user: _currentUser),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.search),
+                label: const Text('Найти запчасти'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
             ],
           ),
