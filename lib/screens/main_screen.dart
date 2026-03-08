@@ -16,6 +16,7 @@ import 'supplier_equipment_screen.dart';
 import 'supplier_clients_screen.dart';
 import 'supplier_partners_screen.dart';
 import 'supplier_spare_parts_screen.dart';
+import 'supplier_brands_screen.dart';
 import 'supplier_fleet_screen.dart';
 import 'my_organizations_screen.dart';
 import '../widgets/add_site_dialog.dart';
@@ -29,7 +30,6 @@ enum ViewType {
   cart,
   analytics,
   profile,
-  spareParts,
 }
 
 class MainScreen extends StatefulWidget {
@@ -101,7 +101,6 @@ class _MainScreenState extends State<MainScreen> {
         NavigationTab(id: 'equipment', label: 'Оборудование +', icon: Icons.precision_manufacturing),
         NavigationTab(id: 'requests', label: 'Заказы/Заявки', icon: Icons.assignment_outlined),
         NavigationTab(id: 'analytics', label: 'Аналитика парка', icon: Icons.dashboard_outlined),
-        NavigationTab(id: 'spareParts', label: 'Запчасти', icon: Icons.build_circle_outlined),
         NavigationTab(id: 'profile', label: 'Профиль', icon: Icons.person),
       ];
     }
@@ -505,8 +504,6 @@ class _MainScreenState extends State<MainScreen> {
         return 'analytics';
       case ViewType.profile:
         return 'profile';
-      case ViewType.spareParts:
-        return 'spareParts';
     }
   }
 
@@ -530,9 +527,6 @@ class _MainScreenState extends State<MainScreen> {
           break;
         case 'profile':
           _currentView = ViewType.profile;
-          break;
-        case 'spareParts':
-          _currentView = ViewType.spareParts;
           break;
       }
     });
@@ -600,8 +594,6 @@ class _MainScreenState extends State<MainScreen> {
         );
       case ViewType.profile:
         return _buildProfileTabContent();
-      case ViewType.spareParts:
-        return SupplierSparePartsScreen(supplier: _currentUser);
     }
   }
 
@@ -836,6 +828,26 @@ class _MainScreenState extends State<MainScreen> {
         icon: Icons.handshake_rounded,
         title: 'Партнеры',
         onTap: _handleSupplierPartners,
+      ));
+      items.add(_buildProfileMenuItem(
+        icon: Icons.branding_watermark_rounded,
+        title: 'Товарные знаки',
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => SupplierBrandsScreen(supplier: _currentUser)),
+          );
+        },
+      ));
+      items.add(_buildProfileMenuItem(
+        icon: Icons.build_circle_rounded,
+        title: 'Запчасти',
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => SupplierSparePartsScreen(supplier: _currentUser)),
+          );
+        },
       ));
     }
 
