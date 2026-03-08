@@ -2310,4 +2310,55 @@ class SupabaseService {
   static Future<void> deleteEquipmentModel(String modelId) async {
     await _client.from('equipment_models').delete().eq('id', modelId);
   }
+
+  // --- Запасные части (Spare Parts) ---
+  
+  static Future<List<dynamic>> getSpareParts({String? category, String? modelFilter}) async {
+    var query = _client.from('spare_parts').select();
+    
+    if (category != null && category.isNotEmpty) {
+      query = query.eq('category', category);
+    }
+    
+    if (modelFilter != null && modelFilter.isNotEmpty) {
+      // Ищем запчасти, у которых массив compatible_models содержит указанную модель
+      query = query.contains('compatible_models', [modelFilter]);
+    }
+    
+    final response = await query.order('name');
+    return response as List;
+  }
+
+  static Future<List<dynamic>> getSupplierSpareParts(String supplierId) async {
+    final response = await _client
+        .from('spare_parts')
+        .select()
+        .eq('supplier_id', supplierId)
+        .order('created_at', ascending: false);
+        
+    return response as List;
+  }
+
+  static Future<dynamic> createSparePart(Map<String, dynamic> partData) async {
+    final response = await _client
+        .from('spare_parts')
+        .insert(partData)
+        .select()
+        .single();
+    return response;
+  }
+
+  static Future<dynamic> updateSparePart(Map<String, dynamic> partData) async {
+    final response = await _client
+        .from('spare_parts')
+        .update(partData)
+        .eq('id', partData['id'])
+        .select()
+        .single();
+    return response;
+  }
+
+  static Future<void> deleteSparePart(String id) async {
+    await _client.from('spare_parts').delete().eq('id', id);
+  }
 }
