@@ -178,6 +178,15 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
     final template = EquipmentSpecifications.getTypeTemplate(_selectedType);
     Map<String, dynamic> specs = {};
     
+    // Сохраняем все скрытые поля (начинающиеся с _)
+    if (widget.equipment.specifications != null) {
+      widget.equipment.specifications!.forEach((key, value) {
+        if (key.startsWith('_')) {
+          specs[key] = value;
+        }
+      });
+    }
+    
     _specControllers.forEach((key, controller) {
       if (controller.text.isNotEmpty) {
         final fieldTemplate = template[key];
