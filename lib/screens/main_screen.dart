@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../models/user.dart';
+import '../models/equipment.dart';
 import 'equipment_list_screen.dart';
 import 'requests_list_screen.dart';
 import 'analytics_screen.dart';
@@ -23,6 +24,7 @@ import '../widgets/add_site_dialog.dart';
 import '../widgets/add_equipment_dialog.dart';
 import '../widgets/service_request_dialog.dart';
 import 'model_selection_screen.dart';
+import 'client_spare_parts_screen.dart';
 
 enum ViewType {
   equipment,
@@ -325,11 +327,16 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  void _handlePartsClick(String equipmentId) {
-    setState(() {
-      _selectedEquipmentId = equipmentId;
-      _partsModalOpen = true;
-    });
+  void _handlePartsClick(Equipment equipment) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClientSparePartsScreen(
+          user: _currentUser,
+          modelName: '${equipment.manufacturer} ${equipment.model}',
+        ),
+      ),
+    );
   }
 
   void _handleViewEquipmentDetails(String equipmentId) {
