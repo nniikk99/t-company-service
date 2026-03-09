@@ -386,7 +386,7 @@ class _SupplierSparePartsScreenState extends State<SupplierSparePartsScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: () async {
+                                 onPressed: () async {
                                   if (nameController.text.trim().isEmpty ||
                                       articleController.text.trim().isEmpty) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -405,23 +405,32 @@ class _SupplierSparePartsScreenState extends State<SupplierSparePartsScreen> {
                                     'images': photoUrls,
                                     'in_stock': true,
                                   };
-                                  Navigator.pop(context);
-                                  setState(() => _isLoading = true);
+
+                                  // Показываем лоадер прямо в диалоге
+                                  setDialogState(() {});
+                                  
                                   try {
                                     if (isEditing) {
-                                      data['id'] = part['id'];
+                                      data['id'] = part!['id'];
                                       await SupabaseService.updateSparePart(data);
                                     } else {
                                       await SupabaseService.createSparePart(data);
                                     }
+                                    // Закрываем только после успешного сохранения
+                                    if (context.mounted) Navigator.pop(context);
                                     await _loadData();
                                   } catch (e) {
-                                    if (mounted) {
+                                    // Ошибка — показываем сообщение, НЕ закрываем диалог
+                                    if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Ошибка сохранения: $e'), backgroundColor: Colors.red),
+                                        SnackBar(
+                                          content: Text('Ошибка: $e'),
+                                          backgroundColor: Colors.red,
+                                          duration: const Duration(seconds: 6),
+                                        ),
                                       );
-                                      setState(() => _isLoading = false);
                                     }
+                                    if (mounted) setState(() => _isLoading = false);
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
