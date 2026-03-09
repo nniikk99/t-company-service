@@ -82,34 +82,44 @@ ALTER TABLE public.part_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.part_order_items ENABLE ROW LEVEL SECURITY;
 -- ================================
 -- 6. ПОЛИТИКИ spare_parts
--- (DROP IF EXISTS чтобы не дублировать при повторном запуске)
+-- ВАЖНО: приложение использует anon key (нет Supabase Auth сессии),
+-- поэтому auth.uid() = NULL. Политики проверяют через user_profiles.
 -- ================================
 DROP POLICY IF EXISTS "Anyone can view spare parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can insert own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can update own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can delete own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Admins can manage all spare parts" ON public.spare_parts;
+-- Все могут читать запчасти
 CREATE POLICY "Anyone can view spare parts" ON public.spare_parts FOR
 SELECT USING (true);
+-- Вставка разрешена если supplier_id — реальный поставщик в user_profiles
 CREATE POLICY "Suppliers can insert own parts" ON public.spare_parts FOR
-INSERT WITH CHECK (auth.uid() = supplier_id);
+INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.user_profiles
+            WHERE id = supplier_id
+                AND role = 'supplier'
+        )
+    );
+-- Обновление разрешено для существующих записей поставщика
 CREATE POLICY "Suppliers can update own parts" ON public.spare_parts FOR
-UPDATE USING (auth.uid() = supplier_id);
-CREATE POLICY "Suppliers can delete own parts" ON public.spare_parts FOR DELETE USING (auth.uid() = supplier_id);
--- Администраторы могут управлять всеми запчастями (в т.ч. от имени поставщиков)
-CREATE POLICY "Admins can manage all spare parts" ON public.spare_parts FOR ALL USING (
+UPDATE USING (
+        EXISTS (
+            SELECT 1
+            FROM public.user_profiles
+            WHERE id = supplier_id
+                AND role = 'supplier'
+        )
+    );
+-- Удаление разрешено для записей поставщика
+CREATE POLICY "Suppliers can delete own parts" ON public.spare_parts FOR DELETE USING (
     EXISTS (
         SELECT 1
         FROM public.user_profiles
-        WHERE id = auth.uid()
-            AND role IN ('superAdmin', 'administrator')
-    )
-) WITH CHECK (
-    EXISTS (
-        SELECT 1
-        FROM public.user_profiles
-        WHERE id = auth.uid()
-            AND role IN ('superAdmin', 'administrator')
+        WHERE id = supplier_id
+            AND role = 'supplier'
     )
 );
 -- ================================
