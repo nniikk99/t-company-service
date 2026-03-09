@@ -25,6 +25,7 @@ import '../widgets/add_equipment_dialog.dart';
 import '../widgets/service_request_dialog.dart';
 import 'model_selection_screen.dart';
 import 'client_spare_parts_screen.dart';
+import 'market_screen.dart';
 
 enum ViewType {
   equipment,
@@ -112,7 +113,7 @@ class _MainScreenState extends State<MainScreen> {
     return [
       NavigationTab(id: 'equipment', label: 'Техника', icon: Icons.build),
       NavigationTab(id: 'requests', label: 'Заявки', icon: Icons.list),
-      NavigationTab(id: 'cart', label: 'Корзина', icon: Icons.shopping_cart),
+      NavigationTab(id: 'cart', label: 'Маркет', icon: Icons.shopping_cart),
       NavigationTab(id: 'analytics', label: 'Анализ', icon: Icons.bar_chart),
       NavigationTab(id: 'profile', label: 'Профиль', icon: Icons.person),
     ];
@@ -584,47 +585,7 @@ class _MainScreenState extends State<MainScreen> {
         }
         return AnalyticsScreen(user: _currentUser);
       case ViewType.cart:
-        return Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.shopping_cart_outlined, size: 64, color: Color(0xFF94A3B8)),
-              const SizedBox(height: 16),
-              const Text(
-                'Корзина пуста',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Здесь будут отображаться заказанные детали',
-                style: TextStyle(color: Color(0xFF94A3B8)),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ModelSelectionScreen(user: _currentUser),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.search),
-                label: const Text('Найти запчасти'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
-          ),
-        );
+        return MarketScreen(user: _currentUser);
       case ViewType.profile:
         return _buildProfileTabContent();
     }

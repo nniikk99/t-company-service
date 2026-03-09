@@ -2361,4 +2361,140 @@ class SupabaseService {
   static Future<void> deleteSparePart(String id) async {
     await _client.from('spare_parts').delete().eq('id', id);
   }
+
+  // ═══════════════════════════════════
+  // КОРЗИНА (cart_items)
+  // ═══════════════════════════════════
+
+  static Future<List<dynamic>> getCartItems(String userId) async {
+    final response = await _client
+        .from('cart_items')
+        .select('*, spare_parts(id, name, article, price, images, supplier_id, category)')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    return response as List;
+  }
+
+  static Future<void> addToCart(String userId, String partId, int quantity) async {
+    // Если товар уже в корзине — увеличиваем количество
+    final existing = await _client
+        .from('cart_items')
+        .select('id, quantity')
+        .eq('user_id', userId)
+        .eq('part_id', partId)
+        .maybeSingle();
+
+    if (existing != null) {
+      await _client
+          .from('cart_items')
+          .update({'quantity': (existing['quantity'] as int) + quantity})
+          .eq('id', existing['id']);
+    } else {
+      await _client.from('cart_items').insert({
+        'user_id': userId,
+        'part_id': partId,
+        'quantity': quantity,
+      });
+    }
+  }
+
+  static Future<void> updateCartItemQuantity(String cartItemId, int quantity) async {
+    await _client
+        .from('cart_items')
+        .update({'quantity': quantity})
+        .eq('id', cartItemId);
+  }
+
+  static Future<void> removeFromCart(String cartItemId) async {
+    await _client.from('cart_items').delete().eq('id', cartItemId);
+  }
+
+  static Future<void> clearCart(String userId) async {
+    await _client.from('cart_items').delete().eq('user_id', userId);
+  }
+
+  // ═══════════════════════════════════
+  // ИЗБРАННОЕ (favorites)
+  // ═══════════════════════════════════
+
+  static Future<List<dynamic>> getFavorites(String userId) async {
+    final response = await _client
+        .from('favorites')
+        .select('*, spare_parts(id, name, article, price, images, category)')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    return response as List;
+  }
+
+  static Future<void> addToFavorites(String userId, String partId) async {
+    // Проверяем, не добавлен ли уже
+    final existing = await _client
+        .from('favorites')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('part_id', partId)
+        .maybeSingle();
+    if (existing == null) {
+      await _client.from('favorites').insert({
+        'user_id': userId,
+        'part_id': partId,
+      });
+    }
+  }
+
+  static Future<void> removeFromFavorites(String favId) async {
+    await _client.from('favorites').delete().eq('id', favId);
+  }
+
+  // ═══════════════════════════════════
+  // ЗАКАЗЫ ЗАПЧАСТЕЙ (part_orders)
+  // ═══════════════════════════════════
+
+  static Future<void> createPartOrder({
+    required String clientId,
+    required String supplierId,
+    required double totalAmount,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    // Создаём заказ
+    final order = await _client.from('part_orders').insert({
+      'client_id': clientId,
+      'supplier_id': supplierId,
+      'total_amount': totalAmount,
+      'status': 'pending',
+    }).select().single();
+
+    // Добавляем позиции
+    final orderItems = items.map((item) => {
+      ...item,
+      'order_id': order['id'],
+    }).toList();
+
+    await _client.from('part_order_items').insert(orderItems);
+  }
+
+  static Future<List<dynamic>> getSupplierPartOrders(String supplierId) async {
+    final response = await _client
+        .from('part_orders')
+        .select('*, user_profiles!part_orders_client_id_fkey(first_name, last_name, phone), part_order_items(*, spare_parts(name, article, price))')
+        .eq('supplier_id', supplierId)
+        .order('created_at', ascending: false);
+    return response as List;
+  }
+
+  static Future<List<dynamic>> getClientPartOrders(String clientId) async {
+    final response = await _client
+        .from('part_orders')
+        .select('*, user_profiles!part_orders_supplier_id_fkey(first_name, last_name, company_name), part_order_items(*, spare_parts(name, article, price))')
+        .eq('client_id', clientId)
+        .order('created_at', ascending: false);
+    return response as List;
+  }
+
+  static Future<void> updatePartOrderStatus(String orderId, String status) async {
+    await _client
+        .from('part_orders')
+        .update({'status': status, 'updated_at': DateTime.now().toIso8601String()})
+        .eq('id', orderId);
+  }
 }
