@@ -74,121 +74,26 @@ CREATE TABLE IF NOT EXISTS public.part_order_items (
 );
 CREATE INDEX IF NOT EXISTS idx_part_order_items_order ON public.part_order_items(order_id);
 -- ================================
--- 5. RLS (включаем)
+-- 5. ОТКЛЮЧАЕМ RLS (как для user_profiles и companies)
+-- Приложение использует кастомную авторизацию (anon key + password_hash)
+-- auth.uid() всегда = NULL, поэтому RLS на основе auth.uid() не работает
 -- ================================
-ALTER TABLE public.spare_parts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.part_orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.part_order_items ENABLE ROW LEVEL SECURITY;
--- ================================
--- 6. ПОЛИТИКИ spare_parts
--- ВАЖНО: приложение использует anon key (нет Supabase Auth сессии),
--- поэтому auth.uid() = NULL. Политики проверяют через user_profiles.
--- ================================
+ALTER TABLE public.spare_parts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cart_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.part_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.part_order_items DISABLE ROW LEVEL SECURITY;
+-- Убираем все ранее созданные политики (на случай если они были созданы)
 DROP POLICY IF EXISTS "Anyone can view spare parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can insert own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can update own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can delete own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Admins can manage all spare parts" ON public.spare_parts;
--- Все могут читать запчасти
-CREATE POLICY "Anyone can view spare parts" ON public.spare_parts FOR
-SELECT USING (true);
--- Вставка разрешена если supplier_id — реальный поставщик в user_profiles
-CREATE POLICY "Suppliers can insert own parts" ON public.spare_parts FOR
-INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1
-            FROM public.user_profiles
-            WHERE id = supplier_id
-                AND role = 'supplier'
-        )
-    );
--- Обновление разрешено для существующих записей поставщика
-CREATE POLICY "Suppliers can update own parts" ON public.spare_parts FOR
-UPDATE USING (
-        EXISTS (
-            SELECT 1
-            FROM public.user_profiles
-            WHERE id = supplier_id
-                AND role = 'supplier'
-        )
-    );
--- Удаление разрешено для записей поставщика
-CREATE POLICY "Suppliers can delete own parts" ON public.spare_parts FOR DELETE USING (
-    EXISTS (
-        SELECT 1
-        FROM public.user_profiles
-        WHERE id = supplier_id
-            AND role = 'supplier'
-    )
-);
--- ================================
--- 7. ПОЛИТИКИ cart_items
--- ================================
 DROP POLICY IF EXISTS "Users can view own cart" ON public.cart_items;
 DROP POLICY IF EXISTS "Users can insert to own cart" ON public.cart_items;
 DROP POLICY IF EXISTS "Users can update own cart" ON public.cart_items;
 DROP POLICY IF EXISTS "Users can delete from own cart" ON public.cart_items;
-CREATE POLICY "Users can view own cart" ON public.cart_items FOR
-SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert to own cart" ON public.cart_items FOR
-INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own cart" ON public.cart_items FOR
-UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete from own cart" ON public.cart_items FOR DELETE USING (auth.uid() = user_id);
--- ================================
--- 8. ПОЛИТИКИ part_orders
--- ================================
 DROP POLICY IF EXISTS "Users can view related orders" ON public.part_orders;
 DROP POLICY IF EXISTS "Clients can create orders" ON public.part_orders;
 DROP POLICY IF EXISTS "Related users can update orders" ON public.part_orders;
-CREATE POLICY "Users can view related orders" ON public.part_orders FOR
-SELECT USING (
-        auth.uid() = client_id
-        OR auth.uid() = supplier_id
-        OR EXISTS (
-            SELECT 1
-            FROM user_profiles
-            WHERE id = auth.uid()
-                AND role IN ('superAdmin', 'administrator')
-        )
-    );
-CREATE POLICY "Clients can create orders" ON public.part_orders FOR
-INSERT WITH CHECK (auth.uid() = client_id);
-CREATE POLICY "Related users can update orders" ON public.part_orders FOR
-UPDATE USING (
-        auth.uid() = client_id
-        OR auth.uid() = supplier_id
-    );
--- ================================
--- 9. ПОЛИТИКИ part_order_items
--- ================================
 DROP POLICY IF EXISTS "Users can view related order items" ON public.part_order_items;
 DROP POLICY IF EXISTS "Clients can insert order items" ON public.part_order_items;
-CREATE POLICY "Users can view related order items" ON public.part_order_items FOR
-SELECT USING (
-        EXISTS (
-            SELECT 1
-            FROM part_orders
-            WHERE part_orders.id = part_order_items.order_id
-                AND (
-                    part_orders.client_id = auth.uid()
-                    OR part_orders.supplier_id = auth.uid()
-                )
-        )
-        OR EXISTS (
-            SELECT 1
-            FROM user_profiles
-            WHERE id = auth.uid()
-                AND role IN ('superAdmin', 'administrator')
-        )
-    );
-CREATE POLICY "Clients can insert order items" ON public.part_order_items FOR
-INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1
-            FROM part_orders
-            WHERE part_orders.id = part_order_items.order_id
-                AND part_orders.client_id = auth.uid()
-        )
-    );
