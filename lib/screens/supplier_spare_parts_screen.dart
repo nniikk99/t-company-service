@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user.dart';
 import '../services/supabase_service.dart';
 
@@ -34,11 +35,13 @@ class _SupplierSparePartsScreenState extends State<SupplierSparePartsScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
+    // Используем auth UID — именно его проверяет RLS
+    final authUid = Supabase.instance.client.auth.currentUser?.id ?? widget.supplier.id;
     try {
       // Загружаем запчасти и модели оборудования поставщика параллельно
       final results = await Future.wait([
-        SupabaseService.getSupplierSpareParts(widget.supplier.id),
-        SupabaseService().getSupplierEquipmentModels(widget.supplier.id),
+        SupabaseService.getSupplierSpareParts(authUid),
+        SupabaseService().getSupplierEquipmentModels(authUid),
       ]);
 
       final parts = results[0] as List;
@@ -394,8 +397,10 @@ class _SupplierSparePartsScreenState extends State<SupplierSparePartsScreen> {
                                     );
                                     return;
                                   }
+                                  // Используем auth UID — именно его проверяет RLS
+                                  final authUid = Supabase.instance.client.auth.currentUser?.id ?? widget.supplier.id;
                                   final data = {
-                                    'supplier_id': widget.supplier.id,
+                                    'supplier_id': authUid,
                                     'article': articleController.text.trim(),
                                     'name': nameController.text.trim(),
                                     'price': double.tryParse(priceController.text.trim()) ?? 0.0,
