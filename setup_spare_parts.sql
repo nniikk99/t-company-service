@@ -88,6 +88,7 @@ DROP POLICY IF EXISTS "Anyone can view spare parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can insert own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can update own parts" ON public.spare_parts;
 DROP POLICY IF EXISTS "Suppliers can delete own parts" ON public.spare_parts;
+DROP POLICY IF EXISTS "Admins can manage all spare parts" ON public.spare_parts;
 CREATE POLICY "Anyone can view spare parts" ON public.spare_parts FOR
 SELECT USING (true);
 CREATE POLICY "Suppliers can insert own parts" ON public.spare_parts FOR
@@ -95,6 +96,22 @@ INSERT WITH CHECK (auth.uid() = supplier_id);
 CREATE POLICY "Suppliers can update own parts" ON public.spare_parts FOR
 UPDATE USING (auth.uid() = supplier_id);
 CREATE POLICY "Suppliers can delete own parts" ON public.spare_parts FOR DELETE USING (auth.uid() = supplier_id);
+-- Администраторы могут управлять всеми запчастями (в т.ч. от имени поставщиков)
+CREATE POLICY "Admins can manage all spare parts" ON public.spare_parts FOR ALL USING (
+    EXISTS (
+        SELECT 1
+        FROM public.user_profiles
+        WHERE id = auth.uid()
+            AND role IN ('superAdmin', 'administrator')
+    )
+) WITH CHECK (
+    EXISTS (
+        SELECT 1
+        FROM public.user_profiles
+        WHERE id = auth.uid()
+            AND role IN ('superAdmin', 'administrator')
+    )
+);
 -- ================================
 -- 7. ПОЛИТИКИ cart_items
 -- ================================
