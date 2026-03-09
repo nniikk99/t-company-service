@@ -943,6 +943,18 @@ class _MainScreenState extends State<MainScreen> {
       add(Icons.add_box, 'Оборудование +', _handleSupplierEquipment);
       add(Icons.domain, 'Клиенты', _handleSupplierClients);
       add(Icons.handshake, 'Партнеры', _handleSupplierPartners);
+      add(Icons.branding_watermark_rounded, 'Товарные знаки', () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => SupplierBrandsScreen(supplier: _currentUser)),
+        );
+      });
+      add(Icons.build_circle_rounded, 'Запчасти', () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => SupplierSparePartsScreen(supplier: _currentUser)),
+        );
+      });
     }
 
     return List.generate(itemsData.length, (index) {
