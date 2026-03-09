@@ -101,16 +101,16 @@ class _MainScreenState extends State<MainScreen> {
     // Для поставщиков
     if (_currentUser.role == UserRole.supplier) {
       return [
-        NavigationTab(id: 'equipment', label: 'Оборудование +', icon: Icons.precision_manufacturing),
-        NavigationTab(id: 'requests', label: 'Заказы/Заявки', icon: Icons.assignment_outlined),
-        NavigationTab(id: 'analytics', label: 'Аналитика парка', icon: Icons.dashboard_outlined),
+        NavigationTab(id: 'equipment', label: 'Товары', icon: Icons.precision_manufacturing),
+        NavigationTab(id: 'requests', label: 'Заказы', icon: Icons.assignment_outlined),
+        NavigationTab(id: 'analytics', label: 'Аналитика', icon: Icons.dashboard_outlined),
         NavigationTab(id: 'profile', label: 'Профиль', icon: Icons.person),
       ];
     }
     
     // Для остальных ролей - стандартная навигация
     return [
-      NavigationTab(id: 'equipment', label: 'Оборудование', icon: Icons.build),
+      NavigationTab(id: 'equipment', label: 'Техника', icon: Icons.build),
       NavigationTab(id: 'requests', label: 'Заявки', icon: Icons.list),
       NavigationTab(id: 'cart', label: 'Корзина', icon: Icons.shopping_cart),
       NavigationTab(id: 'analytics', label: 'Анализ', icon: Icons.bar_chart),
@@ -468,16 +468,22 @@ class _MainScreenState extends State<MainScreen> {
                                 Icon(
                                   tab.icon,
                                   color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
-                                  size: 26, // Increased from 24
+                                  size: 22,
                                 ),
                                 const SizedBox(height: 2),
-                                Text(
-                                  tab.label,
-                                  style: TextStyle(
-                                    fontSize: 11, // Increased from 10
-                                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                                    color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
-                                    letterSpacing: 0.2,
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    tab.label,
+                                    maxLines: 1,
+                                    softWrap: false,
+                                    overflow: TextOverflow.clip,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+                                      color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
+                                      letterSpacing: 0,
+                                    ),
                                   ),
                                 ),
                               ],
