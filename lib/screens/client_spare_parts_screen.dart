@@ -55,6 +55,28 @@ class _ClientSparePartsScreenState extends State<ClientSparePartsScreen> {
     }
   }
 
+  Future<void> _addToCart(String partId) async {
+    try {
+      await SupabaseService.addToCart(widget.user.id, partId, 1);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Добавлено в корзину!'),
+            backgroundColor: Color(0xFF3B82F6),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _showPartDetails(Map<String, dynamic> part) {
     showModalBottomSheet(
       context: context,
@@ -89,19 +111,44 @@ class _ClientSparePartsScreenState extends State<ClientSparePartsScreen> {
                     child: ListView(
                       controller: scrollController,
                       children: [
-                        // Место для карусели фотографий
-                        Container(
-                          height: 250,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                          ),
-                          child: const Center(
-                            child: Icon(Icons.image_outlined, size: 64, color: Colors.grey),
-                          ),
-                        ),
+                        // Фотозапчасти (carousel)
+                        Builder(builder: (_) {
+                          final images = part['images'] as List?;
+                          if (images != null && images.isNotEmpty) {
+                            return SizedBox(
+                              height: 220,
+                              child: PageView.builder(
+                                itemCount: images.length,
+                                itemBuilder: (context, i) => ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.network(
+                                    images[i],
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: const Center(
+                                        child: Icon(Icons.build_circle, size: 64, color: Color(0xFF3B82F6)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          return Container(
+                            height: 200,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.build_circle, size: 64, color: Color(0xFF3B82F6)),
+                            ),
+                          );
+                        }),
                         const SizedBox(height: 20),
                         Text(
                           part['name'],
@@ -155,12 +202,9 @@ class _ClientSparePartsScreenState extends State<ClientSparePartsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Добавить в корзину (Этап 3)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Товар добавлен в корзину! (Заглушка для Этапа 3)'), backgroundColor: Colors.green),
-                        );
+                      onPressed: () async {
                         Navigator.pop(context);
+                        await _addToCart(part['id']);
                       },
                       icon: const Icon(Icons.shopping_cart),
                       label: const Text('Добавить в корзину', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -204,9 +248,9 @@ class _ClientSparePartsScreenState extends State<ClientSparePartsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.shopping_cart),
+            tooltip: 'Маркет',
             onPressed: () {
-               // TODO: Переход в корзину
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Корзина пока пуста')));
+              Navigator.pop(context); // возвращаемся назад, маркет доступен через нижнюю навигацию
             },
           )
         ],
@@ -306,19 +350,37 @@ class _ClientSparePartsScreenState extends State<ClientSparePartsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Placeholder for image
                                 Expanded(
                                   flex: 3,
-                                  child: Container(
-                                    width: double.infinity,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFFF8FAFC),
-                                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(Icons.build_circle, size: 48, color: Colors.blueGrey),
-                                    ),
-                                  ),
+                                  child: Builder(builder: (_) {
+                                    final images = part['images'] as List?;
+                                    if (images != null && images.isNotEmpty) {
+                                      return ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                        child: Image.network(
+                                          images.first,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Container(
+                                            color: const Color(0xFFEFF6FF),
+                                            child: const Center(
+                                              child: Icon(Icons.build_circle, size: 40, color: Color(0xFF3B82F6)),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return Container(
+                                      width: double.infinity,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFEFF6FF),
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                                      ),
+                                      child: const Center(
+                                        child: Icon(Icons.build_circle, size: 48, color: Color(0xFF3B82F6)),
+                                      ),
+                                    );
+                                  }),
                                 ),
                                 Expanded(
                                   flex: 2,
@@ -351,13 +413,16 @@ class _ClientSparePartsScreenState extends State<ClientSparePartsScreen> {
                                                 fontSize: 14,
                                               ),
                                             ),
-                                            Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF3B82F6),
-                                                borderRadius: BorderRadius.circular(8),
+                                            GestureDetector(
+                                              onTap: () => _addToCart(part['id']),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(6),
+                                                decoration: BoxDecoration(
+                                                  color: const Color(0xFF3B82F6),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                ),
+                                                child: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 16),
                                               ),
-                                              child: const Icon(Icons.add, color: Colors.white, size: 16),
                                             ),
                                           ],
                                         ),
