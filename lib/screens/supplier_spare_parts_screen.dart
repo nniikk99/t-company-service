@@ -35,13 +35,11 @@ class _SupplierSparePartsScreenState extends State<SupplierSparePartsScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    // Используем auth UID — именно его проверяет RLS
-    final authUid = Supabase.instance.client.auth.currentUser?.id ?? widget.supplier.id;
     try {
       // Загружаем запчасти и модели оборудования поставщика параллельно
       final results = await Future.wait([
-        SupabaseService.getSupplierSpareParts(authUid),
-        SupabaseService().getSupplierEquipmentModels(authUid),
+        SupabaseService.getSupplierSpareParts(widget.supplier.id),
+        SupabaseService().getSupplierEquipmentModels(widget.supplier.id),
       ]);
 
       final parts = results[0] as List;
@@ -397,10 +395,9 @@ class _SupplierSparePartsScreenState extends State<SupplierSparePartsScreen> {
                                     );
                                     return;
                                   }
-                                  // Используем auth UID — именно его проверяет RLS
-                                  final authUid = Supabase.instance.client.auth.currentUser?.id ?? widget.supplier.id;
+                                  // supplier_id = profile ID (для FK), RLS проверяет роль пользователя
                                   final data = {
-                                    'supplier_id': authUid,
+                                    'supplier_id': widget.supplier.id,
                                     'article': articleController.text.trim(),
                                     'name': nameController.text.trim(),
                                     'price': double.tryParse(priceController.text.trim()) ?? 0.0,
