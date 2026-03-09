@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:html' as html;
-import 'dart:ui' as ui;
+import 'dart:ui_web' as ui_web;
 
 class IframeView extends StatefulWidget {
   final String url;
@@ -20,15 +20,14 @@ class _IframeViewState extends State<IframeView> {
   @override
   void initState() {
     super.initState();
-    _viewType = 'iframe-\${widget.title.hashCode}-\${DateTime.now().millisecondsSinceEpoch}';
+    _viewType = 'iframe-${widget.title.hashCode}-${DateTime.now().millisecondsSinceEpoch}';
     _iframeElement = html.IFrameElement()
       ..src = _getDrivePreviewUrl(widget.url)
       ..style.border = 'none'
       ..style.height = '100%'
       ..style.width = '100%';
 
-    // ignore: undefined_prefixed_name
-    ui.platformViewRegistry.registerViewFactory(
+    ui_web.platformViewRegistry.registerViewFactory(
       _viewType,
       (int viewId) => _iframeElement,
     );
