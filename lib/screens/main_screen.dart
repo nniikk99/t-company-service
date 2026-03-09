@@ -578,13 +578,13 @@ class _MainScreenState extends State<MainScreen> {
         }
         return AnalyticsScreen(user: _currentUser);
       case ViewType.cart:
-        return const Center(
+        return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.shopping_cart_outlined, size: 64, color: Color(0xFF94A3B8)),
-              SizedBox(height: 16),
-              Text(
+              const Icon(Icons.shopping_cart_outlined, size: 64, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 16),
+              const Text(
                 'Корзина пуста',
                 style: TextStyle(
                   fontSize: 18,
@@ -592,8 +592,8 @@ class _MainScreenState extends State<MainScreen> {
                   color: Color(0xFF64748B),
                 ),
               ),
-              SizedBox(height: 8),
-              Text(
+              const SizedBox(height: 8),
+              const Text(
                 'Здесь будут отображаться заказанные детали',
                 style: TextStyle(color: Color(0xFF94A3B8)),
               ),
