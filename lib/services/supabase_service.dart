@@ -1445,15 +1445,37 @@ class SupabaseService {
         .eq('id', requestId);
   }
 
-  /// Завершение работы инженера над заявкой
+  /// Установка назначенной даты
+  static Future<void> updateRequestScheduledDate(String requestId, DateTime date) async {
+    await _client
+        .from('service_requests')
+        .update({
+          'scheduled_at': date.toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', requestId);
+  }
+
+  /// Завершение работы инженера над заявкой (перевод в "Ждет счет")
   static Future<void> completeEngineerWork(String requestId, String comment) async {
     await _client
         .from('service_requests')
         .update({
-          'status': 'completed',
+          'status': 'waitingForInvoice',
           'engineer_comment': comment,
           'engineer_completed_at': DateTime.now().toIso8601String(),
-          'completed_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', requestId);
+  }
+
+  /// Выставление счета администратором (перевод в "Ждет оплату")
+  static Future<void> requestPaymentForInvoice(String requestId, double amount) async {
+    await _client
+        .from('service_requests')
+        .update({
+          'status': 'waitingForPayment',
+          'invoice_amount': amount,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);

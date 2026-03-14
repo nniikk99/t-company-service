@@ -11,6 +11,8 @@ enum RequestStatus {
   approved,        // Одобрена
   rejected,        // Отклонена
   inProgress,      // В работе
+  waitingForInvoice, // Ждет счет
+  waitingForPayment, // Ждет оплату
   completed,       // Выполнена
   cancelled,       // Отменена
 }
@@ -51,7 +53,9 @@ class ServiceRequest {
   final List<String>? attachments;        // Вложения (фото, документы)
   final double? estimatedCost;            // Предварительная стоимость
   final Map<String, dynamic>? metadata;   // Дополнительные данные
-  
+  final String? invoiceUrl;               // Ссылка на счет
+  final double? invoiceAmount;            // Сумма счета
+
   // Поля данных из джойнов (Supabase)
   final String? equipmentName;
   final String? equipmentModel;
@@ -92,6 +96,8 @@ class ServiceRequest {
     this.attachments,
     this.estimatedCost,
     this.metadata,
+    this.invoiceUrl,
+    this.invoiceAmount,
     this.assignedEngineerId,
     this.engineerComment,
     this.engineerStartedAt,
@@ -121,8 +127,12 @@ class ServiceRequest {
         return 'Отклонена';
       case RequestStatus.inProgress:
         return 'В работе';
+      case RequestStatus.waitingForInvoice:
+        return 'Ждет счет';
+      case RequestStatus.waitingForPayment:
+        return 'Ждет оплату';
       case RequestStatus.completed:
-        return 'Выполнена';
+        return 'Закрыта'; // Изменено с "Выполнена"
       case RequestStatus.cancelled:
         return 'Отменена';
     }
@@ -259,6 +269,8 @@ class ServiceRequest {
           : null,
       estimatedCost: json['estimated_cost']?.toDouble(),
       metadata: json['metadata'],
+      invoiceUrl: json['invoice_url'],
+      invoiceAmount: json['invoice_amount']?.toDouble(),
       assignedEngineerId: json['assigned_engineer_id'],
       engineerComment: json['engineer_comment'],
       engineerStartedAt: json['engineer_started_at'] != null 
@@ -303,6 +315,8 @@ class ServiceRequest {
       'attachments': attachments,
       'estimated_cost': estimatedCost,
       'metadata': metadata,
+      'invoice_url': invoiceUrl,
+      'invoice_amount': invoiceAmount,
       'assigned_engineer_id': assignedEngineerId,
       'engineer_comment': engineerComment,
       'engineer_started_at': engineerStartedAt?.toIso8601String(),
@@ -332,6 +346,8 @@ class ServiceRequest {
     List<String>? attachments,
     double? estimatedCost,
     Map<String, dynamic>? metadata,
+    String? invoiceUrl,
+    double? invoiceAmount,
     String? assignedEngineerId,
     String? engineerComment,
     DateTime? engineerStartedAt,
@@ -359,6 +375,8 @@ class ServiceRequest {
       attachments: attachments ?? this.attachments,
       estimatedCost: estimatedCost ?? this.estimatedCost,
       metadata: metadata ?? this.metadata,
+      invoiceUrl: invoiceUrl ?? this.invoiceUrl,
+      invoiceAmount: invoiceAmount ?? this.invoiceAmount,
       assignedEngineerId: assignedEngineerId ?? this.assignedEngineerId,
       engineerComment: engineerComment ?? this.engineerComment,
       engineerStartedAt: engineerStartedAt ?? this.engineerStartedAt,
