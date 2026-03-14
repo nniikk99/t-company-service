@@ -4,13 +4,13 @@ import '../services/supabase_service.dart';
 
 class AssignEngineerDialog extends StatefulWidget {
   final String requestId;
-  final String supplierUserId;
+  final String? supplierUserId;
   final VoidCallback? onEngineerAssigned;
 
   const AssignEngineerDialog({
     super.key,
     required this.requestId,
-    required this.supplierUserId,
+    this.supplierUserId,
     this.onEngineerAssigned,
   });
 
@@ -33,7 +33,12 @@ class _AssignEngineerDialogState extends State<AssignEngineerDialog> {
   Future<void> _loadEngineers() async {
     setState(() => _isLoading = true);
     try {
-      final engineers = await SupabaseService.getSupplierEngineers(widget.supplierUserId);
+      List<AppUserModel.User> engineers;
+      if (widget.supplierUserId != null) {
+        engineers = await SupabaseService.getSupplierEngineers(widget.supplierUserId!);
+      } else {
+        engineers = await SupabaseService.getEngineers();
+      }
       setState(() {
         _engineers = engineers;
         _isLoading = false;
@@ -65,12 +70,19 @@ class _AssignEngineerDialogState extends State<AssignEngineerDialog> {
     setState(() => _isAssigning = true);
 
     try {
-      await SupabaseService.assignEngineerToRequest(
-        requestId: widget.requestId,
-        engineerId: _selectedEngineer!.id,
-        supplierUserId: widget.supplierUserId,
-        startWorkImmediately: false, // Можно добавить опцию для немедленного старта
-      );
+      if (widget.supplierUserId != null) {
+        await SupabaseService.assignEngineerToRequest(
+          requestId: widget.requestId,
+          engineerId: _selectedEngineer!.id,
+          supplierUserId: widget.supplierUserId!,
+          startWorkImmediately: false, // Можно добавить опцию для немедленного старта
+        );
+      } else {
+        await SupabaseService.assignRequestToEngineer(
+          widget.requestId,
+          _selectedEngineer!.id,
+        );
+      }
 
       if (mounted) {
         Navigator.pop(context);

@@ -116,7 +116,7 @@ class ServiceRequest {
       case RequestStatus.pending:
         return 'Новая'; // Изменено с "На согласовании" для соответствия макету
       case RequestStatus.approved:
-        return 'Одобрена';
+        return 'Назначена'; // Было 'Одобрена'
       case RequestStatus.rejected:
         return 'Отклонена';
       case RequestStatus.inProgress:

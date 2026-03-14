@@ -50,13 +50,6 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
       // Для инженеров загружаем только назначенные заявки
       else if (widget.user.role == UserRole.engineer) {
         filteredRequests = await SupabaseService.getEngineerAssignedRequests(widget.user.id);
-        
-        final available = await SupabaseService.getAvailableServiceRequests(widget.user);
-        if (mounted) {
-          setState(() {
-            _availableRequests = available;
-          });
-        }
       }
       // Для ответственных лиц компании - только заявки их компании по ИНН
       else if (widget.user.role == UserRole.companyResponsible ||
@@ -187,13 +180,11 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  if (widget.user.role == UserRole.engineer)
-                    _buildEngineerTabs(),
                   const SizedBox(height: 24),
-                  if ((_showAvailableMode ? _availableRequests : _requests).isEmpty)
+                  if (_requests.isEmpty)
                     _buildEmptyState()
                   else
-                    ...(_showAvailableMode ? _availableRequests : _requests).asMap().entries.map((entry) {
+                    ..._requests.asMap().entries.map((entry) {
                       final index = entry.key;
                       final request = entry.value;
                       return Padding(
@@ -375,22 +366,7 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
             ],
           ),
           
-          if (_showAvailableMode && request.status == RequestStatus.pending) ...[
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _handleTakeRequest(request),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('ВЗЯТЬ ЗАЯВКУ В РАБОТУ', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ]
+          
         ],
       ),
     );
@@ -503,25 +479,21 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
   }
 
   bool _canAssignEngineer(ServiceRequest request) {
-    // Поставщик может назначить инженера, если:
-    // 1. Это его заявка
-    // 2. Инженер еще не назначен
-    // 3. Статус заявки позволяет назначение (pending или approved)
-    if (widget.user.role == UserRole.supplier) {
-      return request.supplierId == widget.user.id &&
-             request.assignedEngineerId == null &&
-             (request.status == RequestStatus.pending || 
-              request.status == RequestStatus.approved);
+    if (widget.user.role == UserRole.administrator || 
+        widget.user.role == UserRole.superAdmin) {
+      return request.assignedEngineerId == null && 
+             (request.status == RequestStatus.pending || request.status == RequestStatus.approved);
     }
     return false;
   }
 
   void _handleAssignEngineer(ServiceRequest request) {
+    final isSupplier = widget.user.role == UserRole.supplier;
     showDialog(
       context: context,
       builder: (context) => AssignEngineerDialog(
         requestId: request.id,
-        supplierUserId: widget.user.id,
+        supplierUserId: isSupplier ? widget.user.id : null,
         onEngineerAssigned: () {
           _loadRequests(); // Перезагружаем список после назначения
         },
@@ -617,6 +589,27 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
                 ]),
                 
                 const SizedBox(height: 32),
+                
+                if (_canAssignEngineer(request)) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _handleAssignEngineer(request);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981), // Emerald Color
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Назначить инженера', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 
                 SizedBox(
                   width: double.infinity,
