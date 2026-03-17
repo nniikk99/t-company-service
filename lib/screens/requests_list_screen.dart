@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/user.dart';
+import 'package:intl/intl.dart';
+import '../../models/user.dart';
+import '../widgets/requests/request_details_screen.dart';
 import '../models/service_request.dart';
 import '../services/supabase_service.dart';
 import '../widgets/animated_card.dart';
@@ -724,11 +726,15 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
   }
 
   void _showRequestDetails(ServiceRequest request) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildDetailModal(request),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RequestDetailsScreen(
+          request: request,
+          currentUser: widget.user,
+          onStatusChanged: _loadRequests,
+        ),
+      ),
     );
   }
 
