@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../models/service_request.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../../models/user.dart';
+import '../../models/service_request.dart';
+import '../../services/supabase_service.dart';
+import '../assign_engineer_dialog.dart';
 
 class RequestDetailsScreen extends StatefulWidget {
   final ServiceRequest request;
@@ -22,6 +24,28 @@ class RequestDetailsScreen extends StatefulWidget {
 
 class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   final _dateFormat = DateFormat('dd.MM.yyyy');
+  late ServiceRequest _currentRequest;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentRequest = widget.request;
+  }
+
+  Future<void> _refreshRequest() async {
+    setState(() => _isLoading = true);
+    final updatedRequest = await SupabaseService.getRequestById(_currentRequest.id);
+    if (updatedRequest != null && mounted) {
+      setState(() {
+        _currentRequest = updatedRequest;
+        _isLoading = false;
+      });
+      widget.onStatusChanged();
+    } else if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +61,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         title: Row(
           children: [
             Text(
-              'Заявка ${_getRequestId(widget.request)}',
+              'Заявка ${_getRequestId(_currentRequest)}',
               style: const TextStyle(
                 color: Color(0xFF1E293B),
                 fontSize: 18,
@@ -45,7 +69,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            _buildStatusChip(widget.request),
+            _buildStatusChip(_currentRequest),
           ],
         ),
         bottom: PreferredSize(
@@ -55,7 +79,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'от ${_dateFormat.format(widget.request.createdAt)}',
+                'от ${_dateFormat.format(_currentRequest.createdAt)}',
                 style: const TextStyle(
                   color: Color(0xFF64748B),
                   fontSize: 14,
@@ -65,22 +89,53 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildTimelineCard(),
-            const SizedBox(height: 12),
-            _buildEquipmentCard(),
-            const SizedBox(height: 12),
-            _buildSiteCard(),
-            const SizedBox(height: 12),
-            _buildContactsCard(),
-            const SizedBox(height: 12),
-            _buildDescriptionCard(),
-          ],
-        ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 200),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildTimelineCard(),
+                const SizedBox(height: 12),
+                _buildEquipmentCard(),
+                const SizedBox(height: 12),
+                _buildSiteCard(),
+                const SizedBox(height: 12),
+                _buildContactsCard(),
+                const SizedBox(height: 12),
+                _buildDescriptionCard(),
+              ],
+            ),
+          ),
+          
+          if (_hasActionButtons())
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      offset: const Offset(0, -4),
+                      blurRadius: 10,
+                    )
+                  ]
+                ),
+                child: _buildActionButtons(),
+              ),
+            ),
+
+          if (_isLoading)
+            Container(
+              color: Colors.white.withValues(alpha: 0.7),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
     );
   }
@@ -206,9 +261,79 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   Widget _buildTimelineContent() {
-    // Здесь должна быть логика отрисовки таймлайна
-    // Пока возвращаем заглушку, потом перенесем из старого списка
-    return const SizedBox(height: 100, child: Center(child: Text('Таймлайн (в разработке)')));
+    final List<String> steps = [
+      'Новая',
+      'Назначен инженер',
+      'Назначена дата',
+      'Приступил к работе',
+      'Ждет счет',
+      'Ждет оплату',
+      'Закрыта'
+    ];
+
+    int currentStepIndex = 0;
+    if (_currentRequest.status == RequestStatus.completed) {
+      currentStepIndex = 6;
+    } else if (_currentRequest.status == RequestStatus.inProgress) {
+      currentStepIndex = 3;
+    } else if (_currentRequest.scheduledAt != null) {
+      currentStepIndex = 2;
+    } else if (_currentRequest.assignedEngineerId != null) {
+      currentStepIndex = 1;
+    } else {
+      currentStepIndex = 0;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(steps.length, (index) {
+              final isActive = index <= currentStepIndex;
+              final isLast = index == steps.length - 1;
+              
+              return Row(
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: isActive ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                          shape: BoxShape.circle,
+                        ),
+                        child: isActive 
+                          ? const Icon(Icons.check, size: 14, color: Colors.white)
+                          : Center(child: Text('${index + 1}', style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)))),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        steps[index],
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          color: isActive ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!isLast)
+                    Container(
+                      width: 40,
+                      height: 2,
+                      margin: const EdgeInsets.only(bottom: 18),
+                      color: index < currentStepIndex ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                    ),
+                ],
+              );
+            }),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildEquipmentCard() {
@@ -496,7 +621,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               height: 1.5,
             ),
           ),
-          if (widget.request.attachments != null && widget.request.attachments!.isNotEmpty) ...[
+          if (_currentRequest.attachments != null && _currentRequest.attachments!.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text(
               'Фото неисправности',
@@ -511,5 +636,248 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         ],
       ),
     );
+  }
+
+  bool _hasActionButtons() {
+    return _buildActionButtonsBody().isNotEmpty;
+  }
+
+  Widget _buildActionButtons() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: _buildActionButtonsBody(),
+    );
+  }
+
+  List<Widget> _buildActionButtonsBody() {
+    List<Widget> buttons = [];
+    final bool isAdmin = widget.currentUser.role == UserRole.superAdmin || widget.currentUser.role == UserRole.administrator;
+    final bool isAssignedEngineer = widget.currentUser.role == UserRole.engineer && _currentRequest.assignedEngineerId == widget.currentUser.id;
+
+    if (_canAssignEngineer(_currentRequest)) {
+      buttons.add(
+        _buildActionButton('Назначить инженера', const Color(0xFF10B981), () {
+          _handleAssignEngineer();
+        }),
+      );
+    }
+
+    if (isAssignedEngineer && _currentRequest.status == RequestStatus.approved) {
+      if (_currentRequest.scheduledAt == null) {
+        buttons.add(
+          _buildActionButton('Назначить дату выезда', const Color(0xFF8B5CF6), () {
+             _selectServiceDate();
+          }),
+        );
+      } else {
+        buttons.add(
+          _buildActionButton('Приступить к работе', const Color(0xFF0EA5E9), () {
+             _startWork();
+          }),
+        );
+      }
+    }
+
+    if (isAssignedEngineer && _currentRequest.status == RequestStatus.inProgress) {
+      buttons.add(
+        _buildActionButton('Завершить работы', const Color(0xFFF59E0B), () {
+           _completeWork();
+        }),
+      );
+    }
+
+    if (isAdmin && _currentRequest.status == RequestStatus.waitingForInvoice) {
+      buttons.add(
+        _buildActionButton('Сформировать / Загрузить счет', const Color(0xFF8B5CF6), () {
+             _uploadInvoiceDialog();
+        }),
+      );
+    }
+
+    if (isAdmin && _currentRequest.status == RequestStatus.waitingForPayment) {
+      buttons.add(
+        _buildActionButton('Подтвердить оплату и закрыть', const Color(0xFF10B981), () {
+             _confirmPaymentDialog();
+        }),
+      );
+    }
+
+    return buttons;
+  }
+
+  Widget _buildActionButton(String text, Color color, VoidCallback onPressed) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            elevation: 0,
+          ),
+          child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ),
+      ),
+    );
+  }
+
+  bool _canAssignEngineer(ServiceRequest request) {
+    if (widget.currentUser.role == UserRole.administrator || 
+        widget.currentUser.role == UserRole.superAdmin) {
+      return request.assignedEngineerId == null && 
+             (request.status == RequestStatus.pending || request.status == RequestStatus.approved);
+    }
+    return false;
+  }
+
+  void _handleAssignEngineer() {
+    final isSupplier = widget.currentUser.role == UserRole.supplier;
+    showDialog(
+      context: context,
+      builder: (context) => AssignEngineerDialog(
+        requestId: _currentRequest.id,
+        supplierUserId: isSupplier ? widget.currentUser.id : null,
+        onEngineerAssigned: () {
+          _refreshRequest();
+        },
+      ),
+    );
+  }
+
+  Future<void> _selectServiceDate() async {
+    final DateTime? pickedDate = await showDatePicker(
+       context: context,
+       initialDate: DateTime.now().add(const Duration(days: 1)),
+       firstDate: DateTime.now(),
+       lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (pickedDate != null && mounted) {
+       setState(() => _isLoading = true);
+       try {
+         await SupabaseService.updateRequestScheduledDate(_currentRequest.id, pickedDate);
+         if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Дата выезда назначена!'), backgroundColor: Colors.green,));
+           _refreshRequest();
+         }
+       } catch (e) {
+         setState(() => _isLoading = false);
+         if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+         }
+       }
+    }
+  }
+
+  Future<void> _startWork() async {
+    setState(() => _isLoading = true);
+    try {
+      await SupabaseService.startEngineerWork(_currentRequest.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Работа начата!'), backgroundColor: Colors.green,));
+        _refreshRequest();
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+      }
+    }
+  }
+
+  Future<void> _completeWork() async {
+    String comment = '';
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Завершение работы'),
+        content: TextField(
+          decoration: const InputDecoration(hintText: 'Опишите выполненные работы...'),
+          maxLines: 3,
+          onChanged: (v) => comment = v,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('Завершить')
+          ),
+        ],
+      )
+    ).then((confirmed) async {
+      if (confirmed == true && mounted) {
+        setState(() => _isLoading = true);
+        try {
+          await SupabaseService.completeEngineerWork(_currentRequest.id, comment);
+          if (mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Работы завершены, заявка ждет счет!'), backgroundColor: Colors.green,));
+             _refreshRequest();
+          }
+        } catch (e) {
+          setState(() => _isLoading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+          }
+        }
+      }
+    });
+  }
+
+  Future<void> _uploadInvoiceDialog() async {
+    String amountStr = '';
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Выставить счет'),
+        content: TextField(
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(hintText: 'Сумма к оплате (руб)'),
+          onChanged: (v) => amountStr = v,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('Отправить')
+          ),
+        ],
+      )
+    ).then((confirmed) async {
+      if (confirmed == true && mounted) {
+        final amount = double.tryParse(amountStr.replaceAll(',', '.'));
+        setState(() => _isLoading = true);
+        try {
+          await SupabaseService.requestPaymentForInvoice(_currentRequest.id, amount ?? 0);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Счет выставлен клиенту!'), backgroundColor: Colors.green,));
+            _refreshRequest();
+          }
+        } catch (e) {
+          setState(() => _isLoading = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+          }
+        }
+      }
+    });
+  }
+
+  Future<void> _confirmPaymentDialog() async {
+    setState(() => _isLoading = true);
+    try {
+      await SupabaseService.updateRequestStatus(_currentRequest.id, RequestStatus.completed);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Оплата подтверждена. Заявка закрыта!'), backgroundColor: Colors.green,));
+        _refreshRequest();
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+      }
+    }
   }
 }

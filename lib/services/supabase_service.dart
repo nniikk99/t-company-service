@@ -1492,6 +1492,25 @@ class SupabaseService {
         .eq('id', requestId);
   }
 
+  /// Получение заявки по ID
+  static Future<ServiceRequest?> getRequestById(String requestId) async {
+    try {
+      final response = await _client
+          .from('service_requests')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
+          .eq('id', requestId)
+          .maybeSingle();
+
+      if (response != null) {
+        return ServiceRequest.fromJson(response);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Ошибка загрузки заявки: $e');
+      return null;
+    }
+  }
+
   /// Получение списка всех инженеров
   static Future<List<AppUserModel.User>> getEngineers() async {
     try {
