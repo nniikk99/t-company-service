@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/user.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import '../../models/user.dart' as AppUserModel;
 import '../../models/service_request.dart';
 import '../../models/equipment.dart';
 import '../../services/supabase_service.dart';
@@ -14,7 +14,7 @@ import '../../theme/app_theme.dart';
 
 class RequestDetailsScreen extends StatefulWidget {
   final ServiceRequest request;
-  final User currentUser;
+  final AppUserModel.User currentUser;
   final Function() onStatusChanged;
   
   const RequestDetailsScreen({
@@ -422,10 +422,14 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    child: _equipment != null && _equipment!.imageUrl != null
+                    child: _equipment != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: ImageService.buildImage(_equipment!.imageUrl!, fit: BoxFit.contain),
+                            child: Image.asset(
+                              ImageService.getPossibleImagePaths(_equipment!.manufacturer, _equipment!.model).first,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.precision_manufacturing, color: Color(0xFF3B82F6)),
+                            ),
                           )
                         : const Icon(Icons.precision_manufacturing, color: Color(0xFF3B82F6)),
                   ),
@@ -744,8 +748,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
   List<Widget> _buildActionButtonsBody() {
     List<Widget> buttons = [];
-    final bool isAdmin = widget.currentUser.role == UserRole.superAdmin || widget.currentUser.role == UserRole.administrator;
-    final bool isAssignedEngineer = widget.currentUser.role == UserRole.engineer && _currentRequest.assignedEngineerId == widget.currentUser.id;
+    final bool isAdmin = widget.currentUser.role == AppUserModel.UserRole.superAdmin || widget.currentUser.role == AppUserModel.UserRole.administrator;
+    final bool isAssignedEngineer = widget.currentUser.role == AppUserModel.UserRole.engineer && _currentRequest.assignedEngineerId == widget.currentUser.id;
 
     if (_canAssignEngineer(_currentRequest)) {
       buttons.add(
@@ -819,8 +823,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   bool _canAssignEngineer(ServiceRequest request) {
-    if (widget.currentUser.role == UserRole.administrator || 
-        widget.currentUser.role == UserRole.superAdmin) {
+    if (widget.currentUser.role == AppUserModel.UserRole.administrator || 
+        widget.currentUser.role == AppUserModel.UserRole.superAdmin) {
       return request.assignedEngineerId == null && 
              (request.status == RequestStatus.pending || request.status == RequestStatus.approved);
     }
@@ -828,7 +832,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   void _handleAssignEngineer() {
-    final isSupplier = widget.currentUser.role == UserRole.supplier;
+    final isSupplier = widget.currentUser.role == AppUserModel.UserRole.supplier;
     showDialog(
       context: context,
       builder: (context) => AssignEngineerDialog(
@@ -1013,8 +1017,12 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                           child: Stack(
                             children: [
                               Center(
-                                child: equipment.imageUrl != null 
-                                    ? ImageService.buildImage(equipment.imageUrl!, fit: BoxFit.contain)
+                                child: equipment != null
+                                    ? Image.asset(
+                                        ImageService.getPossibleImagePaths(equipment.manufacturer, equipment.model).first,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.precision_manufacturing, size: 64, color: Colors.grey),
+                                      )
                                     : const Icon(Icons.precision_manufacturing, size: 64, color: Colors.grey),
                               ),
                               Positioned(

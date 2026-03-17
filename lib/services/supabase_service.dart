@@ -667,13 +667,18 @@ class SupabaseService {
   }
 
   static Future<Equipment?> getEquipmentById(String equipmentId) async {
-    final response = await _client
-        .from('equipment')
-        .select()
-        .eq('id', equipmentId)
-        .maybeSingle();
-    
-    return response != null ? Equipment.fromJson(response) : null;
+    try {
+      final response = await _client
+          .from('equipment')
+          .select('*, sites(*)')
+          .eq('id', equipmentId)
+          .maybeSingle();
+      
+      return response != null ? Equipment.fromJson(response) : null;
+    } catch (e) {
+      print('❌ Ошибка загрузки оборудования: $e');
+      return null;
+    }
   }
 
   static Future<List<Equipment>> getEquipmentBySite(String siteId) async {
@@ -2539,25 +2544,6 @@ class SupabaseService {
         .eq('id', orderId);
   }
 
-  /// Получение оборудования по ID
-  static Future<Equipment?> getEquipmentById(String id) async {
-    try {
-      final response = await _client
-          .from('equipment')
-          .select('*, sites(*)')
-          .eq('id', id)
-          .maybeSingle();
-      
-      if (response != null) {
-        return Equipment.fromJson(response);
-      }
-      return null;
-    } catch (e) {
-      print('❌ Ошибка загрузки оборудования: $e');
-      return null;
-    }
-  }
-
   /// Подписка на изменения конкретной заявки
   static RealtimeChannel subscribeToRequestChanges(String requestId, Function(ServiceRequest) onUpdate) {
     print('🔄 Подписка на изменения заявки $requestId...');
@@ -2567,7 +2553,11 @@ class SupabaseService {
       event: PostgresChangeEvent.all,
       schema: 'public',
       table: 'service_requests',
-      filter: 'id=eq.$requestId',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'id',
+        value: requestId,
+      ),
       callback: (payload) async {
         print('🔔 Получено обновление заявки $requestId: ${payload.eventType}');
         // Перезагружаем заявку целиком, чтобы получить данные из джойнов

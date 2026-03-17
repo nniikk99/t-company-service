@@ -1,7 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../models/user.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import '../../models/user.dart' as AppUserModel;
 import '../models/service_request.dart';
 import '../services/supabase_service.dart';
 import '../widgets/animated_card.dart';
@@ -9,7 +7,7 @@ import '../widgets/animated_status_badge.dart';
 import '../widgets/requests/request_details_screen.dart';
 
 class RequestsListScreen extends StatefulWidget {
-  final User user;
+  final AppUserModel.User user;
 
   const RequestsListScreen({super.key, required this.user});
 
@@ -50,16 +48,16 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
       List<ServiceRequest> filteredRequests;
       
       // Для поставщиков - загружаем заявки на их оборудование
-      if (widget.user.role == UserRole.supplier) {
+      if (widget.user.role == AppUserModel.UserRole.supplier) {
         filteredRequests = await SupabaseService.getSupplierRequests(widget.user.id);
       }
       // Для инженеров загружаем только назначенные заявки
-      else if (widget.user.role == UserRole.engineer) {
+      else if (widget.user.role == AppUserModel.UserRole.engineer) {
         filteredRequests = await SupabaseService.getEngineerAssignedRequests(widget.user.id);
       }
       // Для ответственных лиц компании - только заявки их компании по ИНН
-      else if (widget.user.role == UserRole.companyResponsible ||
-               widget.user.role == UserRole.siteManager) {
+      else if (widget.user.role == AppUserModel.UserRole.companyResponsible ||
+               widget.user.role == AppUserModel.UserRole.siteManager) {
         final profile = await SupabaseService.getUserProfile(widget.user.id);
         final inn = profile?['company_inn'];
         
@@ -77,8 +75,8 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         }).whereType<ServiceRequest>().toList();
       }
       // Для админов - всё без фильтров
-      else if (widget.user.role == UserRole.superAdmin || 
-               widget.user.role == UserRole.administrator) {
+      else if (widget.user.role == AppUserModel.UserRole.superAdmin || 
+               widget.user.role == AppUserModel.UserRole.administrator) {
         final requestsJson = await SupabaseService.getAllServiceRequests();
         filteredRequests = requestsJson.map((json) {
           try {
@@ -89,8 +87,8 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         }).whereType<ServiceRequest>().toList();
       }
       // Для операторов и контактных лиц - только свои
-      else if (widget.user.role == UserRole.operatorPM || 
-               widget.user.role == UserRole.contactPerson) {
+      else if (widget.user.role == AppUserModel.UserRole.operatorPM || 
+               widget.user.role == AppUserModel.UserRole.contactPerson) {
         final requestsJson = await SupabaseService.getUserServiceRequests(widget.user.id);
         filteredRequests = requestsJson.map((json) {
           try {
@@ -102,8 +100,8 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         }).whereType<ServiceRequest>().toList();
       }
       // Для админов - всё
-      else if (widget.user.role == UserRole.superAdmin || 
-               widget.user.role == UserRole.administrator) {
+      else if (widget.user.role == AppUserModel.UserRole.superAdmin || 
+               widget.user.role == AppUserModel.UserRole.administrator) {
         final requestsJson = await SupabaseService.getAllServiceRequests();
         filteredRequests = requestsJson.map((json) {
           try {
