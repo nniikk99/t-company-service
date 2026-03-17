@@ -365,70 +365,40 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5), // telegram-background
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 60,
-        leading: widget.adminUser != null
-            ? IconButton(
-                onPressed: () {
-                  // Возвращаемся в меню управления клиентами
-                  Navigator.pop(context);
-                },
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.black87,
+      appBar: widget.adminUser != null
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              toolbarHeight: 60,
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 12.0, top: 8.0, bottom: 8.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2563EB), size: 20),
+                    tooltip: 'Вернуться',
+                  ),
                 ),
-                tooltip: 'Вернуться к управлению',
-              )
-            : null,
-        title: LayoutBuilder(
-          builder: (context, constraints) {
-            // Определяем размер экрана
-            final screenWidth = MediaQuery.of(context).size.width;
-            final isMobile = screenWidth < 600;
-            
-            if (isMobile) {
-              // Мобильная версия - только заголовок
-              return const Row(
-                children: [
-                  Spacer(),
-                  // Заголовок по центру
-                  Text(
-                    'Сервисная служба',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Spacer(),
-                ],
-              );
-            } else {
-              // Десктопная версия - полная информация
-              return const Row(
-                children: [
-                  Spacer(),
-                  // Заголовок по центру
-                  Text(
-                    'Сервисная служба',
-                    style: TextStyle(
-                      color: Colors.black87,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Spacer(),
-                ],
-              );
-            }
-          },
-        ),
-      ),
+              ),
+            )
+          : null,
+      extendBodyBehindAppBar: widget.adminUser != null,
       body: Container(
         color: const Color(0xFFF8FAFC),
-        child: _buildMainContent(),
+        child: SafeArea(
+          child: _buildMainContent(),
+        ),
       ),
       bottomNavigationBar: _currentView != ViewType.equipmentDetails 
         ? Container(
@@ -598,16 +568,6 @@ class _MainScreenState extends State<MainScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Профиль',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 24),
-          
           // Основная карточка профиля
           Container(
             padding: const EdgeInsets.all(24),
