@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user.dart';
 import '../../models/service_request.dart';
+import '../../models/equipment.dart';
 import '../../services/supabase_service.dart';
+import '../../services/image_service.dart';
 import '../assign_engineer_dialog.dart';
+import '../equipment_specifications_widget.dart';
+import '../equipment_maintenance_widget.dart';
+import '../../theme/app_theme.dart';
 
 class RequestDetailsScreen extends StatefulWidget {
   final ServiceRequest request;
@@ -25,12 +28,44 @@ class RequestDetailsScreen extends StatefulWidget {
 class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   final _dateFormat = DateFormat('dd.MM.yyyy');
   late ServiceRequest _currentRequest;
+  Equipment? _equipment;
   bool _isLoading = false;
+  RealtimeChannel? _subscription;
 
   @override
   void initState() {
     super.initState();
     _currentRequest = widget.request;
+    _loadEquipment();
+    _setupRealtime();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtime() {
+    _subscription = SupabaseService.subscribeToRequestChanges(_currentRequest.id, (updatedRequest) {
+      if (mounted) {
+        setState(() {
+          _currentRequest = updatedRequest;
+        });
+        widget.onStatusChanged();
+      }
+    });
+  }
+
+  Future<void> _loadEquipment() async {
+    if (_currentRequest.equipmentId != null) {
+      final equipment = await SupabaseService.getEquipmentById(_currentRequest.equipmentId!);
+      if (mounted) {
+        setState(() {
+          _equipment = equipment;
+        });
+      }
+    }
   }
 
   Future<void> _refreshRequest() async {
@@ -98,6 +133,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               children: [
                 _buildTimelineCard(),
                 const SizedBox(height: 12),
+                if (_currentRequest.engineerComment != null && _currentRequest.engineerComment!.isNotEmpty) ...[
+                  _buildEngineerResultCard(),
+                  const SizedBox(height: 12),
+                ],
                 _buildEquipmentCard(),
                 const SizedBox(height: 12),
                 _buildSiteCard(),
@@ -263,25 +302,39 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   Widget _buildTimelineContent() {
     final List<String> steps = [
       'Новая',
-      'Назначен инженер',
-      'Назначена дата',
-      'Приступил к работе',
+      'Назначена',
+      'Дата выезда',
+      'В работе',
       'Ждет счет',
       'Ждет оплату',
       'Закрыта'
     ];
 
     int currentStepIndex = 0;
-    if (_currentRequest.status == RequestStatus.completed) {
-      currentStepIndex = 6;
-    } else if (_currentRequest.status == RequestStatus.inProgress) {
-      currentStepIndex = 3;
-    } else if (_currentRequest.scheduledAt != null) {
-      currentStepIndex = 2;
-    } else if (_currentRequest.assignedEngineerId != null) {
-      currentStepIndex = 1;
-    } else {
-      currentStepIndex = 0;
+    switch (_currentRequest.status) {
+      case RequestStatus.draft:
+      case RequestStatus.cancelled:
+      case RequestStatus.rejected:
+        currentStepIndex = 0;
+        break;
+      case RequestStatus.pending:
+        currentStepIndex = 0;
+        break;
+      case RequestStatus.approved:
+        currentStepIndex = _currentRequest.scheduledAt != null ? 2 : 1;
+        break;
+      case RequestStatus.inProgress:
+        currentStepIndex = 3;
+        break;
+      case RequestStatus.waitingForInvoice:
+        currentStepIndex = 4;
+        break;
+      case RequestStatus.waitingForPayment:
+        currentStepIndex = 5;
+        break;
+      case RequestStatus.completed:
+        currentStepIndex = 6;
+        break;
     }
 
     return Column(
@@ -338,76 +391,113 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
   Widget _buildEquipmentCard() {
     return _buildCard(
+      child: InkWell(
+        onTap: () {
+          if (_equipment != null) {
+            _showEquipmentDetails(_equipment!);
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCardHeader(Icons.build_outlined, 'Оборудование'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: _equipment != null && _equipment!.imageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: ImageService.buildImage(_equipment!.imageUrl!, fit: BoxFit.contain),
+                          )
+                        : const Icon(Icons.precision_manufacturing, color: Color(0xFF3B82F6)),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _equipment?.fullTitle ?? _currentRequest.equipmentName ?? 'Оборудование',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        if (_currentRequest.serialNumber != null)
+                          Text(
+                            'S/N: ${_currentRequest.serialNumber}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF94A3B8)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEngineerResultCard() {
+    return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCardHeader(Icons.build_outlined, 'Оборудование'),
+          _buildCardHeader(Icons.assignment_turned_in_outlined, 'Результаты работ'),
           const SizedBox(height: 16),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: const Color(0xFFF0FDF4),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFDCFCE7)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDBEAFE),
-                    borderRadius: BorderRadius.circular(8),
+                const Text(
+                  'Комментарий инженера:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF15803D),
                   ),
-                  child: const Icon(Icons.precision_manufacturing, color: Color(0xFF3B82F6)),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.request.equipmentName ?? widget.request.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      if (widget.request.equipmentModel != null)
-                        Text(
-                          '${widget.request.equipmentName?.split(' ').first ?? ''} · ${widget.request.equipmentModel}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                    ],
+                const SizedBox(height: 8),
+                Text(
+                  _currentRequest.engineerComment ?? '',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF166534),
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
           ),
-          if (widget.request.serialNumber != null) ...[
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Icon(Icons.numbers, size: 16, color: Color(0xFF94A3B8)),
-                const SizedBox(width: 8),
-                const Text(
-                  'Серийный номер: ',
-                  style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
-                ),
-                Text(
-                  widget.request.serialNumber!,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F172A),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -795,8 +885,11 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Завершение работы'),
         content: TextField(
-          decoration: const InputDecoration(hintText: 'Опишите выполненные работы...'),
-          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: 'Опишите выполненные работы и рекомендации по дальнейшему ремонту...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 5,
           onChanged: (v) => comment = v,
         ),
         actions: [
@@ -879,5 +972,127 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
       }
     }
+  }
+
+  void _showEquipmentDetails(Equipment equipment) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(
+                          minHeight: 140,
+                          maxHeight: 250,
+                        ),
+                        decoration: const BoxDecoration(
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                          ),
+                          color: Colors.white,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            topRight: Radius.circular(16),
+                          ),
+                          child: Stack(
+                            children: [
+                              Center(
+                                child: equipment.imageUrl != null 
+                                    ? ImageService.buildImage(equipment.imageUrl!, fit: BoxFit.contain)
+                                    : const Icon(Icons.precision_manufacturing, size: 64, color: Colors.grey),
+                              ),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.black54),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${equipment.manufacturer} ${equipment.model}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            if (equipment.type != null) ...[
+                              _buildEquipmentDetailRow(Icons.category_outlined, 'Тип', equipment.type!),
+                              const SizedBox(height: 8),
+                            ],
+                            _buildEquipmentDetailRow(Icons.numbers, 'Серийный номер', equipment.serialNumber ?? 'Не указан'),
+                            const SizedBox(height: 8),
+                            _buildEquipmentDetailRow(Icons.location_on_outlined, 'Площадка', equipment.address.isNotEmpty ? equipment.address : equipment.location),
+                            const SizedBox(height: 16),
+                            
+                            EquipmentSpecificationsWidget(
+                              manufacturer: equipment.manufacturer,
+                              model: equipment.model,
+                              customSpecs: equipment.specifications,
+                            ),
+                            
+                            EquipmentMaintenanceWidget(
+                              equipment: equipment,
+                              onUpdated: () async {
+                                Navigator.pop(context);
+                                _loadEquipment();
+                              }
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEquipmentDetailRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF94A3B8)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF0F172A))),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

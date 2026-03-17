@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/user.dart';
 import '../models/service_request.dart';
 import '../services/supabase_service.dart';
@@ -18,15 +18,31 @@ class RequestsListScreen extends StatefulWidget {
 class _RequestsListScreenState extends State<RequestsListScreen> {
   List<ServiceRequest> _requests = [];
   bool _isLoading = true;
+  RealtimeChannel? _subscription;
 
   @override
   void initState() {
     super.initState();
     _loadRequests();
+    _setupRealtime();
   }
 
-  Future<void> _loadRequests() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _subscription?.unsubscribe();
+    super.dispose();
+  }
+
+  void _setupRealtime() {
+    _subscription = SupabaseService.subscribeToAllRequests(widget.user, () {
+      if (mounted) {
+        _loadRequests(showLoading: false);
+      }
+    });
+  }
+
+  Future<void> _loadRequests({bool showLoading = true}) async {
+    if (showLoading) setState(() => _isLoading = true);
     
     try {
       List<ServiceRequest> filteredRequests;
@@ -100,13 +116,15 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         filteredRequests = [];
       }
       
-      setState(() {
-        _requests = filteredRequests;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _requests = filteredRequests;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Ошибка загрузки заявок: $e'),

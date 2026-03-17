@@ -1210,7 +1210,7 @@ class SupabaseService {
         .from('service_requests')
         .select('*, equipment(name, model, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone)')
         .eq('assigned_engineer_id', engineerId)
-        .or('status.eq.approved,status.eq.inProgress')
+        .or('status.eq.approved,status.eq.inProgress,status.eq.waitingForInvoice,status.eq.waitingForPayment')
         .order('created_at', ascending: false);
 
     return (response as List)
@@ -2537,5 +2537,65 @@ class SupabaseService {
         .from('part_orders')
         .update({'status': status, 'updated_at': DateTime.now().toIso8601String()})
         .eq('id', orderId);
+  }
+
+  /// Получение оборудования по ID
+  static Future<Equipment?> getEquipmentById(String id) async {
+    try {
+      final response = await _client
+          .from('equipment')
+          .select('*, sites(*)')
+          .eq('id', id)
+          .maybeSingle();
+      
+      if (response != null) {
+        return Equipment.fromJson(response);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Ошибка загрузки оборудования: $e');
+      return null;
+    }
+  }
+
+  /// Подписка на изменения конкретной заявки
+  static RealtimeChannel subscribeToRequestChanges(String requestId, Function(ServiceRequest) onUpdate) {
+    print('🔄 Подписка на изменения заявки $requestId...');
+    final channel = _client.channel('public:service_requests:id=eq.$requestId');
+    
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'service_requests',
+      filter: 'id=eq.$requestId',
+      callback: (payload) async {
+        print('🔔 Получено обновление заявки $requestId: ${payload.eventType}');
+        // Перезагружаем заявку целиком, чтобы получить данные из джойнов
+        final updatedRequest = await getRequestById(requestId);
+        if (updatedRequest != null) {
+          onUpdate(updatedRequest);
+        }
+      },
+    ).subscribe();
+    
+    return channel;
+  }
+
+  /// Подписка на изменения всех заявок пользователя/компании
+  static RealtimeChannel subscribeToAllRequests(AppUserModel.User user, Function() onUpdate) {
+    print('🔄 Подписка на все изменения заявок...');
+    final channel = _client.channel('public:service_requests_all');
+    
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'service_requests',
+      callback: (payload) {
+        print('🔔 Обнаружено изменение в таблице заявок: ${payload.eventType}');
+        onUpdate();
+      },
+    ).subscribe();
+    
+    return channel;
   }
 }
