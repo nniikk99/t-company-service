@@ -30,40 +30,40 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(49),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.15))),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.15))),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                labelColor: const Color(0xFF3B82F6),
+                unselectedLabelColor: Colors.grey[500],
+                indicatorColor: const Color(0xFF3B82F6),
+                indicatorWeight: 3,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                tabs: const [
+                  Tab(icon: Icon(Icons.shopping_cart_outlined, size: 20), text: 'Корзина'),
+                  Tab(icon: Icon(Icons.favorite_border, size: 20), text: 'Избранное'),
+                  Tab(icon: Icon(Icons.search, size: 20), text: 'Поиск'),
+                ],
+              ),
             ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: const Color(0xFF3B82F6),
-              unselectedLabelColor: Colors.grey[500],
-              indicatorColor: const Color(0xFF3B82F6),
-              indicatorWeight: 3,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              tabs: const [
-                Tab(icon: Icon(Icons.shopping_cart_outlined, size: 20), text: 'Корзина'),
-                Tab(icon: Icon(Icons.favorite_border, size: 20), text: 'Избранное'),
-                Tab(icon: Icon(Icons.search, size: 20), text: 'Поиск'),
-              ],
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _CartTab(user: widget.user),
+                  _FavoritesTab(user: widget.user),
+                  _SearchTab(user: widget.user),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _CartTab(user: widget.user),
-          _FavoritesTab(user: widget.user),
-          _SearchTab(user: widget.user),
-        ],
       ),
     );
   }
