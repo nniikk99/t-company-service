@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
-import '../models/user_role.dart';
 import '../models/service_request.dart';
 import '../services/supabase_service.dart';
 import '../widgets/animated_card.dart';
