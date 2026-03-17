@@ -102,7 +102,7 @@ class _MainScreenState extends State<MainScreen> {
     // Для поставщиков
     if (_currentUser.role == UserRole.supplier) {
       return [
-        NavigationTab(id: 'equipment', label: 'Товары', icon: Icons.precision_manufacturing),
+        NavigationTab(id: 'equipment', label: 'Товары', customIconPath: 'assets/icons/cleaning_machine.png'),
         NavigationTab(id: 'requests', label: 'Заказы', icon: Icons.assignment_outlined),
         NavigationTab(id: 'analytics', label: 'Аналитика', icon: Icons.dashboard_outlined),
         NavigationTab(id: 'profile', label: 'Профиль', icon: Icons.person),
@@ -111,7 +111,7 @@ class _MainScreenState extends State<MainScreen> {
     
     // Для остальных ролей - стандартная навигация
     return [
-      NavigationTab(id: 'equipment', label: 'Техника', icon: Icons.build),
+      NavigationTab(id: 'equipment', label: 'Техника', customIconPath: 'assets/icons/cleaning_machine.png'),
       NavigationTab(id: 'requests', label: 'Заявки', icon: Icons.list),
       NavigationTab(id: 'cart', label: 'Маркет', icon: Icons.shopping_cart),
       NavigationTab(id: 'analytics', label: 'Анализ', icon: Icons.bar_chart),
@@ -436,11 +436,17 @@ class _MainScreenState extends State<MainScreen> {
                               mainAxisSize: MainAxisSize.min,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  tab.icon,
-                                  color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
-                                  size: 22,
-                                ),
+                                tab.customIconPath != null
+                                    ? ImageIcon(
+                                        AssetImage(tab.customIconPath!),
+                                        color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
+                                        size: 22,
+                                      )
+                                    : Icon(
+                                        tab.icon,
+                                        color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
+                                        size: 22,
+                                      ),
                                 const SizedBox(height: 2),
                                 FittedBox(
                                   fit: BoxFit.scaleDown,
@@ -928,7 +934,13 @@ class _MainScreenState extends State<MainScreen> {
 class NavigationTab {
   final String id;
   final String label;
-  final IconData icon;
+  final IconData? icon;
+  final String? customIconPath;
   
-  NavigationTab({required this.id, required this.label, required this.icon});
+  NavigationTab({
+    required this.id, 
+    required this.label, 
+    this.icon,
+    this.customIconPath,
+  }) : assert(icon != null || customIconPath != null);
 }
