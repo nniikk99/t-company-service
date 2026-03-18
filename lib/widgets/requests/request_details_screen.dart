@@ -137,6 +137,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               children: [
                 _buildTimelineCard(),
                 const SizedBox(height: 12),
+                if (_currentRequest.assignedEngineerId != null) ...[
+                  _buildEngineerCard(),
+                  const SizedBox(height: 12),
+                ],
                 if (_currentRequest.engineerComment != null && _currentRequest.engineerComment!.isNotEmpty) ...[
                   _buildEngineerResultCard(),
                   const SizedBox(height: 12),
@@ -321,12 +325,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           actor: _currentRequest.approvedAt != null ? (_currentRequest.approvedByName ?? 'Администратор') : null,
           detail: _currentRequest.engineerName != null ? 'Инженер: ${_currentRequest.engineerName}' : null,
           icon: Icons.person_outline,
-          isCompleted: _currentRequest.approvedAt != null,
+          isCompleted: _currentRequest.approvedAt != null || _currentRequest.assignedEngineerId != null,
           color: const Color(0xFF2563EB),
-          trailing: _currentRequest.assignedEngineerId != null ? IconButton(
-            icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF2563EB), size: 20),
-            onPressed: () => _openChat(),
-          ) : null,
         ),
         _buildTimelineStep(
           title: _currentRequest.scheduledAt != null ? 'Выезд назначен' : 'Выезд',
@@ -558,6 +558,74 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEngineerCard() {
+    String initials = _currentRequest.engineerName?.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase() ?? 'И';
+    
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(Icons.engineering_outlined, 'Назначенный инженер'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1F5F9),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _currentRequest.engineerName ?? 'Инженер не указан',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const Text(
+                      'Сервисный инженер компании',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => _openChat(),
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                label: const Text('Написать'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(color: Color(0xFFDBEAFE)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
