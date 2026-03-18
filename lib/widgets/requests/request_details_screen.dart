@@ -303,92 +303,164 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   Widget _buildTimelineContent() {
-    final List<String> steps = [
-      'Новая',
-      'Назначена',
-      'Дата выезда',
-      'В работе',
-      'Ждет счет',
-      'Ждет оплату',
-      'Закрыта'
-    ];
-
-    int currentStepIndex = 0;
-    switch (_currentRequest.status) {
-      case RequestStatus.draft:
-      case RequestStatus.cancelled:
-      case RequestStatus.rejected:
-        currentStepIndex = 0;
-        break;
-      case RequestStatus.pending:
-        currentStepIndex = 0;
-        break;
-      case RequestStatus.approved:
-        currentStepIndex = _currentRequest.scheduledAt != null ? 2 : 1;
-        break;
-      case RequestStatus.inProgress:
-        currentStepIndex = 3;
-        break;
-      case RequestStatus.waitingForInvoice:
-        currentStepIndex = 4;
-        break;
-      case RequestStatus.waitingForPayment:
-        currentStepIndex = 5;
-        break;
-      case RequestStatus.completed:
-        currentStepIndex = 6;
-        break;
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: List.generate(steps.length, (index) {
-              final isActive = index <= currentStepIndex;
-              final isLast = index == steps.length - 1;
-              
-              return Row(
-                children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: isActive ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
-                          shape: BoxShape.circle,
-                        ),
-                        child: isActive 
-                          ? const Icon(Icons.check, size: 14, color: Colors.white)
-                          : Center(child: Text('${index + 1}', style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)))),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        steps[index],
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (!isLast)
-                    Container(
-                      width: 40,
-                      height: 2,
-                      margin: const EdgeInsets.only(bottom: 18),
-                      color: index < currentStepIndex ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
-                    ),
-                ],
-              );
-            }),
-          ),
+        _buildTimelineStep(
+          title: 'Заявка создана',
+          time: _currentRequest.createdAt,
+          actor: _currentRequest.creatorName,
+          icon: Icons.description_outlined,
+          isCompleted: true,
+          color: const Color(0xFF2563EB),
+        ),
+        _buildTimelineStep(
+          title: _currentRequest.approvedAt != null ? 'Назначен инженер' : 'Назначение инженера',
+          time: _currentRequest.approvedAt,
+          actor: _currentRequest.approvedAt != null ? (_currentRequest.approvedByName ?? 'Администратор') : null,
+          detail: _currentRequest.engineerName != null ? 'Инженер: ${_currentRequest.engineerName}' : null,
+          icon: Icons.person_outline,
+          isCompleted: _currentRequest.approvedAt != null,
+          color: const Color(0xFF2563EB),
+        ),
+        _buildTimelineStep(
+          title: _currentRequest.scheduledAt != null ? 'Выезд назначен' : 'Выезд',
+          time: _currentRequest.scheduledAt,
+          actor: _currentRequest.scheduledAt != null && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
+          detail: _currentRequest.scheduledAt != null ? 'Дата выезда: ${DateFormat('dd.MM.yyyy').format(_currentRequest.scheduledAt!)}' : null,
+          icon: Icons.local_shipping_outlined,
+          isCompleted: _currentRequest.scheduledAt != null,
+          color: const Color(0xFF2563EB),
+        ),
+        _buildTimelineStep(
+          title: 'В работе',
+          time: _currentRequest.engineerStartedAt,
+          actor: _currentRequest.engineerStartedAt != null && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
+          icon: Icons.build_outlined,
+          isCompleted: _currentRequest.engineerStartedAt != null,
+          color: const Color(0xFF2563EB),
+        ),
+        _buildTimelineStep(
+          title: _currentRequest.engineerCompletedAt != null ? 'Отчёт сдан' : 'Отчёт',
+          time: _currentRequest.engineerCompletedAt,
+          actor: _currentRequest.engineerCompletedAt != null && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
+          icon: Icons.assignment_outlined,
+          isCompleted: _currentRequest.engineerCompletedAt != null,
+          color: const Color(0xFF2563EB),
+        ),
+        _buildTimelineStep(
+          title: _currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed ? 'Счёт выставлен' : 'Счёт',
+          time: (_currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed) ? _currentRequest.engineerCompletedAt : null, // Примерное время
+          actor: (_currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed) ? 'Администратор' : null,
+          detail: _currentRequest.invoiceAmount != null ? 'Сумма: ${_currentRequest.invoiceAmount} ₽' : null,
+          icon: Icons.payments_outlined,
+          isCompleted: _currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed,
+          color: const Color(0xFF2563EB),
+        ),
+        _buildTimelineStep(
+          title: _currentRequest.completedAt != null ? 'Закрыта' : 'Закрытие',
+          time: _currentRequest.completedAt,
+          actor: _currentRequest.completedAt != null ? 'Администратор' : null,
+          icon: Icons.check_circle_outline,
+          isCompleted: _currentRequest.completedAt != null,
+          color: const Color(0xFF2563EB),
+          isLast: true,
         ),
       ],
+    );
+  }
+
+  Widget _buildTimelineStep({
+    required String title,
+    DateTime? time,
+    String? actor,
+    String? detail,
+    required IconData icon,
+    bool isCompleted = false,
+    bool isLast = false,
+    required Color color,
+  }) {
+    final activeColor = color;
+    final inactiveColor = const Color(0xFFCBD5E1); // slate-300
+
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Столбец с иконкой и линией
+          SizedBox(
+            width: 40,
+            child: Column(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: isCompleted ? activeColor : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isCompleted ? activeColor : inactiveColor,
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 16,
+                    color: isCompleted ? Colors.white : inactiveColor,
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: isCompleted ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0), // blue-200 или slate-200
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Текстовая часть
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 24, top: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isCompleted ? FontWeight.w500 : FontWeight.normal,
+                      color: const Color(0xFF1E293B), // slate-800
+                    ),
+                  ),
+                  if (time != null || actor != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${time != null ? DateFormat('dd.MM.yyyy HH:mm').format(time) : ''}${time != null && actor != null ? ' — ' : ''}${actor ?? ''}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF64748B), // slate-500
+                      ),
+                    ),
+                  ],
+                  if (detail != null && isCompleted) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      detail,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF2563EB), // blue-600
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

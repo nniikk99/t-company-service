@@ -63,6 +63,7 @@ class ServiceRequest {
   final String? siteName;
   final String? engineerName;
   final String? creatorName;
+  final String? approvedByName;
   final String? operatorContact;
   final String? siteManagerContact;
   final String? responsibleContact;
@@ -108,6 +109,7 @@ class ServiceRequest {
     this.siteName,
     this.engineerName,
     this.creatorName,
+    this.approvedByName,
     this.companyInn,
     this.operatorContact,
     this.siteManagerContact,
@@ -285,6 +287,7 @@ class ServiceRequest {
       siteName: site?['name'] ?? equipment?['location'],
       engineerName: engineerFullName,
       creatorName: creatorFullName,
+      approvedByName: approvedFullName,
       companyInn: json['company_inn'],
       operatorContact: operatorDetails,
       siteManagerContact: managerDetails,
