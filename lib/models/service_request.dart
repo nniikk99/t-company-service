@@ -232,12 +232,8 @@ class ServiceRequest {
       operatorDetails = '${operatorPm['first_name'] ?? ''} ${operatorPm['last_name'] ?? ''} (${operatorPm['phone'] ?? ''})'.trim();
     }
 
-    final approvedBy = json['approved_by'] as Map<String, dynamic>?;
-    String? approvedFullName;
-    if (approvedBy != null) {
-      approvedFullName = '${approvedBy['first_name'] ?? ''} ${approvedBy['last_name'] ?? ''}'.trim();
-      if (approvedFullName.isEmpty) approvedFullName = null;
-    }
+    // approved_by хранится как текстовое поле с именем (не FK)
+    final String? approvedFullName = json['approved_by'] as String?;
 
     return ServiceRequest(
       id: json['id'],

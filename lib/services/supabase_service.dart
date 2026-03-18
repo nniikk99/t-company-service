@@ -335,8 +335,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name),
-          approved_by:user_profiles!service_requests_approved_by_user_id_fkey(first_name, last_name)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
         ''')
         .order('created_at', ascending: false);
 
@@ -357,8 +356,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name),
-          approved_by:user_profiles!service_requests_approved_by_user_id_fkey(first_name, last_name)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
         ''')
         .eq('company_inn', inn)
         .order('created_at', ascending: false);
@@ -380,8 +378,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name),
-          approved_by:user_profiles!service_requests_approved_by_user_id_fkey(first_name, last_name)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
         ''')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
@@ -1216,7 +1213,7 @@ class SupabaseService {
   static Future<List<ServiceRequest>> getEngineerAssignedRequests(String engineerId) async {
     final response = await _client
         .from('service_requests')
-        .select('*, equipment(name, model, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), approved_by:user_profiles!service_requests_approved_by_user_id_fkey(first_name, last_name)')
+        .select('*, equipment(name, model, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
         .eq('assigned_engineer_id', engineerId)
         .or('status.eq.approved,status.eq.inProgress,status.eq.waitingForInvoice,status.eq.waitingForPayment')
         .order('created_at', ascending: false);
@@ -1410,7 +1407,7 @@ class SupabaseService {
       // 2. Ищем свободные заявки на этих площадках
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), approved_by:user_profiles!service_requests_approved_by_user_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
           .inFilter('site_id', siteIds)
           .isFilter('assigned_engineer_id', null)
           .eq('status', 'pending')
@@ -1505,7 +1502,7 @@ class SupabaseService {
     try {
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), approved_by:user_profiles!service_requests_approved_by_user_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
           .eq('id', requestId)
           .maybeSingle();
 
