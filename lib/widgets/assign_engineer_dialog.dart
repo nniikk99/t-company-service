@@ -5,6 +5,7 @@ import '../services/supabase_service.dart';
 class AssignEngineerDialog extends StatefulWidget {
   final String requestId;
   final String? supplierUserId;
+  final String approverName;
   final VoidCallback? onEngineerAssigned;
 
   const AssignEngineerDialog({

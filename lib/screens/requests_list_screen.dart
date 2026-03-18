@@ -171,6 +171,7 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         return const Color(0xFF2563EB); // Blue
       case RequestStatus.approved:
       case RequestStatus.inProgress:
+      case RequestStatus.waitingForAcceptance:
         return const Color(0xFFEA580C); // Orange
       case RequestStatus.waitingForInvoice:
       case RequestStatus.waitingForPayment:

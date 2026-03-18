@@ -7,7 +7,7 @@ import '../../models/service_request.dart';
 import '../../models/equipment.dart';
 import '../../services/supabase_service.dart';
 import '../../services/image_service.dart';
-import '../chat_screen.dart';
+import 'chat_screen.dart';
 import '../assign_engineer_dialog.dart';
 import '../equipment_specifications_widget.dart';
 import '../equipment_maintenance_widget.dart';
@@ -323,7 +323,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           icon: Icons.person_outline,
           isCompleted: _currentRequest.approvedAt != null,
           color: const Color(0xFF2563EB),
-          trailing: _currentRequest.engineerId != null ? IconButton(
+          trailing: _currentRequest.assignedEngineerId != null ? IconButton(
             icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF2563EB), size: 20),
             onPressed: () => _openChat(),
           ) : null,
