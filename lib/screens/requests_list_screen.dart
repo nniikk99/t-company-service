@@ -7,6 +7,8 @@ import '../services/supabase_service.dart';
 import '../widgets/animated_card.dart';
 import '../widgets/animated_status_badge.dart';
 import '../widgets/requests/request_details_screen.dart';
+import '../services/image_service.dart';
+import 'package:flutter/cupertino.dart';
 
 class RequestsListScreen extends StatefulWidget {
   final AppUserModel.User user;
@@ -18,9 +20,16 @@ class RequestsListScreen extends StatefulWidget {
 }
 
 class _RequestsListScreenState extends State<RequestsListScreen> {
-  List<ServiceRequest> _requests = [];
+  List<ServiceRequest> _allRequests = [];
+  List<ServiceRequest> _filteredRequests = [];
   bool _isLoading = true;
   RealtimeChannel? _subscription;
+  
+  final TextEditingController _searchController = TextEditingController();
+  RequestStatus? _statusFilter;
+  String? _siteFilter;
+  String? _modelFilter;
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -32,6 +41,7 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
   @override
   void dispose() {
     _subscription?.unsubscribe();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -120,21 +130,38 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
       
       if (mounted) {
         setState(() {
-          _requests = filteredRequests;
-          _isLoading = false;
+           _allRequests = filteredRequests;
+           _applyFilters();
+           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка загрузки заявок: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Ошибка загрузки: $e'), backgroundColor: Colors.red),
         );
       }
     }
+  }
+
+  void _applyFilters() {
+    setState(() {
+      _filteredRequests = _allRequests.where((req) {
+        final query = _searchController.text.toLowerCase();
+        final matchesSearch = query.isEmpty || 
+            (req.title.toLowerCase().contains(query)) ||
+            (req.equipmentName?.toLowerCase().contains(query) ?? false) ||
+            (req.equipmentModel?.toLowerCase().contains(query) ?? false) ||
+            (req.id.toLowerCase().contains(query));
+            
+        final matchesStatus = _statusFilter == null || req.status == _statusFilter;
+        final matchesSite = _siteFilter == null || req.siteName == _siteFilter;
+        final matchesModel = _modelFilter == null || req.equipmentModel == _modelFilter;
+        
+        return matchesSearch && matchesStatus && matchesSite && matchesModel;
+      }).toList();
+    });
   }
 
   Color _getStatusColor(RequestStatus status) {
@@ -166,47 +193,143 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text('Заявки', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(_showFilters ? Icons.filter_list_off : Icons.filter_list, color: const Color(0xFF64748B)),
+            onPressed: () => setState(() => _showFilters = !_showFilters),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF64748B)),
+            onPressed: () => _loadRequests(),
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadRequests,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                children: [
-                  const Text(
-                    'Заявки',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E293B),
-                    ),
+          : Column(
+              children: [
+                // Поиск
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: CupertinoSearchTextField(
+                    controller: _searchController,
+                    placeholder: 'Поиск по названию, модели или ID',
+                    onChanged: (v) => _applyFilters(),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'История и статус сервисных работ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  if (_requests.isEmpty)
-                    _buildEmptyState()
-                  else
-                    ..._requests.asMap().entries.map((entry) {
-                      final request = entry.value;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: AnimatedCard(
-                          onTap: () => _showRequestDetails(request),
-                          child: _buildRequestCard(request),
+                ),
+                // Фильтры
+                if (_showFilters)
+                  _buildFiltersSection(),
+                
+                Expanded(
+                  child: _filteredRequests.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _filteredRequests.length,
+                          itemBuilder: (context, index) {
+                            final request = _filteredRequests[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: AnimatedCard(
+                                onTap: () => _showRequestDetails(request),
+                                child: _buildRequestCard(request),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    }),
-                ],
-              ),
+                ),
+              ],
             ),
+    );
+  }
+
+  Widget _buildFiltersSection() {
+    final sites = _allRequests.map((e) => e.siteName).whereType<String>().toSet().toList();
+    final models = _allRequests.map((e) => e.equipmentModel).whereType<String>().toSet().toList();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: Colors.white,
+      child: Column(
+        children: [
+           SingleChildScrollView(
+             scrollDirection: Axis.horizontal,
+             child: Row(
+               children: [
+                 _buildFilterChip<RequestStatus?>(
+                   label: 'Статус',
+                   value: _statusFilter,
+                   items: [null, ...RequestStatus.values],
+                   onChanged: (v) {
+                     setState(() => _statusFilter = v);
+                     _applyFilters();
+                   },
+                   labelBuilder: (v) => v == null ? 'Все статусы' : ServiceRequest(id:'', clientId: '', userId: '', type: RequestType.repair, title: '', description: '', status: v, createdAt: DateTime.now()).statusDisplayName,
+                 ),
+                 const SizedBox(width: 8),
+                 _buildFilterChip<String?>(
+                   label: 'Площадка',
+                   value: _siteFilter,
+                   items: [null, ...sites],
+                   onChanged: (v) {
+                     setState(() => _siteFilter = v);
+                     _applyFilters();
+                   },
+                   labelBuilder: (v) => v ?? 'Все площадки',
+                 ),
+                 const SizedBox(width: 8),
+                 _buildFilterChip<String?>(
+                   label: 'Модель',
+                   value: _modelFilter,
+                   items: [null, ...models],
+                   onChanged: (v) {
+                     setState(() => _modelFilter = v);
+                     _applyFilters();
+                   },
+                   labelBuilder: (v) => v ?? 'Все модели',
+                 ),
+               ],
+             ),
+           ),
+           const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip<T>({
+    required String label,
+    required T value,
+    required List<T> items,
+    required Function(T) onChanged,
+    required String Function(T) labelBuilder,
+  }) {
+    return PopupMenuButton<T>(
+      initialValue: value,
+      onSelected: onChanged,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: value != null ? const Color(0xFFEFF6FF) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: value != null ? const Color(0xFF3B82F6) : Colors.transparent),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(labelBuilder(value), style: TextStyle(fontSize: 13, color: value != null ? const Color(0xFF2563EB) : const Color(0xFF475569))),
+            const SizedBox(width: 4),
+            Icon(Icons.arrow_drop_down, size: 18, color: value != null ? const Color(0xFF2563EB) : const Color(0xFF475569)),
+          ],
+        ),
+      ),
+      itemBuilder: (context) => items.map((item) => PopupMenuItem<T>(value: item, child: Text(labelBuilder(item)))).toList(),
     );
   }
 
@@ -214,32 +337,53 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Верхняя часть: ID, Дата и Статус
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getRequestId(request),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF94A3B8), // Slate 400
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_formatDate(request.createdAt)}${request.scheduledAt != null ? ' (Выезд: ${_formatDate(request.scheduledAt!)})' : ''}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF94A3B8),
-                  ),
-                ),
-              ],
+            // Изображение оборудования
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+              ),
+              child: request.equipmentManufacturer != null && request.equipmentModel != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.asset(
+                        ImageService.getPossibleImagePaths(request.equipmentManufacturer!, request.equipmentModel!).first,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.precision_manufacturing, size: 24, color: Color(0xFF94A3B8)),
+                      ),
+                    )
+                  : const Icon(Icons.precision_manufacturing, size: 24, color: Color(0xFF94A3B8)),
             ),
-            const Spacer(),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _getRequestId(request),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF94A3B8), // Slate 400
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_formatDate(request.createdAt)}${request.scheduledAt != null ? ' (Выезд: ${_formatDate(request.scheduledAt!)})' : ''}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             AnimatedStatusBadge(
               text: request.statusDisplayName,
               color: _getStatusColor(request.status),

@@ -7,6 +7,7 @@ import '../../models/service_request.dart';
 import '../../models/equipment.dart';
 import '../../services/supabase_service.dart';
 import '../../services/image_service.dart';
+import '../chat_screen.dart';
 import '../assign_engineer_dialog.dart';
 import '../equipment_specifications_widget.dart';
 import '../equipment_maintenance_widget.dart';
@@ -162,7 +163,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withOpacity(0.05),
                       offset: const Offset(0, -4),
                       blurRadius: 10,
                     )
@@ -174,7 +175,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
           if (_isLoading)
             Container(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: Colors.white.withOpacity(0.7),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],
@@ -322,11 +323,15 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           icon: Icons.person_outline,
           isCompleted: _currentRequest.approvedAt != null,
           color: const Color(0xFF2563EB),
+          trailing: _currentRequest.engineerId != null ? IconButton(
+            icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF2563EB), size: 20),
+            onPressed: () => _openChat(),
+          ) : null,
         ),
         _buildTimelineStep(
           title: _currentRequest.scheduledAt != null ? 'Выезд назначен' : 'Выезд',
-          time: _currentRequest.scheduledAt,
-          actor: _currentRequest.scheduledAt != null && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
+          time: _currentRequest.scheduledTimestampAt ?? _currentRequest.scheduledAt, // Если нет новой метки, используем дату (временно)
+          actor: (_currentRequest.scheduledTimestampAt != null || _currentRequest.scheduledAt != null) && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
           detail: _currentRequest.scheduledAt != null ? 'Дата выезда: ${DateFormat('dd.MM.yyyy').format(_currentRequest.scheduledAt!)}' : null,
           icon: Icons.local_shipping_outlined,
           isCompleted: _currentRequest.scheduledAt != null,
@@ -344,8 +349,18 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           title: _currentRequest.engineerCompletedAt != null ? 'Отчёт сдан' : 'Отчёт',
           time: _currentRequest.engineerCompletedAt,
           actor: _currentRequest.engineerCompletedAt != null && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
+          detail: (_currentRequest.recommendations != null && _currentRequest.recommendations!.isNotEmpty) ? 'Рекомендации: ${_currentRequest.recommendations}' : null,
           icon: Icons.assignment_outlined,
           isCompleted: _currentRequest.engineerCompletedAt != null,
+          color: const Color(0xFF2563EB),
+        ),
+        _buildTimelineStep(
+          title: _currentRequest.status == RequestStatus.waitingForInvoice || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed ? 'Принято клиентом' : 'Приемка',
+          time: _currentRequest.clientAcceptedAt,
+          actor: _currentRequest.clientAcceptedAt != null ? (_currentRequest.creatorName ?? 'Клиент') : null,
+          detail: (_currentRequest.clientAcceptanceComment != null && _currentRequest.clientAcceptanceComment!.isNotEmpty) ? 'Замечания: ${_currentRequest.clientAcceptanceComment}' : null,
+          icon: Icons.check_circle_outline,
+          isCompleted: _currentRequest.clientAcceptedAt != null || _currentRequest.status == RequestStatus.waitingForInvoice || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed,
           color: const Color(0xFF2563EB),
         ),
         _buildTimelineStep(
@@ -379,6 +394,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     bool isCompleted = false,
     bool isLast = false,
     required Color color,
+    Widget? trailing,
   }) {
     final activeColor = color;
     final inactiveColor = const Color(0xFFCBD5E1); // slate-300
@@ -427,13 +443,20 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: isCompleted ? FontWeight.w500 : FontWeight.normal,
-                      color: const Color(0xFF1E293B), // slate-800
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: isCompleted ? FontWeight.w500 : FontWeight.normal,
+                            color: const Color(0xFF1E293B), // slate-800
+                          ),
+                        ),
+                      ),
+                      if (trailing != null) trailing,
+                    ],
                   ),
                   if (time != null || actor != null) ...[
                     const SizedBox(height: 4),
@@ -738,9 +761,9 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => launchUrl(Uri.parse('tel:${phone!.replaceAll(RegExp(r'[^\d+]'), '')}')),
-                    icon: const Icon(Icons.phone, size: 16),
-                    label: const Text('Позвонить'),
+                    onPressed: () => _openChat(),
+                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                    label: const Text('Написать'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF2563EB),
                       side: const BorderSide(color: Color(0xFFDBEAFE)),
@@ -753,14 +776,12 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      // Тут логика для мессенджера или смс
-                    },
-                    icon: const Icon(Icons.message_outlined, size: 16),
-                    label: const Text('Написать'),
+                    onPressed: () => launchUrl(Uri.parse('tel:${phone!.replaceAll(RegExp(r'[^\d+]'), '')}')),
+                    icon: const Icon(Icons.phone_outlined, size: 16),
+                    label: const Text('Позвонить'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF2563EB),
-                      side: const BorderSide(color: Color(0xFFDBEAFE)),
+                      foregroundColor: const Color(0xFF16A34A),
+                      side: const BorderSide(color: Color(0xFFDCFCE7)),
                       backgroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -849,8 +870,18 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     if (isAssignedEngineer && _currentRequest.status == RequestStatus.inProgress) {
       buttons.add(
-        _buildActionButton('Завершить работы', const Color(0xFFF59E0B), () {
+        _buildActionButton('Завершить работы и сдать отчет', const Color(0xFFF59E0B), () {
            _completeWork();
+        }),
+      );
+    }
+
+    // Кнопка приемки для клиента (автора или менеджера)
+    final bool isRequester = widget.currentUser.id == _currentRequest.userId || widget.currentUser.role == AppUserModel.UserRole.siteManager || widget.currentUser.role == AppUserModel.UserRole.companyResponsible;
+    if (isRequester && _currentRequest.status == RequestStatus.waitingForAcceptance) {
+      buttons.add(
+        _buildActionButton('Принять работы', const Color(0xFF10B981), () {
+           _acceptWorkDialog();
         }),
       );
     }
@@ -910,6 +941,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       builder: (context) => AssignEngineerDialog(
         requestId: _currentRequest.id,
         supplierUserId: isSupplier ? widget.currentUser.id : null,
+        approverName: widget.currentUser.fullName,
         onEngineerAssigned: () {
           _refreshRequest();
         },
@@ -959,33 +991,109 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
   Future<void> _completeWork() async {
     String comment = '';
-    await showDialog(
+    String recommendations = '';
+    
+    // Сначала окно выполненных работ
+    final bool? workDone = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Завершение работы'),
+        title: const Text('Выполненные работы'),
         content: TextField(
           decoration: const InputDecoration(
-            hintText: 'Опишите выполненные работы и рекомендации по дальнейшему ремонту...',
+            hintText: 'Опишите, что именно было сделано...',
             border: OutlineInputBorder(),
           ),
           maxLines: 5,
           onChanged: (v) => comment = v,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Далее')),
+        ],
+      )
+    );
+
+    if (workDone != true || !mounted) return;
+
+    // Затем окно рекомендаций
+    final bool? recDone = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Рекомендации'),
+        content: TextField(
+          decoration: const InputDecoration(
+            hintText: 'Напишите рекомендации по дальнейшему обслуживанию...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 5,
+          onChanged: (v) => recommendations = v,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Пропустить')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Завершить')),
+        ],
+      )
+    );
+
+    if (recDone == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        await SupabaseService.submitEngineerReport(_currentRequest.id, comment, recommendations);
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Отчет отправлен на приемку клиенту!'), backgroundColor: Colors.green,));
+           _refreshRequest();
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+        }
+      }
+    }
+  }
+
+  Future<void> _acceptWorkDialog() async {
+    String comment = '';
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Приемка работ'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Работы выполнены в полном объеме?'),
+            const SizedBox(height: 16),
+            TextField(
+              decoration: const InputDecoration(
+                hintText: 'Замечания (если есть)...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              onChanged: (v) => comment = v,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false), 
+            child: const Text('Есть замечания', style: TextStyle(color: Colors.red)),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true), 
-            child: const Text('Завершить')
+            child: const Text('Рабты приняты')
           ),
         ],
       )
-    ).then((confirmed) async {
-      if (confirmed == true && mounted) {
+    ).then((accepted) async {
+      if (accepted != null && mounted) {
         setState(() => _isLoading = true);
         try {
-          await SupabaseService.completeEngineerWork(_currentRequest.id, comment);
+          await SupabaseService.acceptServiceWork(_currentRequest.id, isAccepted: accepted, comment: comment);
           if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Работы завершены, заявка ждет счет!'), backgroundColor: Colors.green,));
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+               content: Text(accepted ? 'Работы приняты!' : 'Замечания отправлены инженеру'), 
+               backgroundColor: accepted ? Colors.green : Colors.orange,
+             ));
              _refreshRequest();
           }
         } catch (e) {
@@ -1051,6 +1159,19 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
       }
     }
+  }
+
+  void _openChat() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          requestId: _currentRequest.id,
+          requestTitle: _currentRequest.title,
+          currentUser: widget.currentUser,
+        ),
+      ),
+    );
   }
 
   void _showEquipmentDetails(Equipment equipment) {

@@ -242,10 +242,15 @@ class TelegramBotService {
 *T-Co Service Support*
       ''';
 
-      return await _sendMessage(chatId, message);
+       return await _sendMessage(chatId, message);
     } catch (e) {
       print('Error sending bot instructions: $e');
       return false;
     }
+  }
+
+  /// Прямая отправка уведомления по chat_id
+  static Future<bool> notifyUserDirectly(String chatId, String message) async {
+    return await _sendMessage(chatId, message);
   }
 }

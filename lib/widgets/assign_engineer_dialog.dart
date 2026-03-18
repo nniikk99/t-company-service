@@ -11,6 +11,7 @@ class AssignEngineerDialog extends StatefulWidget {
     super.key,
     required this.requestId,
     this.supplierUserId,
+    required this.approverName,
     this.onEngineerAssigned,
   });
 
@@ -75,7 +76,8 @@ class _AssignEngineerDialogState extends State<AssignEngineerDialog> {
           requestId: widget.requestId,
           engineerId: _selectedEngineer!.id,
           supplierUserId: widget.supplierUserId!,
-          startWorkImmediately: false, // Можно добавить опцию для немедленного старта
+          approverName: widget.approverName,
+          startWorkImmediately: false,
         );
       } else {
         await SupabaseService.assignRequestToEngineer(

@@ -11,6 +11,7 @@ enum RequestStatus {
   approved,        // Одобрена
   rejected,        // Отклонена
   inProgress,      // В работе
+  waitingForAcceptance, // Ждет приемки клиентом
   waitingForInvoice, // Ждет счет
   waitingForPayment, // Ждет оплату
   completed,       // Выполнена
@@ -59,6 +60,7 @@ class ServiceRequest {
   // Поля данных из джойнов (Supabase)
   final String? equipmentName;
   final String? equipmentModel;
+  final String? equipmentManufacturer;
   final String? serialNumber;
   final String? siteName;
   final String? engineerName;
@@ -67,6 +69,14 @@ class ServiceRequest {
   final String? operatorContact;
   final String? siteManagerContact;
   final String? responsibleContact;
+  final String? siteAddress;
+  
+  // Дополнительные поля для расширенного таймлайна
+  final DateTime? scheduledTimestampAt; // Когда была назначена дата выезда
+  final String? recommendations;         // Рекомендации инженера
+  final bool? isAcceptedByClient;        // Приняты ли работы клиентом
+  final String? clientAcceptanceComment; // Комментарий клиента при приемке
+  final DateTime? clientAcceptedAt;      // Когда клиент принял работы
 
   
   // Поля инженера
@@ -105,6 +115,7 @@ class ServiceRequest {
     this.engineerCompletedAt,
     this.equipmentName,
     this.equipmentModel,
+    this.equipmentManufacturer,
     this.serialNumber,
     this.siteName,
     this.engineerName,
@@ -114,6 +125,12 @@ class ServiceRequest {
     this.operatorContact,
     this.siteManagerContact,
     this.responsibleContact,
+    this.siteAddress,
+    this.scheduledTimestampAt,
+    this.recommendations,
+    this.isAcceptedByClient,
+    this.clientAcceptanceComment,
+    this.clientAcceptedAt,
   });
 
   // Геттеры для удобства
@@ -129,6 +146,8 @@ class ServiceRequest {
         return 'Отклонена';
       case RequestStatus.inProgress:
         return 'В работе';
+      case RequestStatus.waitingForAcceptance:
+        return 'Ждет приемки';
       case RequestStatus.waitingForInvoice:
         return 'Ждет счет';
       case RequestStatus.waitingForPayment:
@@ -286,6 +305,7 @@ class ServiceRequest {
           : null,
       equipmentName: equipment?['name'],
       equipmentModel: equipment?['model'],
+      equipmentManufacturer: equipment?['manufacturer'],
       serialNumber: equipment?['serial_number'],
       siteName: site?['name'] ?? equipment?['location'],
       engineerName: engineerFullName,
@@ -294,7 +314,13 @@ class ServiceRequest {
       companyInn: json['company_inn'],
       operatorContact: operatorDetails,
       siteManagerContact: managerDetails,
-      responsibleContact: creatorDetails, // Здесь выводим данные автора заявки
+      responsibleContact: creatorDetails,
+      siteAddress: site?['address'],
+      scheduledTimestampAt: json['scheduled_timestamp_at'] != null ? DateTime.parse(json['scheduled_timestamp_at']) : null,
+      recommendations: json['recommendations'],
+      isAcceptedByClient: json['is_accepted_by_client'],
+      clientAcceptanceComment: json['client_acceptance_comment'],
+      clientAcceptedAt: json['client_accepted_at'] != null ? DateTime.parse(json['client_accepted_at']) : null,
     );
   }
 

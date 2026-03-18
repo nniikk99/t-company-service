@@ -8,6 +8,8 @@ import '../models/service_request.dart';
 import '../models/user_company.dart';
 import '../models/equipment_model.dart';
 import 'storage_service.dart';
+import 'telegram_bot_service.dart';
+import '../models/request_message.dart';
 
 class SupabaseService {
   static final SupabaseClient _client = Supabase.instance.client;
@@ -402,6 +404,9 @@ class SupabaseService {
           'approved_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
+        
+    // Уведомляем участников
+    _notifyParties(requestId, 'Заявка одобрена', 'Ваша заявка одобрена администратором.');
   }
 
   // === PARTS REQUESTS ===
@@ -1318,13 +1323,12 @@ class SupabaseService {
     }
   }
 
-  /// Назначение инженера поставщиком к заявке
-  /// Включает проверки прав и принадлежности
   static Future<void> assignEngineerToRequest({
     required String requestId,
     required String engineerId,
     required String supplierUserId,
-    bool startWorkImmediately = false, // Начинать работу сразу или оставить approved
+    required String approverName, // Имя того, кто назначает
+    bool startWorkImmediately = false,
   }) async {
     try {
       // Проверка 1: Заявка принадлежит этому поставщику
@@ -1373,12 +1377,19 @@ class SupabaseService {
         updateData['engineer_started_at'] = DateTime.now().toIso8601String();
       }
 
-      await _client
+      // Дополнительно ставим отметку об одобрении (для таймлайна)
+      updateData['approved_at'] = DateTime.now().toIso8601String();
+      updateData['approved_by'] = approverName;
+
+       await _client
           .from('service_requests')
           .update(updateData)
           .eq('id', requestId);
 
       print('✅ Инженер $engineerId успешно назначен на заявку $requestId');
+      
+      // Уведомляем участников
+      _notifyParties(requestId, 'Назначен инженер', 'На вашу заявку назначен инженер.');
     } catch (e) {
       print('❌ Ошибка назначения инженера: $e');
       rethrow;
@@ -1448,6 +1459,8 @@ class SupabaseService {
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
+
+    _notifyParties(requestId, 'Работы начаты', 'Инженер приступил к выполнению работ по вашей заявке.');
   }
 
   /// Установка назначенной даты
@@ -1456,22 +1469,48 @@ class SupabaseService {
         .from('service_requests')
         .update({
           'scheduled_at': date.toIso8601String(),
+          'scheduled_timestamp_at': DateTime.now().toIso8601String(), // Время совершения действия
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
+
+    _notifyParties(requestId, 'Выезд запланирован', 'Назначена дата выезда инженера: ${DateFormat('dd.MM.yyyy').format(date)}');
   }
 
-  /// Завершение работы инженера над заявкой (перевод в "Ждет счет")
-  static Future<void> completeEngineerWork(String requestId, String comment) async {
+  /// Сдача отчета инженером (перевод в "Ждет приемки")
+  static Future<void> submitEngineerReport(String requestId, String comment, String recommendations) async {
     await _client
         .from('service_requests')
         .update({
-          'status': 'waitingForInvoice',
+          'status': 'waitingForAcceptance',
           'engineer_comment': comment,
+          'recommendations': recommendations,
           'engineer_completed_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
+
+    _notifyParties(requestId, 'Отчет готов', 'Инженер подготовил отчет о выполнении. Пожалуйста, проверьте и примите работы.');
+  }
+
+  /// Приемка работ клиентом
+  static Future<void> acceptServiceWork(String requestId, {required bool isAccepted, String? comment}) async {
+    await _client
+        .from('service_requests')
+        .update({
+          'status': isAccepted ? 'waitingForInvoice' : 'inProgress', // Если есть серьезные замечания, можно вернуть в работу
+          'is_accepted_by_client': isAccepted,
+          'client_acceptance_comment': comment,
+          'client_accepted_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', requestId);
+
+    if (isAccepted) {
+      _notifyParties(requestId, 'Работы приняты', 'Клиент принял выполненные работы.');
+    } else {
+      _notifyParties(requestId, 'Работы отклонены', 'Клиент не принял работу. Комментарий: ${comment ?? 'Без комментария'}');
+    }
   }
 
   /// Выставление счета администратором (перевод в "Ждет оплату")
@@ -1484,6 +1523,8 @@ class SupabaseService {
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
+
+    _notifyParties(requestId, 'Счет выставлен', 'Для вашей заявки выставлен счет на сумму $amount ₽.');
   }
 
   /// Обновление статуса заявки
@@ -1495,6 +1536,10 @@ class SupabaseService {
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
+        
+    // Уведомляем участников (кроме стандартных статусов, которые имеют свои методы)
+    final String statusDisplay = ServiceRequest(id:'', clientId: '', userId: '', type: RequestType.repair, title: '', description: '', status: status, createdAt: DateTime.now()).statusDisplayName;
+    _notifyParties(requestId, 'Статус обновлен', 'Статус вашей заявки изменен на "$statusDisplay"');
   }
 
   /// Получение заявки по ID
@@ -2587,5 +2632,143 @@ class SupabaseService {
     ).subscribe();
     
     return channel;
+  }
+
+  // === CHAT / MESSAGES ===
+
+  static Future<List<RequestMessage>> getRequestMessages(String requestId) async {
+    try {
+      final response = await _client
+          .from('request_messages')
+          .select('*, sender:user_profiles!request_messages_sender_id_fkey(*)')
+          .eq('request_id', requestId)
+          .order('created_at', ascending: true);
+      
+      return (response as List).map((json) => RequestMessage.fromJson(json)).toList();
+    } catch (e) {
+      print('❌ Ошибка загрузки сообщений: $e');
+      return [];
+    }
+  }
+
+  static Future<void> sendRequestMessage({
+    required String requestId,
+    required String senderId,
+    String? message,
+    List<String>? attachments,
+  }) async {
+    try {
+      final response = await _client.from('request_messages').insert({
+        'request_id': requestId,
+        'sender_id': senderId,
+        'message': message,
+        'attachments': attachments,
+      }).select().single();
+      
+      // Уведомляем участников о новом сообщении
+      _notifyParties(requestId, 'Новое сообщение', 'У вас новое сообщение в заявке.', message: message);
+      
+      print('✅ Сообщение отправлено: ${response['id']}');
+    } catch (e) {
+      print('❌ Ошибка отправки сообщения: $e');
+      rethrow;
+    }
+  }
+
+  static RealtimeChannel subscribeToRequestMessages(String requestId, Function(RequestMessage) onNewMessage) {
+    print('🔄 Подписка на сообщения заявки $requestId...');
+    final channel = _client.channel('public:request_messages:request_id=eq.$requestId');
+    
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'request_messages',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'request_id',
+        value: requestId,
+      ),
+      callback: (payload) async {
+        print('🔔 Новое сообщение в заявке $requestId');
+        // Загружаем полное сообщение (с джойном отправителя)
+        final messages = await getRequestMessages(requestId);
+        if (messages.isNotEmpty) {
+           onNewMessage(messages.last);
+        }
+      },
+    ).subscribe();
+    
+    return channel;
+  }
+
+  // === NOTIFICATION SYSTEM ===
+
+  static Future<void> _notifyParties(String requestId, String title, String body, {String? message}) async {
+    try {
+      // 1. Получаем заявку и участников
+      final req = await getRequestById(requestId);
+      if (req == null) return;
+      
+      final authorId = req.userId;
+      final engineerId = req.assignedEngineerId;
+      
+      // 2. Добавляем уведомление в системную таблицу (для UI Mini App)
+      // Нам нужно создать уведомление для каждого участника (пока просто в таблицу)
+      // В реальности тут лучше цикл по всем причастным.
+      
+      Set<String> notifyIds = {authorId};
+      if (engineerId != null) notifyIds.add(engineerId);
+      
+      // Добавляем администраторов для уведомлений
+      try {
+        final adminsResponse = await _client
+            .from('user_profiles')
+            .select('id')
+            .inFilter('role', ['superAdmin', 'administrator']);
+        
+        for (var admin in adminsResponse as List) {
+          notifyIds.add(admin['id']);
+        }
+      } catch (e) {
+        print('⚠️ Ошибка получения списка админов для уведомления: $e');
+      }
+      
+      for (final uid in notifyIds) {
+        // Пропускаем если отправитель это текущий пользователь (опционально)
+        if (uid == currentUser?.id) continue;
+        
+        await createNotification(
+          userId: uid,
+          title: title,
+          message: body,
+          type: 'requestUpdate',
+          relatedId: requestId,
+        );
+        
+        // 3. Отправляем в Telegram
+        _sendTelegramNotification(uid, '$title: $body ${message != null ? '\n\n"$message"' : ''}');
+      }
+      
+      // Также уведомляем админов, если тип уведомления критичен (или просто сообщение)
+      // Для примера отправим уведомление в ТГ всем админам (если у них привязан ТГ)
+    } catch (e) {
+      print('⚠️ Ошибка при рассылке уведомлений: $e');
+    }
+  }
+
+  static Future<void> _sendTelegramNotification(String userId, String text) async {
+    try {
+      final profile = await getUserProfile(userId);
+      if (profile == null) return;
+      
+      final String? tgIdStr = profile['telegram_id']?.toString();
+      final String? fullName = '${profile['first_name']} ${profile['last_name']}';
+      
+      if (tgIdStr != null && tgIdStr.isNotEmpty) {
+         TelegramBotService.notifyUserDirectly(tgIdStr, text);
+      }
+    } catch (e) {
+      print('⚠️ Ошибка отправки ТГ уведомления: $e');
+    }
   }
 }
