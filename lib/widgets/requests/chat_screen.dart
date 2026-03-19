@@ -310,13 +310,16 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           IconButton(
             icon: const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF2563EB)),
+            padding: const EdgeInsets.only(bottom: 12),
             onPressed: _pickImage,
           ),
           Expanded(
             child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 4),
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
@@ -328,21 +331,29 @@ class _ChatScreenState extends State<ChatScreen> {
                   hintText: 'Сообщение...',
                   border: InputBorder.none,
                   hintStyle: TextStyle(color: Color(0xFF94A3B8)),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
-                maxLines: null,
+                maxLines: 4,
+                minLines: 1,
                 keyboardType: TextInputType.multiline,
               ),
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF2563EB),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-              onPressed: _sendMessage,
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Container(
+              height: 40,
+              width: 40,
+              decoration: const BoxDecoration(
+                color: Color(0xFF2563EB),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                onPressed: _sendMessage,
+              ),
             ),
           ),
         ],

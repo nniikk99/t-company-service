@@ -692,7 +692,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           _buildCardHeader(Icons.location_on_outlined, 'Площадка'),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(12),
