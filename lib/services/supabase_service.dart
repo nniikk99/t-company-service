@@ -1531,6 +1531,7 @@ class SupabaseService {
         .from('service_requests')
         .update({
           'scheduled_at': date.toIso8601String(),
+          'scheduled_timestamp_at': DateTime.now().toIso8601String(), // Время совершения действия
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);

@@ -314,13 +314,14 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           IconButton(
             icon: const Icon(Icons.add_photo_alternate_outlined, color: Color(0xFF2563EB)),
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 8),
+            constraints: const BoxConstraints(),
             onPressed: _pickImage,
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(24),
@@ -331,29 +332,27 @@ class _ChatScreenState extends State<ChatScreen> {
                   hintText: 'Сообщение...',
                   border: InputBorder.none,
                   hintStyle: TextStyle(color: Color(0xFF94A3B8)),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
-                maxLines: 4,
+                maxLines: 5,
                 minLines: 1,
-                keyboardType: TextInputType.multiline,
+                style: const TextStyle(fontSize: 15),
               ),
             ),
           ),
           const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Container(
-              height: 40,
-              width: 40,
-              decoration: const BoxDecoration(
-                color: Color(0xFF2563EB),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                onPressed: _sendMessage,
-              ),
+          Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            height: 40,
+            width: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFF2563EB),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              onPressed: _sendMessage,
             ),
           ),
         ],
