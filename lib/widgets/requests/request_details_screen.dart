@@ -96,7 +96,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // Светло-серый фон
+      backgroundColor: const Color(0xFFF8FAFC), // РЎРІРµС‚Р»Рѕ-СЃРµСЂС‹Р№ С„РѕРЅ
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -125,7 +125,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'от ${_dateFormat.format(_currentRequest.createdAt)}',
+                'РѕС‚ ${_dateFormat.format(_currentRequest.createdAt)}',
                 style: const TextStyle(
                   color: Color(0xFF64748B),
                   fontSize: 14,
@@ -152,6 +152,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   _buildEngineerResultCard(),
                   const SizedBox(height: 12),
                 ],
+                if (_currentRequest.recommendations != null && _currentRequest.recommendations!.isNotEmpty) ...[
+                  _buildRecommendationsCard(),
+                  const SizedBox(height: 12),
+                ],
                 _buildEquipmentCard(),
                 const SizedBox(height: 12),
                 _buildSiteCard(),
@@ -163,6 +167,9 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   const SizedBox(height: 12),
                   _buildPaymentCard(),
                 ],
+                const SizedBox(height: 12),
+                _buildChatCard(),
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -264,14 +271,14 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
-  Widget _buildCard({required Widget child}) {
+  Widget _buildCard({required Widget child, EdgeInsetsGeometry? padding}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
-      padding: const EdgeInsets.all(16),
+      padding: padding ?? const EdgeInsets.all(16),
       child: child,
     );
   }
@@ -333,23 +340,23 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         _buildTimelineStep(
           title: _currentRequest.approvedAt != null ? 'Назначен инженер' : 'Назначение инженера',
           time: _currentRequest.approvedAt,
-          actor: _currentRequest.approvedAt != null ? (_currentRequest.approvedByName ?? 'Администратор') : null,
-          detail: _currentRequest.engineerName != null ? 'Инженер: ${_currentRequest.engineerName}' : null,
+          actor: _currentRequest.approvedAt != null ? (_currentRequest.approvedByName ?? 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ') : null,
+          detail: _currentRequest.engineerName != null ? 'РРЅР¶РµРЅРµСЂ: ${_currentRequest.engineerName}' : null,
           icon: Icons.person_outline,
           isCompleted: _currentRequest.approvedAt != null || _currentRequest.assignedEngineerId != null,
           color: const Color(0xFF2563EB),
         ),
         _buildTimelineStep(
-          title: _currentRequest.scheduledAt != null ? 'Выезд назначен' : 'Выезд',
-          time: _currentRequest.scheduledTimestampAt ?? _currentRequest.scheduledAt, // Если нет новой метки, используем дату (временно)
+          title: _currentRequest.scheduledAt != null ? 'Р’С‹РµР·Рґ РЅР°Р·РЅР°С‡РµРЅ' : 'Р’С‹РµР·Рґ',
+          time: _currentRequest.scheduledTimestampAt ?? _currentRequest.scheduledAt, // Р•СЃР»Рё РЅРµС‚ РЅРѕРІРѕР№ РјРµС‚РєРё, РёСЃРїРѕР»СЊР·СѓРµРј РґР°С‚Сѓ (РІСЂРµРјРµРЅРЅРѕ)
           actor: (_currentRequest.scheduledTimestampAt != null || _currentRequest.scheduledAt != null) && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
-          detail: _currentRequest.scheduledAt != null ? 'Дата выезда: ${DateFormat('dd.MM.yyyy').format(_currentRequest.scheduledAt!)}' : null,
+          detail: _currentRequest.scheduledAt != null ? 'Р”Р°С‚Р° РІС‹РµР·РґР°: ${DateFormat('dd.MM.yyyy').format(_currentRequest.scheduledAt!)}' : null,
           icon: Icons.local_shipping_outlined,
           isCompleted: _currentRequest.scheduledAt != null,
           color: const Color(0xFF2563EB),
         ),
         _buildTimelineStep(
-          title: 'В работе',
+          title: 'Р’ СЂР°Р±РѕС‚Рµ',
           time: _currentRequest.engineerStartedAt,
           actor: _currentRequest.engineerStartedAt != null && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
           icon: Icons.build_outlined,
@@ -357,36 +364,35 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           color: const Color(0xFF2563EB),
         ),
         _buildTimelineStep(
-          title: _currentRequest.engineerCompletedAt != null ? 'Отчёт сдан' : 'Отчёт',
+          title: _currentRequest.engineerCompletedAt != null ? 'Выполнена' : 'Выполнение',
           time: _currentRequest.engineerCompletedAt,
           actor: _currentRequest.engineerCompletedAt != null && _currentRequest.engineerName != null ? _currentRequest.engineerName : null,
-          detail: (_currentRequest.recommendations != null && _currentRequest.recommendations!.isNotEmpty) ? 'Рекомендации: ${_currentRequest.recommendations}' : null,
           icon: Icons.assignment_outlined,
           isCompleted: _currentRequest.engineerCompletedAt != null,
           color: const Color(0xFF2563EB),
         ),
         _buildTimelineStep(
-          title: _currentRequest.status == RequestStatus.waitingForInvoice || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed ? 'Принято клиентом' : 'Приемка',
+          title: _currentRequest.status == RequestStatus.waitingForInvoice || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed ? 'РџСЂРёРЅСЏС‚Рѕ РєР»РёРµРЅС‚РѕРј' : 'РџСЂРёРµРјРєР°',
           time: _currentRequest.clientAcceptedAt,
-          actor: _currentRequest.clientAcceptedAt != null ? (_currentRequest.creatorName ?? 'Клиент') : null,
-          detail: (_currentRequest.clientAcceptanceComment != null && _currentRequest.clientAcceptanceComment!.isNotEmpty) ? 'Замечания: ${_currentRequest.clientAcceptanceComment}' : null,
+          actor: _currentRequest.clientAcceptedAt != null ? (_currentRequest.creatorName ?? 'РљР»РёРµРЅС‚') : null,
+          detail: (_currentRequest.clientAcceptanceComment != null && _currentRequest.clientAcceptanceComment!.isNotEmpty) ? 'Р—Р°РјРµС‡Р°РЅРёСЏ: ${_currentRequest.clientAcceptanceComment}' : null,
           icon: Icons.check_circle_outline,
           isCompleted: _currentRequest.clientAcceptedAt != null || _currentRequest.status == RequestStatus.waitingForInvoice || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed,
           color: const Color(0xFF2563EB),
         ),
         _buildTimelineStep(
-          title: _currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed ? 'Счёт выставлен' : 'Счёт',
-          time: (_currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed) ? _currentRequest.engineerCompletedAt : null, // Примерное время
-          actor: (_currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed) ? 'Администратор' : null,
-          detail: _currentRequest.invoiceAmount != null ? 'Сумма: ${_currentRequest.invoiceAmount} ₽' : null,
+          title: _currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed ? 'РЎС‡С‘С‚ РІС‹СЃС‚Р°РІР»РµРЅ' : 'РЎС‡С‘С‚',
+          time: (_currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed) ? _currentRequest.engineerCompletedAt : null, // РџСЂРёРјРµСЂРЅРѕРµ РІСЂРµРјСЏ
+          actor: (_currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed) ? 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ' : null,
+          detail: _currentRequest.invoiceAmount != null ? 'РЎСѓРјРјР°: ${_currentRequest.invoiceAmount} в‚Ѕ' : null,
           icon: Icons.payments_outlined,
           isCompleted: _currentRequest.invoiceAmount != null || _currentRequest.status == RequestStatus.waitingForPayment || _currentRequest.status == RequestStatus.completed,
           color: const Color(0xFF2563EB),
         ),
         _buildTimelineStep(
-          title: _currentRequest.completedAt != null ? 'Закрыта' : 'Закрытие',
+          title: _currentRequest.completedAt != null ? 'Р—Р°РєСЂС‹С‚Р°' : 'Р—Р°РєСЂС‹С‚РёРµ',
           time: _currentRequest.completedAt,
-          actor: _currentRequest.completedAt != null ? 'Администратор' : null,
+          actor: _currentRequest.completedAt != null ? 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ' : null,
           icon: Icons.check_circle_outline,
           isCompleted: _currentRequest.completedAt != null,
           color: const Color(0xFF2563EB),
@@ -414,7 +420,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Столбец с иконкой и линией
+          // РЎС‚РѕР»Р±РµС† СЃ РёРєРѕРЅРєРѕР№ Рё Р»РёРЅРёРµР№
           SizedBox(
             width: 40,
             child: Column(
@@ -440,14 +446,14 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   Expanded(
                     child: Container(
                       width: 2,
-                      color: isCompleted ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0), // blue-200 или slate-200
+                      color: isCompleted ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0), // blue-200 РёР»Рё slate-200
                     ),
                   ),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          // Текстовая часть
+          // РўРµРєСЃС‚РѕРІР°СЏ С‡Р°СЃС‚СЊ
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(bottom: 24, top: 4),
@@ -472,7 +478,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   if (time != null || actor != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      '${time != null ? DateFormat('dd.MM.yyyy HH:mm').format(time) : ''}${time != null && actor != null ? ' — ' : ''}${actor ?? ''}',
+                      '${time != null ? DateFormat('dd.MM.yyyy HH:mm').format(time) : ''}${time != null && actor != null ? ' вЂ” ' : ''}${actor ?? ''}',
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF64748B), // slate-500
@@ -545,7 +551,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _equipment?.fullTitle ?? _currentRequest.equipmentName ?? 'Оборудование',
+                          _equipment?.fullTitle ?? _currentRequest.equipmentName ?? 'РћР±РѕСЂСѓРґРѕРІР°РЅРёРµ',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -574,13 +580,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   Widget _buildEngineerCard() {
-    String initials = _currentRequest.engineerName?.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase() ?? 'И';
+    String initials = _currentRequest.engineerName?.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase() ?? 'Р';
     
     return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCardHeader(Icons.engineering_outlined, 'Назначенный инженер'),
+          _buildCardHeader(Icons.engineering_outlined, 'РќР°Р·РЅР°С‡РµРЅРЅС‹Р№ РёРЅР¶РµРЅРµСЂ'),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -607,7 +613,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _currentRequest.engineerName ?? 'Инженер не указан',
+                      _currentRequest.engineerName ?? 'РРЅР¶РµРЅРµСЂ РЅРµ СѓРєР°Р·Р°РЅ',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -615,7 +621,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                       ),
                     ),
                     const Text(
-                      'Сервисный инженер компании',
+                      'РЎРµСЂРІРёСЃРЅС‹Р№ РёРЅР¶РµРЅРµСЂ РєРѕРјРїР°РЅРёРё',
                       style: TextStyle(
                         fontSize: 13,
                         color: Color(0xFF64748B),
@@ -627,7 +633,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               OutlinedButton.icon(
                 onPressed: () => _openChat(),
                 icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: const Text('Написать'),
+                label: const Text('РќР°РїРёСЃР°С‚СЊ'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF2563EB),
                   side: const BorderSide(color: Color(0xFFDBEAFE)),
@@ -684,6 +690,70 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
+  Widget _buildRecommendationsCard() {
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(Icons.lightbulb_outline_rounded, 'Рекомендации инженера'),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED), // Light orange/yellow
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFEEDD3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Рекомендовано:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFC2410C),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _currentRequest.recommendations ?? '',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF9A3412),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatCard() {
+    return _buildCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: _buildCardHeader(Icons.chat_bubble_outline_rounded, 'Чат по заявке'),
+          ),
+          ChatWidget(
+            requestId: _currentRequest.id,
+            requestTitle: _currentRequest.title,
+            currentUser: widget.currentUser,
+            height: 450,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSiteCard() {
     return _buildCard(
       child: Column(
@@ -702,7 +772,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.request.siteName ?? 'Не указано',
+                  widget.request.siteName ?? 'РќРµ СѓРєР°Р·Р°РЅРѕ',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -711,7 +781,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _currentRequest.siteAddress ?? 'Адрес не указан',
+                  _currentRequest.siteAddress ?? 'РђРґСЂРµСЃ РЅРµ СѓРєР°Р·Р°РЅ',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF64748B),
@@ -722,7 +792,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   _buildSmallButton(
                     onPressed: () => _openMap(_currentRequest.siteAddress!),
                     icon: Icons.map_outlined,
-                    label: 'Открыть на карте',
+                    label: 'РћС‚РєСЂС‹С‚СЊ РЅР° РєР°СЂС‚Рµ',
                   ),
                 ],
               ],
@@ -741,11 +811,11 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           _buildCardHeader(Icons.phone_outlined, 'Контакты'),
           const SizedBox(height: 16),
           if (widget.request.responsibleContact != null)
-            _buildContactItem('Инициатор', widget.request.responsibleContact!),
+            _buildContactItem('РРЅРёС†РёР°С‚РѕСЂ', widget.request.responsibleContact!),
           if (widget.request.siteManagerContact != null)
-            _buildContactItem('Менеджер площадки', widget.request.siteManagerContact!),
+            _buildContactItem('РњРµРЅРµРґР¶РµСЂ РїР»РѕС‰Р°РґРєРё', widget.request.siteManagerContact!),
           if (widget.request.operatorContact != null)
-            _buildContactItem('Оператор ПМ', widget.request.operatorContact!),
+            _buildContactItem('РћРїРµСЂР°С‚РѕСЂ РџРњ', widget.request.operatorContact!),
         ],
       ),
     );
@@ -755,13 +825,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     String name = contactInfo;
     String? phone;
     
-    // Пытаемся вытащить телефон (простая версия)
+    // РџС‹С‚Р°РµРјСЃСЏ РІС‹С‚Р°С‰РёС‚СЊ С‚РµР»РµС„РѕРЅ (РїСЂРѕСЃС‚Р°СЏ РІРµСЂСЃРёСЏ)
     final phoneRegex = RegExp(r'(\+7|7|8)[\s\-]?\(?[0-9]{3}\)?[\s\-]?([0-9]{3})[\s\-]?([0-9]{2})[\s\-]?([0-9]{2})');
     final match = phoneRegex.firstMatch(contactInfo);
     if (match != null) {
       phone = match.group(0);
       name = contactInfo.replaceAll(phone!, '').trim();
-      if (name.isEmpty) name = 'Без имени';
+      if (name.isEmpty) name = 'Р‘РµР· РёРјРµРЅРё';
     }
 
     String initials = name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase();
@@ -818,7 +888,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                             color: Color(0xFF64748B),
                           ),
                         ),
-                        if (role == 'Инициатор') ...[
+                        if (role == 'РРЅРёС†РёР°С‚РѕСЂ') ...[
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -827,7 +897,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
-                              'Инициатор',
+                              'РРЅРёС†РёР°С‚РѕСЂ',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Color(0xFF2563EB),
@@ -851,7 +921,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => _openChat(),
                     icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                    label: const Text('Написать'),
+                    label: const Text('РќР°РїРёСЃР°С‚СЊ'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF2563EB),
                       side: const BorderSide(color: Color(0xFFDBEAFE)),
@@ -866,7 +936,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => launchUrl(Uri.parse('tel:${phone!.replaceAll(RegExp(r'[^\d+]'), '')}')),
                     icon: const Icon(Icons.phone_outlined, size: 16),
-                    label: const Text('Позвонить'),
+                    label: const Text('РџРѕР·РІРѕРЅРёС‚СЊ'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF16A34A),
                       side: const BorderSide(color: Color(0xFFDCFCE7)),
@@ -902,7 +972,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           if (_currentRequest.attachments != null && _currentRequest.attachments!.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text(
-              'Фото неисправности',
+              'Р¤РѕС‚Рѕ РЅРµРёСЃРїСЂР°РІРЅРѕСЃС‚Рё',
               style: TextStyle(
                 fontSize: 13,
                 color: Color(0xFF94A3B8),
@@ -983,13 +1053,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     if (isAssignedEngineer && _currentRequest.status == RequestStatus.approved) {
       if (_currentRequest.scheduledAt == null) {
         buttons.add(
-          _buildActionButton('Назначить дату выезда', const Color(0xFF8B5CF6), () {
+          _buildActionButton('РќР°Р·РЅР°С‡РёС‚СЊ РґР°С‚Сѓ РІС‹РµР·РґР°', const Color(0xFF8B5CF6), () {
              _selectServiceDate();
           }),
         );
       } else {
         buttons.add(
-          _buildActionButton('Приступить к работе', const Color(0xFF0EA5E9), () {
+          _buildActionButton('РџСЂРёСЃС‚СѓРїРёС‚СЊ Рє СЂР°Р±РѕС‚Рµ', const Color(0xFF0EA5E9), () {
              _startWork();
           }),
         );
@@ -998,17 +1068,17 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     if (isAssignedEngineer && _currentRequest.status == RequestStatus.inProgress) {
       buttons.add(
-        _buildActionButton('Завершить работы и сдать отчет', const Color(0xFFF59E0B), () {
+        _buildActionButton('Р—Р°РІРµСЂС€РёС‚СЊ СЂР°Р±РѕС‚С‹ Рё СЃРґР°С‚СЊ РѕС‚С‡РµС‚', const Color(0xFFF59E0B), () {
            _completeWork();
         }),
       );
     }
 
-    // Кнопка приемки для клиента (автора или менеджера)
+    // РљРЅРѕРїРєР° РїСЂРёРµРјРєРё РґР»СЏ РєР»РёРµРЅС‚Р° (Р°РІС‚РѕСЂР° РёР»Рё РјРµРЅРµРґР¶РµСЂР°)
     final bool isRequester = widget.currentUser.id == _currentRequest.userId || widget.currentUser.role == AppUserModel.UserRole.siteManager || widget.currentUser.role == AppUserModel.UserRole.companyResponsible;
     if (isRequester && _currentRequest.status == RequestStatus.waitingForAcceptance) {
       buttons.add(
-        _buildActionButton('Принять работы', const Color(0xFF10B981), () {
+        _buildActionButton('РџСЂРёРЅСЏС‚СЊ СЂР°Р±РѕС‚С‹', const Color(0xFF10B981), () {
            _acceptWorkDialog();
         }),
       );
@@ -1016,7 +1086,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     if (isAdmin && _currentRequest.status == RequestStatus.waitingForInvoice) {
       buttons.add(
-        _buildActionButton('Сформировать / Загрузить счет', const Color(0xFF8B5CF6), () {
+        _buildActionButton('РЎС„РѕСЂРјРёСЂРѕРІР°С‚СЊ / Р—Р°РіСЂСѓР·РёС‚СЊ СЃС‡РµС‚', const Color(0xFF8B5CF6), () {
              _uploadInvoiceDialog();
         }),
       );
@@ -1024,7 +1094,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     if (isAdmin && _currentRequest.status == RequestStatus.waitingForPayment) {
       buttons.add(
-        _buildActionButton('Подтвердить оплату и закрыть', const Color(0xFF10B981), () {
+        _buildActionButton('РџРѕРґС‚РІРµСЂРґРёС‚СЊ РѕРїР»Р°С‚Сѓ Рё Р·Р°РєСЂС‹С‚СЊ', const Color(0xFF10B981), () {
              _confirmPaymentDialog();
         }),
       );
@@ -1089,13 +1159,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
        try {
          await SupabaseService.updateRequestScheduledDate(_currentRequest.id, pickedDate);
          if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Дата выезда назначена!'), backgroundColor: Colors.green,));
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Р”Р°С‚Р° РІС‹РµР·РґР° РЅР°Р·РЅР°С‡РµРЅР°!'), backgroundColor: Colors.green,));
            _refreshRequest();
          }
        } catch (e) {
          setState(() => _isLoading = false);
          if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('РћС€РёР±РєР°: $e'), backgroundColor: Colors.red,));
          }
        }
     }
@@ -1106,13 +1176,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     try {
       await SupabaseService.startEngineerWork(_currentRequest.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Работа начата!'), backgroundColor: Colors.green,));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Р Р°Р±РѕС‚Р° РЅР°С‡Р°С‚Р°!'), backgroundColor: Colors.green,));
         _refreshRequest();
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('РћС€РёР±РєР°: $e'), backgroundColor: Colors.red,));
       }
     }
   }
@@ -1157,77 +1227,127 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           onChanged: (v) => recommendations = v,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Пропустить')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Завершить')),
         ],
       )
     );
 
-    if (recDone == true && mounted) {
-      setState(() => _isLoading = true);
-      try {
-        await SupabaseService.submitEngineerReport(_currentRequest.id, comment, recommendations);
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Отчет отправлен на приемку клиенту!'), backgroundColor: Colors.green,));
-           _refreshRequest();
-        }
-      } catch (e) {
-        setState(() => _isLoading = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
-        }
+    if (recDone != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await SupabaseService.submitEngineerReport(
+        _currentRequest.id, 
+        comment: comment, 
+        recommendations: recommendations
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Отчет успешно отправлен!'), backgroundColor: Colors.green,));
+        _refreshRequest();
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
       }
     }
   }
 
   Future<void> _acceptWorkDialog() async {
     String comment = '';
+    bool showCommentField = false;
+    bool isStepTwo = false;
+
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Приемка работ'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Работы выполнены в полном объеме?'),
-            const SizedBox(height: 16),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Замечания (если есть)...',
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            isStepTwo ? 'Подтверждение' : 'Принятие работ', 
+            style: const TextStyle(fontWeight: FontWeight.bold)
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isStepTwo) ...[
+                const Text('Вы подтверждаете выполнение работ инженером?', style: TextStyle(color: Color(0xFF64748B))),
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () {
+                    setDialogState(() {
+                      showCommentField = !showCommentField;
+                    });
+                  },
+                  icon: Icon(showCommentField ? Icons.close : Icons.add_comment_outlined, size: 18),
+                  label: Text(showCommentField ? 'Скрыть комментарий' : 'Добавить замечание/комментарий'),
+                ),
+              ],
+              if (isStepTwo)
+                const Text('Работы будут отмечены как принятые. Вы уверены?', style: TextStyle(color: Color(0xFF64748B))),
+              
+              if (showCommentField && !isStepTwo) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Опишите замечания или добавьте отзыв...',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  maxLines: 3,
+                  onChanged: (v) => comment = v,
+                ),
+              ],
+            ],
+          ),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!isStepTwo) {
+                  setDialogState(() {
+                    isStepTwo = true;
+                  });
+                } else {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              maxLines: 3,
-              onChanged: (v) => comment = v,
+              child: Text(isStepTwo ? 'Да, подтверждаю' : 'Принять'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false), 
-            child: const Text('Есть замечания', style: TextStyle(color: Colors.red)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true), 
-            child: const Text('Рабты приняты')
-          ),
-        ],
-      )
+      ),
     ).then((accepted) async {
-      if (accepted != null && mounted) {
+      if (accepted == true && mounted) {
         setState(() => _isLoading = true);
         try {
-          await SupabaseService.acceptServiceWork(_currentRequest.id, isAccepted: accepted, comment: comment);
+          await SupabaseService.acceptServiceWork(_currentRequest.id, isAccepted: true, comment: comment);
           if (mounted) {
-             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-               content: Text(accepted ? 'Работы приняты!' : 'Замечания отправлены инженеру'), 
-               backgroundColor: accepted ? Colors.green : Colors.orange,
+             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+               content: Text('Работы успешно приняты!'), 
+               backgroundColor: Colors.green,
              ));
              _refreshRequest();
           }
         } catch (e) {
           setState(() => _isLoading = false);
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red));
           }
         }
       }
@@ -1239,14 +1359,14 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Выставить счет'),
+        title: const Text('Р’С‹СЃС‚Р°РІРёС‚СЊ СЃС‡РµС‚'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                hintText: 'Сумма к оплате (руб)',
+                hintText: 'РЎСѓРјРјР° Рє РѕРїР»Р°С‚Рµ (СЂСѓР±)',
                 prefixIcon: Icon(Icons.currency_ruble, size: 18),
               ),
               onChanged: (v) => amountStr = v,
@@ -1267,7 +1387,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                           }
                         },
                         icon: const Icon(Icons.attach_file),
-                        label: const Text('Прикрепить счет (фото/скан)'),
+                        label: const Text('РџСЂРёРєСЂРµРїРёС‚СЊ СЃС‡РµС‚ (С„РѕС‚Рѕ/СЃРєР°РЅ)'),
                       )
                     else
                       ListTile(
@@ -1285,10 +1405,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('РћС‚РјРµРЅР°')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true), 
-            child: const Text('Отправить')
+            child: const Text('РћС‚РїСЂР°РІРёС‚СЊ')
           ),
         ],
       )
@@ -1339,22 +1459,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('РћС€РёР±РєР°: $e'), backgroundColor: Colors.red,));
       }
     }
   }
 
   void _openChat() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatScreen(
-          requestId: _currentRequest.id,
-          requestTitle: _currentRequest.title,
-          currentUser: widget.currentUser,
-        ),
-      ),
-    );
+    // Чат теперь встроен в карточку заявки
   }
 
   void _showEquipmentDetails(Equipment equipment) {
@@ -1429,12 +1540,12 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                             ),
                             const SizedBox(height: 16),
                             if (equipment.type != null) ...[
-                              _buildEquipmentDetailRow(Icons.category_outlined, 'Тип', equipment.type!),
+                              _buildEquipmentDetailRow(Icons.category_outlined, 'РўРёРї', equipment.type!),
                               const SizedBox(height: 8),
                             ],
-                            _buildEquipmentDetailRow(Icons.numbers, 'Серийный номер', equipment.serialNumber ?? 'Не указан'),
+                            _buildEquipmentDetailRow(Icons.numbers, 'РЎРµСЂРёР№РЅС‹Р№ РЅРѕРјРµСЂ', equipment.serialNumber ?? 'РќРµ СѓРєР°Р·Р°РЅ'),
                             const SizedBox(height: 8),
-                            _buildEquipmentDetailRow(Icons.location_on_outlined, 'Площадка', equipment.address.isNotEmpty ? equipment.address : equipment.location),
+                            _buildEquipmentDetailRow(Icons.location_on_outlined, 'РџР»РѕС‰Р°РґРєР°', equipment.address.isNotEmpty ? equipment.address : equipment.location),
                             const SizedBox(height: 16),
                             
                             EquipmentSpecificationsWidget(
@@ -1493,9 +1604,9 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Сумма к оплате:', style: TextStyle(color: Color(0xFF64748B))),
+              const Text('РЎСѓРјРјР° Рє РѕРїР»Р°С‚Рµ:', style: TextStyle(color: Color(0xFF64748B))),
               Text(
-                '${_currentRequest.invoiceAmount ?? 0} ₽',
+                '${_currentRequest.invoiceAmount ?? 0} в‚Ѕ',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
               ),
             ],
@@ -1505,7 +1616,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             _buildSmallButton(
               onPressed: () => _viewInvoice(_currentRequest.invoiceUrl!),
               icon: Icons.description_outlined,
-              label: 'Посмотреть счет (PDF/Фото)',
+              label: 'РџРѕСЃРјРѕС‚СЂРµС‚СЊ СЃС‡РµС‚ (PDF/Р¤РѕС‚Рѕ)',
             ),
           ],
         ],
@@ -1556,7 +1667,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Не удалось открыть карту')),
+            const SnackBar(content: Text('РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ РєР°СЂС‚Сѓ')),
           );
         }
       }
@@ -1606,3 +1717,4 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 }
+
