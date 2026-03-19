@@ -1239,8 +1239,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     try {
       await SupabaseService.submitEngineerReport(
         _currentRequest.id, 
-        comment: comment, 
-        recommendations: recommendations
+        comment, 
+        recommendations
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Отчет успешно отправлен!'), backgroundColor: Colors.green,));
