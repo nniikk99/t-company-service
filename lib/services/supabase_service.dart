@@ -410,6 +410,65 @@ class SupabaseService {
     _notifyParties(requestId, 'Заявка одобрена', 'Ваша заявка одобрена администратором.');
   }
 
+  // === ATTACHMENTS / STORAGE ===
+
+  /// Загрузка вложения для заявки в Supabase Storage
+  static Future<String> uploadRequestAttachment(String requestId, List<int> fileBytes, String fileName, String contentType) async {
+    try {
+      final fileExt = fileName.split('.').last;
+      final path = '$requestId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      
+      print('📤 Загрузка файла в Storage: attachments/$path');
+      
+      await _client.storage.from('attachments').uploadBinary(
+        path,
+        Uint8List.fromList(fileBytes),
+        fileOptions: FileOptions(contentType: contentType, cacheControl: '3600', upsert: true),
+      );
+      
+      final publicUrl = _client.storage.from('attachments').getPublicUrl(path);
+      print('✅ Файл загружен, URL: $publicUrl');
+      return publicUrl;
+    } catch (e) {
+      print('❌ Ошибка загрузки файла в Storage: $e');
+      rethrow;
+    }
+  }
+
+  /// Загрузка счета (PDF или фото)
+  static Future<String> uploadInvoiceFile(String requestId, Uint8List fileBytes, String fileName) async {
+    try {
+      final fileExt = fileName.split('.').last;
+      final path = 'invoices/$requestId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      
+      print('📤 Загрузка счета в Storage: attachments/$path');
+      
+      await _client.storage.from('attachments').uploadBinary(
+        path,
+        fileBytes,
+        fileOptions: const FileOptions(
+          contentType: 'application/pdf', // По умолчанию PDF, если это фото - storage сам определит или мы передадим
+          upsert: true
+        ),
+      );
+      
+      final publicUrl = _client.storage.from('attachments').getPublicUrl(path);
+      return publicUrl;
+    } catch (e) {
+      print('❌ Ошибка загрузки счета: $e');
+      rethrow;
+    }
+  }
+
+  /// Обновление списка вложений в БД
+  static Future<void> updateServiceRequestAttachments(String requestId, List<String> attachments) async {
+    await _client
+        .from('service_requests')
+        .update({'attachments': attachments})
+        .eq('id', requestId);
+  }
+
+
   // === PARTS REQUESTS ===
 
   static Future<String> createPartsRequest({
@@ -1515,17 +1574,28 @@ class SupabaseService {
   }
 
   /// Выставление счета администратором (перевод в "Ждет оплату")
-  static Future<void> requestPaymentForInvoice(String requestId, double amount) async {
+  static Future<void> requestPaymentForInvoice(String requestId, double amount, {String? invoiceUrl}) async {
     await _client
         .from('service_requests')
         .update({
           'status': 'waitingForPayment',
           'invoice_amount': amount,
+          'invoice_url': invoiceUrl,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
 
+    // Уведомляем участников (покупателя)
     _notifyParties(requestId, 'Счет выставлен', 'Для вашей заявки выставлен счет на сумму $amount ₽.');
+    
+    // Если есть ссылка на счет, можно отправить отдельное сообщение в чат
+    if (invoiceUrl != null) {
+      await sendRequestMessage(
+        requestId: requestId,
+        senderId: currentUser!.id,
+        message: 'Счет на оплату выставлен: $amount ₽. Ссылка: $invoiceUrl',
+      );
+    }
   }
 
   /// Обновление статуса заявки
@@ -2641,7 +2711,7 @@ class SupabaseService {
     try {
       final response = await _client
           .from('request_messages')
-          .select('*, sender:user_profiles!request_messages_sender_id_fkey(*)')
+          .select('*, sender:user_profiles(*)')
           .eq('request_id', requestId)
           .order('created_at', ascending: true);
       
@@ -2678,7 +2748,7 @@ class SupabaseService {
 
   static RealtimeChannel subscribeToRequestMessages(String requestId, Function(RequestMessage) onNewMessage) {
     print('🔄 Подписка на сообщения заявки $requestId...');
-    final channel = _client.channel('public:request_messages:request_id=eq.$requestId');
+    final channel = _client.channel('messages_$requestId');
     
     channel.onPostgresChanges(
       event: PostgresChangeEvent.insert,

@@ -3,6 +3,9 @@ import '../models/user.dart';
 import '../models/service_request.dart';
 import '../models/equipment.dart';
 import '../services/supabase_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
+
 
 class CreateRequestForm extends StatefulWidget {
   final User user;
@@ -28,6 +31,10 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
   Equipment? _selectedEquipment;
   List<Equipment> _availableEquipment = [];
   bool _isLoading = false;
+  
+  final ImagePicker _picker = ImagePicker();
+  final List<XFile> _selectedImages = [];
+
 
   @override
   void initState() {
@@ -76,6 +83,21 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
     }
   }
 
+  Future<void> _pickImages() async {
+    final List<XFile> images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(images);
+      });
+    }
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -100,16 +122,35 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
       final requiresApproval = !widget.user.canManageRequestsWithoutApproval;
 
       // Создаем заявку через Supabase
-      await SupabaseService.createServiceRequest(
+      final String requestId = await SupabaseService.createServiceRequest(
         companyId: widget.user.companyId!,
         equipmentId: _selectedEquipment!.id,
         userId: widget.user.id,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        type: _selectedType.toString().split('.').last, // repair, specialistVisit, etc.
-        priority: _selectedPriority.toString().split('.').last, // low, normal, high, urgent
+        type: _selectedType.name,
+        priority: _selectedPriority.name,
         requiresApproval: requiresApproval,
       );
+
+      // Загружаем изображения, если они выбраны
+      if (_selectedImages.isNotEmpty) {
+        final List<String> attachmentUrls = [];
+        for (final image in _selectedImages) {
+          final bytes = await image.readAsBytes();
+          final url = await SupabaseService.uploadRequestAttachment(
+            requestId,
+            bytes,
+            image.name,
+            image.mimeType ?? 'image/jpeg',
+          );
+          attachmentUrls.add(url);
+        }
+        
+        // Обновляем список вложений в БД
+        await SupabaseService.updateServiceRequestAttachments(requestId, attachmentUrls);
+      }
+
 
       if (mounted) {
         Navigator.pop(context, true); // Возвращаем true для обозначения успеха
@@ -373,6 +414,103 @@ class _CreateRequestFormState extends State<CreateRequestForm> {
                         return null;
                       },
                     ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Фотографии
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Фотографии проблемы',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _pickImages,
+                          icon: const Icon(Icons.add_a_photo_outlined, size: 20),
+                          label: const Text('Добавить'),
+                        ),
+                      ],
+                    ),
+                    if (_selectedImages.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 100,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Stack(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      _selectedImages[index].path,
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Container(
+                                        width: 100,
+                                        height: 100,
+                                        color: Colors.grey[200],
+                                        child: const Icon(Icons.broken_image, color: Colors.grey),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: InkWell(
+                                      onTap: () => _removeImage(index),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ] else
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            'Прикрепите фото неисправности (это поможет мастеру)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

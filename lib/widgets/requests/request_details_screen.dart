@@ -152,6 +152,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 _buildContactsCard(),
                 const SizedBox(height: 12),
                 _buildDescriptionCard(),
+                if (_currentRequest.invoiceAmount != null || _currentRequest.invoiceUrl != null) ...[
+                  const SizedBox(height: 12),
+                  _buildPaymentCard(),
+                ],
               ],
             ),
           ),
@@ -698,13 +702,21 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Адрес площадки будет здесь (TODO)', // TODO: Add address string to ServiceRequest or fetch it
-                  style: TextStyle(
+                Text(
+                  _currentRequest.siteAddress ?? 'Адрес не указан',
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF64748B),
                   ),
                 ),
+                if (_currentRequest.siteAddress != null) ...[
+                  const SizedBox(height: 12),
+                  _buildSmallButton(
+                    onPressed: () => _openMap(_currentRequest.siteAddress!),
+                    icon: Icons.map_outlined,
+                    label: 'Открыть на карте',
+                  ),
+                ],
               ],
             ),
           ),
@@ -889,7 +901,47 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            // Здесь должна быть карусель фото
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _currentRequest.attachments!.length,
+                itemBuilder: (context, index) {
+                  final url = _currentRequest.attachments![index];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: InkWell(
+                      onTap: () => _showImageGallery(index),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          url,
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Container(
+                              width: 120,
+                              height: 120,
+                              color: const Color(0xFFF1F5F9),
+                              child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 120,
+                            height: 120,
+                            color: const Color(0xFFF1F5F9),
+                            child: const Icon(Icons.broken_image_outlined, color: Color(0xFF94A3B8)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ]
         ],
       ),
@@ -1180,10 +1232,49 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Выставить счет'),
-        content: TextField(
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(hintText: 'Сумма к оплате (руб)'),
-          onChanged: (v) => amountStr = v,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                hintText: 'Сумма к оплате (руб)',
+                prefixIcon: Icon(Icons.currency_ruble, size: 18),
+              ),
+              onChanged: (v) => amountStr = v,
+            ),
+            const SizedBox(height: 16),
+            StatefulBuilder(
+              builder: (context, setDialogState) {
+                return Column(
+                  children: [
+                    if (_invoiceFile == null)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final XFile? file = await _picker.pickImage(source: ImageSource.gallery);
+                          if (file != null) {
+                            setDialogState(() {
+                              _invoiceFile = file;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.attach_file),
+                        label: const Text('Прикрепить счет (фото/скан)'),
+                      )
+                    else
+                      ListTile(
+                        leading: const Icon(Icons.description, color: Colors.blue),
+                        title: Text(_invoiceFile!.name, style: const TextStyle(fontSize: 12)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => setDialogState(() => _invoiceFile = null),
+                        ),
+                      ),
+                  ],
+                );
+              }
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
@@ -1196,9 +1287,25 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     ).then((confirmed) async {
       if (confirmed == true && mounted) {
         final amount = double.tryParse(amountStr.replaceAll(',', '.'));
+        
         setState(() => _isLoading = true);
         try {
-          await SupabaseService.requestPaymentForInvoice(_currentRequest.id, amount ?? 0);
+          String? invoiceUrl;
+          if (_invoiceFile != null) {
+            final bytes = await _invoiceFile!.readAsBytes();
+            invoiceUrl = await SupabaseService.uploadInvoiceFile(
+              _currentRequest.id,
+              bytes,
+              _invoiceFile!.name,
+            );
+          }
+          
+          await SupabaseService.requestPaymentForInvoice(
+            _currentRequest.id, 
+            amount ?? 0,
+            invoiceUrl: invoiceUrl,
+          );
+          
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Счет выставлен клиенту!'), backgroundColor: Colors.green,));
             _refreshRequest();
@@ -1365,6 +1472,129 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPaymentCard() {
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(Icons.payment_outlined, 'Оплата и счет'),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Сумма к оплате:', style: TextStyle(color: Color(0xFF64748B))),
+              Text(
+                '${_currentRequest.invoiceAmount ?? 0} ₽',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          if (_currentRequest.invoiceUrl != null) ...[
+            const SizedBox(height: 16),
+            _buildSmallButton(
+              onPressed: () => _viewInvoice(_currentRequest.invoiceUrl!),
+              icon: Icons.description_outlined,
+              label: 'Посмотреть счет (PDF/Фото)',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _viewInvoice(String url) {
+    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  Widget _buildSmallButton({required IconData icon, required String label, required VoidCallback onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF3B82F6)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF334155),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openMap(String address) async {
+    final query = Uri.encodeComponent(address);
+    final googleUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    
+    try {
+      if (await canLaunchUrl(googleUrl)) {
+        await launchUrl(googleUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Не удалось открыть карту')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error launching maps: $e');
+    }
+  }
+
+  void _showImageGallery(int initialIndex) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            PageView.builder(
+              itemCount: _currentRequest.attachments!.length,
+              controller: PageController(initialPage: initialIndex),
+              itemBuilder: (context, index) {
+                final url = _currentRequest.attachments![index];
+                return InteractiveViewer(
+                  child: Center(
+                    child: Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator(color: Colors.white));
+                      },
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.white),
+                    ),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

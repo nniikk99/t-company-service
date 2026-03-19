@@ -89,6 +89,22 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _messageController.clear();
 
+    // Оптимистичное добавление сообщения для отзывчивости интерфейса
+    final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final tempMessage = RequestMessage(
+      id: tempId,
+      requestId: widget.requestId,
+      senderId: widget.currentUser.id,
+      senderName: '${widget.currentUser.firstName} ${widget.currentUser.lastName}',
+      message: text,
+      createdAt: DateTime.now(),
+    );
+
+    setState(() {
+      _messages.add(tempMessage);
+    });
+    _scrollToBottom();
+
     try {
       await SupabaseService.sendRequestMessage(
         requestId: widget.requestId,
@@ -96,9 +112,15 @@ class _ChatScreenState extends State<ChatScreen> {
         message: text,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка отправки: $e'), backgroundColor: Colors.red),
-      );
+      // В случае ошибки удаляем временное сообщение
+      setState(() {
+        _messages.removeWhere((m) => m.id == tempId);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка отправки: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -106,11 +128,34 @@ class _ChatScreenState extends State<ChatScreen> {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image == null) return;
 
-    // TODO: Загрузка в Storage и получение URL
-    // Для экономии времени пока просто уведомление
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Загрузка фото временно недоступна в демо-версии')),
-    );
+    setState(() => _isLoading = true);
+
+    try {
+      final bytes = await image.readAsBytes();
+      final url = await SupabaseService.uploadRequestAttachment(
+        widget.requestId,
+        bytes,
+        image.name,
+        image.mimeType ?? 'image/jpeg',
+      );
+      
+      await SupabaseService.sendRequestMessage(
+        requestId: widget.requestId,
+        senderId: widget.currentUser.id,
+        message: 'Прикреплено фото',
+        attachments: [url],
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка загрузки фото: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -216,6 +261,25 @@ class _ChatScreenState extends State<ChatScreen> {
                   fontSize: 15,
                 ),
               ),
+              if (message.attachments != null && message.attachments!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    message.attachments!.first,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const SizedBox(
+                        height: 150, 
+                        width: double.infinity,
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2))
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
