@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 import '../../models/user.dart' as AppUserModel;
 import '../../models/service_request.dart';
 import '../../models/equipment.dart';
@@ -12,6 +14,7 @@ import '../assign_engineer_dialog.dart';
 import '../equipment_specifications_widget.dart';
 import '../equipment_maintenance_widget.dart';
 import '../../theme/app_theme.dart';
+
 
 class RequestDetailsScreen extends StatefulWidget {
   final ServiceRequest request;
@@ -35,6 +38,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   Equipment? _equipment;
   bool _isLoading = false;
   RealtimeChannel? _subscription;
+  
+  final ImagePicker _picker = ImagePicker();
+  XFile? _invoiceFile;
+
 
   @override
   void initState() {
