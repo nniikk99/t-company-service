@@ -179,38 +179,42 @@ class _ChatWidgetState extends State<ChatWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: widget.height ?? 400,
+      height: widget.height,
+      constraints: widget.height == null ? const BoxConstraints.expand() : null,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        borderRadius: widget.height != null ? BorderRadius.circular(16) : null,
+        boxShadow: widget.height != null ? [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
-        ],
+        ] : null,
       ),
-      child: Column(
-        children: [
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _messages.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          final isMe = message.senderId == widget.currentUser.id;
-                          return _buildMessageBubble(message, isMe);
-                        },
-                      ),
-          ),
-          _buildInputSection(),
-        ],
+      child: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _messages.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final message = _messages[index];
+                            final isMe = message.senderId == widget.currentUser.id;
+                            return _buildMessageBubble(message, isMe);
+                          },
+                        ),
+            ),
+            _buildInputSection(),
+          ],
+        ),
       ),
     );
   }
