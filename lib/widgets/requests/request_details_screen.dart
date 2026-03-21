@@ -1650,6 +1650,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 automaticallyImplyLeading: false,
                 actions: [
                   IconButton(
+                    icon: const Icon(Icons.download), 
+                    onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.close), 
                     onPressed: () => Navigator.pop(ctx)
                   ),
