@@ -96,7 +96,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // РЎРІРµС‚Р»Рѕ-СЃРµСЂС‹Р№ С„РѕРЅ
+      backgroundColor: const Color(0xFFF8FAFC), // Светло-серый фон
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -898,7 +898,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
-                              'РРЅРёС†РёР°С‚РѕСЂ',
+                              'Инициатор',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Color(0xFF2563EB),
@@ -937,6 +937,23 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () => launchUrl(Uri.parse('tel:${phone!.replaceAll(RegExp(r'[^\d+]'), '')}')),
                     icon: const Icon(Icons.phone_outlined, size: 16),
+                    label: const Text('Позвонить'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF16A34A),
+                      side: const BorderSide(color: Color(0xFFDCFCE7)),
+                      backgroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ]
+        ],
+      ),
+    );
+  }Icon(Icons.phone_outlined, size: 16),
                     label: const Text('Позвонить'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF16A34A),
@@ -1054,13 +1071,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     if (isAssignedEngineer && _currentRequest.status == RequestStatus.approved) {
       if (_currentRequest.scheduledAt == null) {
         buttons.add(
-          _buildActionButton('РќР°Р·РЅР°С‡РёС‚СЊ РґР°С‚Сѓ РІС‹РµР·РґР°', const Color(0xFF8B5CF6), () {
+          _buildActionButton('Назначить дату выезда', const Color(0xFF8B5CF6), () {
              _selectServiceDate();
           }),
         );
       } else {
         buttons.add(
-          _buildActionButton('РџСЂРёСЃС‚СѓРїРёС‚СЊ Рє СЂР°Р±РѕС‚Рµ', const Color(0xFF0EA5E9), () {
+          _buildActionButton('Приступить к работе', const Color(0xFF0EA5E9), () {
              _startWork();
           }),
         );
@@ -1069,7 +1086,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     if (isAssignedEngineer && _currentRequest.status == RequestStatus.inProgress) {
       buttons.add(
-        _buildActionButton('Р—Р°РІРµСЂС€РёС‚СЊ СЂР°Р±РѕС‚С‹ Рё СЃРґР°С‚СЊ РѕС‚С‡РµС‚', const Color(0xFFF59E0B), () {
+        _buildActionButton('Завершить работы и сдать отчет', const Color(0xFFF59E0B), () {
            _completeWork();
         }),
       );
@@ -1087,7 +1104,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     if (isAdmin && _currentRequest.status == RequestStatus.waitingForInvoice) {
       buttons.add(
-        _buildActionButton('РЎС„РѕСЂРјРёСЂРѕРІР°С‚СЊ / Р—Р°РіСЂСѓР·РёС‚СЊ СЃС‡РµС‚', const Color(0xFF8B5CF6), () {
+        _buildActionButton('Сформировать / Загрузить счет', const Color(0xFF8B5CF6), () {
              _uploadInvoiceDialog();
         }),
       );
@@ -1095,7 +1112,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
     if (isAdmin && _currentRequest.status == RequestStatus.waitingForPayment) {
       buttons.add(
-        _buildActionButton('РџРѕРґС‚РІРµСЂРґРёС‚СЊ РѕРїР»Р°С‚Сѓ Рё Р·Р°РєСЂС‹С‚СЊ', const Color(0xFF10B981), () {
+        _buildActionButton('Подтвердить оплату и закрыть', const Color(0xFF10B981), () {
              _confirmPaymentDialog();
         }),
       );
@@ -1160,13 +1177,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
        try {
          await SupabaseService.updateRequestScheduledDate(_currentRequest.id, pickedDate);
          if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Р”Р°С‚Р° РІС‹РµР·РґР° РЅР°Р·РЅР°С‡РµРЅР°!'), backgroundColor: Colors.green,));
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Дата выезда назначена!'), backgroundColor: Colors.green,));
            _refreshRequest();
          }
        } catch (e) {
          setState(() => _isLoading = false);
          if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('РћС€РёР±РєР°: $e'), backgroundColor: Colors.red,));
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
          }
        }
     }
