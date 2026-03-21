@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import '../../models/user.dart' as AppUserModel;
 import 'package:flutter/services.dart';
+import '../pdf_iframe_view.dart';
 import '../../models/service_request.dart';
 import '../../models/equipment.dart';
 import '../../services/supabase_service.dart';
@@ -1628,20 +1629,40 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   void _viewInvoice(String url) async {
-    try {
-      final uri = Uri.parse(url);
-      await launchUrl(uri, mode: LaunchMode.platformDefault);
-    } catch (e) {
-      Clipboard.setData(ClipboardData(text: url));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Браузер заблокировал окно. Ссылка скопирована в буфер обмена!'),
-            backgroundColor: Colors.orange,
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.8,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
           ),
-        );
-      }
-    }
+          child: Column(
+            children: [
+              AppBar(
+                title: const Text('Просмотр счета', style: TextStyle(fontSize: 16)),
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF1E293B),
+                elevation: 0,
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.close), 
+                    onPressed: () => Navigator.pop(ctx)
+                  ),
+                ],
+              ),
+              Expanded(
+                child: PdfIFrameView(url: url, label: 'Счет на оплату'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSmallButton({required IconData icon, required String label, required VoidCallback onPressed}) {

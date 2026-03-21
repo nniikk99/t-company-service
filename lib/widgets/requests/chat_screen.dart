@@ -127,10 +127,23 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (image == null) return;
 
-    setState(() => _isLoading = true);
+    final tempId = 'temp_img_${DateTime.now().millisecondsSinceEpoch}';
+    final tempMessage = RequestMessage(
+      id: tempId,
+      requestId: widget.requestId,
+      senderId: widget.currentUser.id,
+      senderName: '${widget.currentUser.firstName} ${widget.currentUser.lastName}',
+      message: 'Загрузка фото...',
+      createdAt: DateTime.now(),
+    );
+
+    setState(() {
+      _messages.add(tempMessage);
+    });
+    _scrollToBottom();
 
     try {
       final bytes = await image.readAsBytes();
@@ -147,15 +160,18 @@ class _ChatWidgetState extends State<ChatWidget> {
         message: 'Прикреплено фото',
         attachments: [url],
       );
+      
+      setState(() {
+        _messages.removeWhere((m) => m.id == tempId);
+      });
     } catch (e) {
+      setState(() {
+        _messages.removeWhere((m) => m.id == tempId);
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ошибка загрузки фото: $e'), backgroundColor: Colors.red),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
       }
     }
   }

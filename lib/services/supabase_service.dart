@@ -2723,6 +2723,24 @@ class SupabaseService {
     }
   }
 
+  static Future<RequestMessage?> getMessageById(String messageId) async {
+    try {
+      final response = await _client
+          .from('request_messages')
+          .select('*, sender:user_profiles!request_messages_sender_id_fkey(*)')
+          .eq('id', messageId)
+          .maybeSingle();
+      
+      if (response != null) {
+        return RequestMessage.fromJson(response);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Ошибка загрузки сообщения по ID: $e');
+      return null;
+    }
+  }
+
   static Future<void> sendRequestMessage({
     required String requestId,
     required String senderId,
@@ -2761,11 +2779,11 @@ class SupabaseService {
         value: requestId,
       ),
       callback: (payload) async {
-        print('🔔 Новое сообщение в заявке $requestId');
-        // Загружаем полное сообщение (с джойном отправителя)
-        final messages = await getRequestMessages(requestId);
-        if (messages.isNotEmpty) {
-           onNewMessage(messages.last);
+        print('🔔 Новое событие Postgres: ${payload.newRecord['id']}');
+        // Загружаем только это конкретное сообщение (с джойном отправителя)
+        final newMessage = await getMessageById(payload.newRecord['id']);
+        if (newMessage != null) {
+           onNewMessage(newMessage);
         }
       },
     ).subscribe();
