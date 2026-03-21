@@ -289,7 +289,6 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
   @override
   Widget build(BuildContext context) {
     final canEditEquipmentBase = widget.user.role == UserRole.supplier || 
-                                 widget.user.role == UserRole.superAdmin || 
                                  widget.user.role == UserRole.administrator;
 
     return AlertDialog(
@@ -393,7 +392,6 @@ class _EditEquipmentDialogState extends State<EditEquipmentDialog> {
               // Технические характеристики
               if (_selectedType.isNotEmpty && 
                   (widget.user.role == UserRole.supplier || 
-                   widget.user.role == UserRole.superAdmin || 
                    widget.user.role == UserRole.administrator)) ...[
                 _buildTechnicalSpecificationsSection(),
                 const SizedBox(height: 16),

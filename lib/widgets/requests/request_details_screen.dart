@@ -179,8 +179,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ],
         ),
         actions: [
-          if (widget.currentUser.role == AppUserModel.UserRole.administrator || 
-              widget.currentUser.role == AppUserModel.UserRole.superAdmin)
+          if (widget.currentUser.role == AppUserModel.UserRole.administrator)
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
               tooltip: 'Удалить заявку',
@@ -1161,7 +1160,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
   List<Widget> _buildActionButtonsBody() {
     List<Widget> buttons = [];
-    final bool isAdmin = widget.currentUser.role == AppUserModel.UserRole.superAdmin || widget.currentUser.role == AppUserModel.UserRole.administrator;
+    final bool isAdmin = widget.currentUser.role == AppUserModel.UserRole.administrator;
     final bool isAssignedEngineer = widget.currentUser.role == AppUserModel.UserRole.engineer && _currentRequest.assignedEngineerId == widget.currentUser.id;
 
     if (_canAssignEngineer(_currentRequest)) {
@@ -1246,8 +1245,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   bool _canAssignEngineer(ServiceRequest request) {
-    if (widget.currentUser.role == AppUserModel.UserRole.administrator || 
-        widget.currentUser.role == AppUserModel.UserRole.superAdmin) {
+    if (widget.currentUser.role == AppUserModel.UserRole.administrator) {
       return request.assignedEngineerId == null && 
              (request.status == RequestStatus.pending || request.status == RequestStatus.approved);
     }

@@ -190,8 +190,8 @@ class AuthService {
 
   static String _roleToString(AppUser.UserRole role) {
     switch (role) {
-      case AppUser.UserRole.superAdmin:
-        return 'superAdmin';
+      case AppUser.UserRole.administrator:
+        return 'administrator';
       case AppUser.UserRole.companyResponsible:
         return 'companyResponsible';
       case AppUser.UserRole.supplier:
@@ -204,10 +204,6 @@ class AuthService {
         return 'engineer';
       case AppUser.UserRole.pendingApproval:
         return 'pendingApproval';
-      case AppUser.UserRole.administrator:
-        return 'administrator';
-      case AppUser.UserRole.admin:
-        return 'admin';
       case AppUser.UserRole.clientManager:
         return 'clientManager';
       case AppUser.UserRole.clientResponsible:

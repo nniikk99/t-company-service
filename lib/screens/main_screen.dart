@@ -823,7 +823,7 @@ class _MainScreenState extends State<MainScreen> {
       items.add(const Divider(color: Color(0xFFF1F5F9), height: 1, indent: 24, endIndent: 24));
     }
 
-    if (_currentUser.role == UserRole.admin || _currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) {
+    if (_currentUser.role == UserRole.administrator) {
       add(Icons.security, 'Роли и доступ БД', () => Navigator.pushNamed(context, '/database-check', arguments: _currentUser));
     }
     if (_currentUser.canManageSites) {
@@ -833,7 +833,7 @@ class _MainScreenState extends State<MainScreen> {
       add(Icons.people_outline, 'Управление пользователями', _handleClientManagement);
       add(Icons.engineering_outlined, 'Управление инженерами', _handleEngineerManagement);
     }
-    if (_currentUser.role == UserRole.superAdmin || _currentUser.role == UserRole.administrator) {
+    if (_currentUser.role == UserRole.administrator) {
       add(Icons.settings_outlined, 'Оборудование (Админ)', _handleAdminEquipment);
     }
     if (_currentUser.role == UserRole.companyResponsible) {

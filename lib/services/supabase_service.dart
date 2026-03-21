@@ -779,7 +779,6 @@ class SupabaseService {
       List<Equipment> equipment = [];
       
       switch (user.role) {
-        case AppUserModel.UserRole.superAdmin:
         case AppUserModel.UserRole.administrator:
           // Администраторы видят все оборудование всех компаний
           print('🔍 Загружаем все оборудование для администратора');

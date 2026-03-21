@@ -33,7 +33,7 @@ class StorageService {
         lastName: 'Системы',
         email: 'admin@t-company.ru',
         phone: '+7 (981) 746-73-95',
-        role: UserRole.superAdmin,
+        role: UserRole.administrator,
         position: 'Системный администратор',
         companyId: '00000000-0000-0000-0000-000000000000',
         companyName: 'Т-Компания',

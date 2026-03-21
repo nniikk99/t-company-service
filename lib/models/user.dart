@@ -6,11 +6,9 @@ enum UserRole {
   siteManager,        // Менеджер площадки  
   companyResponsible,  // Ответственное лицо
   supplier,           // Поставщик (новая роль для маркетплейса)
-  administrator,      // Администратор (дублер супер-админа)
-  superAdmin,         // Супер-админ (только вы)
+  administrator,      // Администратор
   
   // Старые роли (для совместимости)
-  admin,
   clientManager,
   clientResponsible,
   contactPerson,
@@ -97,8 +95,6 @@ class User {
         return 'Ответственное лицо';
       case UserRole.contactPerson:
         return 'Контактное лицо';
-      case UserRole.superAdmin:
-        return 'Супер-администратор';
       case UserRole.administrator:
         return 'Администратор';
       case UserRole.companyResponsible:
@@ -118,17 +114,17 @@ class User {
 
   // Новые права доступа под новую систему + обратная совместимость
   bool get canCreateRequests => role == UserRole.siteManager || role == UserRole.companyResponsible || role == UserRole.contactPerson || role == UserRole.clientResponsible || role == UserRole.operatorPM;
-  bool get canApproveRequests => role == UserRole.companyResponsible || role == UserRole.superAdmin || role == UserRole.administrator || role == UserRole.clientResponsible;
-  bool get canManageClients => role == UserRole.superAdmin || role == UserRole.administrator;
-  bool get canViewAllCompanies => role == UserRole.superAdmin || role == UserRole.administrator;
-  bool get canManageCompany => role == UserRole.companyResponsible || role == UserRole.superAdmin || role == UserRole.clientResponsible || role == UserRole.administrator;
+  bool get canApproveRequests => role == UserRole.companyResponsible || role == UserRole.administrator || role == UserRole.clientResponsible;
+  bool get canManageClients => role == UserRole.administrator;
+  bool get canViewAllCompanies => role == UserRole.administrator;
+  bool get canManageCompany => role == UserRole.companyResponsible || role == UserRole.administrator || role == UserRole.clientResponsible;
   bool get canAssignSiteManagers => role == UserRole.companyResponsible || role == UserRole.clientResponsible || role == UserRole.administrator;
   bool get canManageRequestsWithoutApproval => canManageRequestsIndependently && role == UserRole.siteManager;
   bool get needsApproval => role == UserRole.pendingApproval;
   
   // Права на управление площадками и оборудованием
-  bool get canManageSites => role == UserRole.companyResponsible || role == UserRole.superAdmin || role == UserRole.administrator;
-  bool get canManageEquipment => role == UserRole.supplier || role == UserRole.companyResponsible || role == UserRole.siteManager || role == UserRole.operatorPM || role == UserRole.superAdmin || role == UserRole.administrator;
+  bool get canManageSites => role == UserRole.companyResponsible || role == UserRole.administrator;
+  bool get canManageEquipment => role == UserRole.supplier || role == UserRole.companyResponsible || role == UserRole.siteManager || role == UserRole.operatorPM || role == UserRole.administrator;
   
   // Права для инженеров
   bool get canWorkWithRequests => role == UserRole.engineer;
@@ -189,9 +185,8 @@ class User {
       case 'supplier':
         return UserRole.supplier;
       case 'administrator':
-        return UserRole.administrator;
       case 'superAdmin':
-        return UserRole.superAdmin;
+        return UserRole.administrator;
       
       // Старые роли (snake_case - для совместимости)
       case 'pending_approval':
@@ -203,11 +198,11 @@ class User {
       case 'company_responsible':
         return UserRole.companyResponsible;
       case 'super_admin':
-        return UserRole.superAdmin;
+        return UserRole.administrator;
       
       // Еще более старые роли (для совместимости)
       case 'admin':
-        return UserRole.admin;
+        return UserRole.administrator;
       case 'client_manager':
         return UserRole.clientManager;
       case 'responsible_person':
@@ -267,8 +262,6 @@ class User {
         return 'supplier';
       case UserRole.administrator:
         return 'administrator';
-      case UserRole.superAdmin:
-        return 'superAdmin';
       case UserRole.engineer:
         return 'engineer';
       

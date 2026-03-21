@@ -87,8 +87,7 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
         }).whereType<ServiceRequest>().toList();
       }
       // Для админов - всё без фильтров
-      else if (widget.user.role == AppUserModel.UserRole.superAdmin || 
-               widget.user.role == AppUserModel.UserRole.administrator) {
+      else if (widget.user.role == AppUserModel.UserRole.administrator) {
         final requestsJson = await SupabaseService.getAllServiceRequests();
         filteredRequests = requestsJson.map((json) {
           try {
