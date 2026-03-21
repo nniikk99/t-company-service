@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import '../../models/user.dart' as AppUserModel;
+import 'package:flutter/services.dart';
 import '../../models/service_request.dart';
 import '../../models/equipment.dart';
 import '../../services/supabase_service.dart';
@@ -1683,6 +1684,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         throw Exception('Cannot launch map');
       }
     } catch (e) {
+      print('Error launching maps: $e');
       Clipboard.setData(ClipboardData(text: googleUrl.toString()));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1692,8 +1694,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ),
         );
       }
-    }
-      print('Error launching maps: $e');
     }
   }
 
