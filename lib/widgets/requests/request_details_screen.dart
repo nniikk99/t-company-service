@@ -178,6 +178,15 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             _buildStatusChip(_currentRequest),
           ],
         ),
+        actions: [
+          if (widget.currentUser.role == AppUserModel.UserRole.administrator || 
+              widget.currentUser.role == AppUserModel.UserRole.superAdmin)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+              tooltip: 'Удалить заявку',
+              onPressed: () => _confirmDelete(),
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(24),
           child: Padding(
@@ -690,16 +699,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   ],
                 ),
               ),
-              OutlinedButton.icon(
-                onPressed: () => _openChat(),
-                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
-                label: const Text('Написать'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF2563EB),
-                  side: const BorderSide(color: Color(0xFFDBEAFE)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
             ],
           ),
         ],
@@ -1015,43 +1014,66 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ),
           if (phone != null) ...[
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _openChat(),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                    label: const Text('Написать'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF2563EB),
-                      side: const BorderSide(color: Color(0xFFDBEAFE)),
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => launchUrl(Uri.parse('tel:${phone!.replaceAll(RegExp(r'[^\d+]'), '')}')),
+                icon: const Icon(Icons.phone_outlined, size: 16),
+                label: const Text('Позвонить'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(color: Color(0xFFDBEAFE)),
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => launchUrl(Uri.parse('tel:${phone!.replaceAll(RegExp(r'[^\d+]'), '')}')),
-                    icon: const Icon(Icons.phone_outlined, size: 16),
-                    label: const Text('Позвонить'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF16A34A),
-                      side: const BorderSide(color: Color(0xFFDCFCE7)),
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ]
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Удалить заявку?'),
+        content: const Text('Это действие нельзя отменить. Заявка будет удалена из базы данных для всех пользователей.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Удалить'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        setState(() => _isLoading = true);
+        await SupabaseService.deleteServiceRequest(_currentRequest.id);
+        if (mounted) {
+          Navigator.pop(context); // Возвращаемся в список
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Заявка успешно удалена')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка удаления: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildDescriptionCard() {

@@ -316,6 +316,15 @@ class SupabaseService {
     return response['id'];
   }
 
+  static Future<void> deleteServiceRequest(String requestId) async {
+    try {
+      await _client.from('service_requests').delete().eq('id', requestId);
+    } catch (e) {
+      print('❌ Ошибка удаления заявки: $e');
+      rethrow;
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> getCompanyServiceRequests(String companyId) async {
     final response = await _client
         .from('service_requests')
