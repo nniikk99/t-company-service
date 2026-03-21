@@ -118,7 +118,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       }
 
       // Создаем пользователя
-      final user = User(
+      final user = AppUserModel.User(
         id: const Uuid().v4(),
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
