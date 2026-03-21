@@ -1626,8 +1626,21 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
-  void _viewInvoice(String url) {
-    launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  void _viewInvoice(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
+    } catch (e) {
+      Clipboard.setData(ClipboardData(text: url));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Браузер заблокировал окно. Ссылка скопирована в буфер обмена!'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSmallButton({required IconData icon, required String label, required VoidCallback onPressed}) {
@@ -1665,15 +1678,21 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     
     try {
       if (await canLaunchUrl(googleUrl)) {
-        await launchUrl(googleUrl, mode: LaunchMode.externalApplication);
+        await launchUrl(googleUrl, mode: LaunchMode.platformDefault);
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Не удалось открыть карту')),
-          );
-        }
+        throw Exception('Cannot launch map');
       }
     } catch (e) {
+      Clipboard.setData(ClipboardData(text: googleUrl.toString()));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось открыть карту (ссылка скопирована)'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
       print('Error launching maps: $e');
     }
   }
