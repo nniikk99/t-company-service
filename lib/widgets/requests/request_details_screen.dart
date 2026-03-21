@@ -953,23 +953,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         ],
       ),
     );
-  }Icon(Icons.phone_outlined, size: 16),
-                    label: const Text('Позвонить'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF16A34A),
-                      side: const BorderSide(color: Color(0xFFDCFCE7)),
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ]
-        ],
-      ),
-    );
   }
 
   Widget _buildDescriptionCard() {

@@ -359,18 +359,26 @@ class _ContactDashboardState extends State<ContactDashboard> {
 
   Widget _getStatusIcon(RequestStatus status) {
     switch (status) {
+      case RequestStatus.draft:
+        return const Icon(Icons.edit_note, color: Colors.grey);
       case RequestStatus.pending:
         return const Icon(Icons.schedule, color: Colors.orange);
       case RequestStatus.approved:
-        return const Icon(Icons.check_circle, color: Colors.green);
-      case RequestStatus.rejected:
-        return const Icon(Icons.cancel, color: Colors.red);
+        return const Icon(Icons.check_circle, color: Colors.blue);
       case RequestStatus.inProgress:
-        return const Icon(Icons.settings, color: Colors.blue);
+        return const Icon(Icons.settings, color: Colors.blueAccent);
+      case RequestStatus.waitingForAcceptance:
+        return const Icon(Icons.assignment_turned_in, color: Colors.orangeAccent);
+      case RequestStatus.waitingForInvoice:
+        return const Icon(Icons.receipt_long, color: Colors.purple);
+      case RequestStatus.waitingForPayment:
+        return const Icon(Icons.payments, color: Colors.teal);
       case RequestStatus.completed:
         return const Icon(Icons.check_circle_outline, color: Colors.green);
-      default:
-        return const Icon(Icons.help_outline, color: Colors.grey);
+      case RequestStatus.rejected:
+        return const Icon(Icons.cancel, color: Colors.red);
+      case RequestStatus.cancelled:
+        return const Icon(Icons.block, color: Colors.grey);
     }
   }
 
@@ -397,6 +405,12 @@ class _ContactDashboardState extends State<ContactDashboard> {
         return AppTheme.infoColor;
       case RequestStatus.inProgress:
         return AppTheme.primaryColor;
+      case RequestStatus.waitingForAcceptance:
+        return Colors.orangeAccent;
+      case RequestStatus.waitingForInvoice:
+        return Colors.purple;
+      case RequestStatus.waitingForPayment:
+        return Colors.teal;
       case RequestStatus.completed:
         return AppTheme.successColor;
       case RequestStatus.rejected:
