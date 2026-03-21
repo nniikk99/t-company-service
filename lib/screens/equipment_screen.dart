@@ -56,7 +56,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       appBar: AppBar(
         title: const Text('Оборудование'),
         actions: [
-          if (widget.user?.role == UserRole.admin)
+          if (widget.user?.role == UserRole.administrator)
             IconButton(
               icon: const Icon(Icons.add),
               onPressed: () {

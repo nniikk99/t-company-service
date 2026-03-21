@@ -68,7 +68,7 @@ class AppRouter {
       
       case admin:
         final user = settings.arguments as User?;
-        if (user == null || !(user.role == UserRole.admin || user.role == UserRole.superAdmin || user.role == UserRole.administrator)) {
+        if (user == null || user.role != UserRole.administrator) {
           return MaterialPageRoute(
             builder: (_) => const Scaffold(
               body: Center(
@@ -101,8 +101,7 @@ class AppRouter {
   // Получить доступные роуты для роли пользователя
   static List<String> getAvailableRoutes(UserRole role) {
     switch (role) {
-      case UserRole.admin:
-      case UserRole.superAdmin:
+      case UserRole.administrator:
         return [dashboard, equipment, requests, admin, profile, notifications];
       case UserRole.clientResponsible:
       case UserRole.companyResponsible:

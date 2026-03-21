@@ -87,7 +87,7 @@ class User {
   
   String get roleDisplayName {
     switch (role) {
-      case UserRole.admin:
+      case UserRole.administrator:
         return 'Администратор';
       case UserRole.clientManager:
         return 'Менеджер клиента';
@@ -266,8 +266,6 @@ class User {
         return 'engineer';
       
       // Старые роли (для совместимости)
-      case UserRole.admin:
-        return 'superAdmin';
       case UserRole.clientManager:
         return 'clientManager';
       case UserRole.clientResponsible:

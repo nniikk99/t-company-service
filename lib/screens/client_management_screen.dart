@@ -60,7 +60,6 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
       case UserRole.siteManager: return 'Менеджер площадки';
       case UserRole.companyResponsible: return 'Ответственное лицо';
       case UserRole.supplier: return 'Поставщик';
-      case UserRole.superAdmin: return 'Супер-админ';
       case UserRole.administrator: return 'Администратор';
       default: return 'Пользователь';
     }
@@ -68,7 +67,6 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
 
   Color _getRoleColor(UserRole role) {
     switch (role) {
-      case UserRole.superAdmin:
       case UserRole.administrator:
         return Colors.red;
       case UserRole.companyResponsible:
@@ -114,7 +112,7 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: UserRole.values.map((role) {
-                if (role == UserRole.admin || role == UserRole.clientManager || 
+                if (role == UserRole.clientManager || 
                     role == UserRole.clientResponsible || role == UserRole.contactPerson) {
                   return const SizedBox.shrink(); // Пропускаем старые роли
                 }
@@ -233,7 +231,7 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
                         child: Text('Все роли'),
                       ),
                       ...UserRole.values
-                          .where((r) => ![UserRole.admin, UserRole.clientManager, UserRole.clientResponsible, UserRole.contactPerson].contains(r))
+                          .where((r) => ![UserRole.clientManager, UserRole.clientResponsible, UserRole.contactPerson].contains(r))
                           .map((role) => PopupMenuItem(
                                 value: role,
                                 child: Text(_getRoleDisplayName(role)),

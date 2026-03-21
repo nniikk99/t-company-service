@@ -156,8 +156,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   String _roleToString(AppUserModel.UserRole role) {
     switch (role) {
-      case AppUserModel.UserRole.superAdmin:
-        return 'super_admin';
       case AppUserModel.UserRole.administrator:
         return 'administrator';
       case AppUserModel.UserRole.companyResponsible:
@@ -172,8 +170,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         return 'engineer';
       case AppUserModel.UserRole.pendingApproval:
         return 'pending_approval';
-      case AppUserModel.UserRole.admin:
-        return 'admin';
       case AppUserModel.UserRole.clientManager:
         return 'client_manager';
       case AppUserModel.UserRole.clientResponsible:

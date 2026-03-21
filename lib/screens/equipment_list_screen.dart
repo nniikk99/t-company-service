@@ -227,7 +227,6 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
   bool _canUseFilters() {
     // Ответственное лицо и администраторы могут использовать все фильтры
     if (widget.user.role == UserRole.companyResponsible || 
-        widget.user.role == UserRole.superAdmin || 
         widget.user.role == UserRole.administrator) {
       return true;
     }
@@ -244,7 +243,6 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
   bool _canUseSiteFilter() {
     // Ответственное лицо и администраторы всегда видят фильтр площадок
     if (widget.user.role == UserRole.companyResponsible || 
-        widget.user.role == UserRole.superAdmin || 
         widget.user.role == UserRole.administrator) {
       return true;
     }
@@ -1003,7 +1001,7 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
             ),
             
             // Кнопка редактирования (для админов)
-            if (widget.user.role == UserRole.admin || widget.user.role == UserRole.clientManager)
+            if (widget.user.role == UserRole.administrator)
               Positioned(
                 top: 12,
                 left: 12,

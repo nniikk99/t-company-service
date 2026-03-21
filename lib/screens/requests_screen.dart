@@ -32,7 +32,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
       final allEquipment = await StorageService.getEquipment(companyId: widget.user?.companyId);
       
       List<ServiceRequest> filteredRequests;
-      if (widget.user?.role == UserRole.admin) {
+      if (widget.user?.role == UserRole.administrator) {
         filteredRequests = allRequests;
       } else if (widget.user?.role == UserRole.contactPerson) {
         filteredRequests = allRequests

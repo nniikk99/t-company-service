@@ -1250,7 +1250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Color _getRoleColor(UserRole role) {
     switch (role) {
-      case UserRole.superAdmin:
+      case UserRole.administrator:
         return Colors.purple;
       case UserRole.companyResponsible:
         return Colors.blue;
