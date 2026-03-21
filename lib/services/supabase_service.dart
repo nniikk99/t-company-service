@@ -1575,8 +1575,7 @@ class SupabaseService {
     }
   }
 
-  /// Выставление счета администратором (перевод в "Ждет оплату")
-  static Future<void> requestPaymentForInvoice(String requestId, double amount, {String? invoiceUrl}) async {
+  static Future<void> requestPaymentForInvoice(String requestId, double amount, {String? invoiceUrl, required String senderId}) async {
     await _client
         .from('service_requests')
         .update({
@@ -1594,7 +1593,7 @@ class SupabaseService {
     if (invoiceUrl != null) {
       await sendRequestMessage(
         requestId: requestId,
-        senderId: currentUser!.id,
+        senderId: senderId,
         message: 'Счет на оплату выставлен: $amount ₽. Ссылка: $invoiceUrl',
       );
     }

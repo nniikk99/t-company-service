@@ -1433,6 +1433,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             _currentRequest.id, 
             amount ?? 0,
             invoiceUrl: invoiceUrl,
+            senderId: widget.currentUser.id,
           );
           
           if (mounted) {
