@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import '../models/user.dart';
+import '../models/user.dart' as AppUserModel;
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../services/password_service.dart';
@@ -100,19 +100,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       // Проверяем, существует ли компания с таким ИНН
       String? existingCompanyId = await _findCompanyByInn(_companyInnController.text.trim());
       
-      UserRole userRole;
+      AppUserModel.UserRole userRole;
       String? companyId;
       String? companyName;
 
       if (existingCompanyId != null) {
         // Компания существует - пользователь ожидает одобрения
-        userRole = UserRole.pendingApproval;
+        userRole = AppUserModel.UserRole.pendingApproval;
         companyId = existingCompanyId;
         companyName = _companyNameController.text.trim();
       } else {
         // Новая компания - роль пользователя зависит от типа организации
         // Поставщик → роль supplier, остальные → companyResponsible
-        userRole = _selectedOrgType == 'supplier' ? UserRole.supplier : UserRole.companyResponsible;
+        userRole = _selectedOrgType == 'supplier' ? AppUserModel.UserRole.supplier : AppUserModel.UserRole.companyResponsible;
         companyId = await _createCompany();
         companyName = _companyNameController.text.trim();
       }
@@ -173,7 +173,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       print('User saved to local storage successfully');
 
       // Показываем результат
-      _showSuccessDialog(userRole == UserRole.companyResponsible);
+      _showSuccessDialog(userRole == AppUserModel.UserRole.companyResponsible);
 
     } catch (e) {
       _showErrorSnackBar('Ошибка при регистрации: $e');
