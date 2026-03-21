@@ -2712,7 +2712,7 @@ class SupabaseService {
     try {
       final response = await _client
           .from('request_messages')
-          .select('*, sender:user_profiles(*)')
+          .select('*, sender:user_profiles!request_messages_sender_id_fkey(*)')
           .eq('request_id', requestId)
           .order('created_at', ascending: true);
       
