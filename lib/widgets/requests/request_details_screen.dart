@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/request_message.dart';
 import '../../models/user.dart' as AppUserModel;
 import 'package:flutter/services.dart';
 import '../pdf_iframe_view.dart';
@@ -35,14 +37,16 @@ class RequestDetailsScreen extends StatefulWidget {
 }
 
 class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
-  final _dateFormat = DateFormat('dd.MM.yyyy');
   late ServiceRequest _currentRequest;
-  Equipment? _equipment;
   bool _isLoading = false;
-  RealtimeChannel? _subscription;
-  
+  final DateFormat _dateFormat = DateFormat('dd.MM.yyyy HH:mm');
   final ImagePicker _picker = ImagePicker();
   XFile? _invoiceFile;
+  int _unreadCount = 0;
+  DateTime? _lastReadTime;
+  RealtimeChannel? _chatSubscription;
+  Equipment? _equipment;
+  RealtimeChannel? _subscription;
 
 
   @override
@@ -51,12 +55,66 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     _currentRequest = widget.request;
     _loadEquipment();
     _setupRealtime();
+    _loadUnreadCount();
+    _subscribeToMessages();
   }
 
   @override
   void dispose() {
     _subscription?.unsubscribe();
+    _chatSubscription?.unsubscribe();
     super.dispose();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastReadStr = prefs.getString('chat_last_read_${_currentRequest.id}');
+    if (lastReadStr != null) {
+      _lastReadTime = DateTime.parse(lastReadStr);
+    } else {
+      _lastReadTime = DateTime.now().subtract(const Duration(days: 365));
+    }
+
+    // Загружаем сообщения после последнего прочтения
+    try {
+      final messages = await SupabaseService.getRequestMessages(_currentRequest.id);
+      int count = 0;
+      for (var msg in messages) {
+        if (msg.senderId != widget.currentUser.id && 
+            (_lastReadTime == null || msg.createdAt.isAfter(_lastReadTime!))) {
+          count++;
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _unreadCount = count;
+        });
+      }
+    } catch (e) {
+      print('Error loading unread count: $e');
+    }
+  }
+
+  void _subscribeToMessages() {
+    _chatSubscription = SupabaseService.subscribeToRequestMessages(_currentRequest.id, (msg) {
+      if (mounted && msg.senderId != widget.currentUser.id) {
+        setState(() {
+          _unreadCount++;
+        });
+      }
+    });
+  }
+
+  Future<void> _markAsRead() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    await prefs.setString('chat_last_read_${_currentRequest.id}', now.toIso8601String());
+    if (mounted) {
+      setState(() {
+        _unreadCount = 0;
+        _lastReadTime = now;
+      });
+    }
   }
 
   void _setupRealtime() {
@@ -738,19 +796,58 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   Widget _buildChatCard() {
     return _buildCard(
       padding: EdgeInsets.zero,
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          title: _buildCardHeader(Icons.chat_bubble_outline_rounded, 'Чат по заявке'),
-          initiallyExpanded: false,
-          children: [
-            ChatWidget(
-              requestId: _currentRequest.id,
-              requestTitle: _currentRequest.title,
-              currentUser: widget.currentUser,
-              height: 450,
+      child: ListTile(
+        onTap: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ChatPage(
+                requestId: _currentRequest.id, 
+                requestTitle: _currentRequest.title, 
+                currentUser: widget.currentUser,
+              ),
             ),
+          );
+          _markAsRead();
+        },
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2563EB).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF2563EB), size: 20),
+        ),
+        title: const Text(
+          'Обсуждение заявки',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        subtitle: const Text('Перейти в чат', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_unreadCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$_unreadCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
           ],
         ),
       ),

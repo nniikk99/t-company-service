@@ -340,3 +340,38 @@ class _ChatWidgetState extends State<ChatWidget> {
     );
   }
 }
+
+class ChatPage extends StatelessWidget {
+  final String requestId;
+  final String requestTitle;
+  final AppUserModel.User currentUser;
+
+  const ChatPage({
+    super.key,
+    required this.requestId,
+    required this.requestTitle,
+    required this.currentUser,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: Text(
+          'Чат заявка - $requestTitle', 
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF1E293B),
+        elevation: 0.5,
+        centerTitle: true,
+      ),
+      body: ChatWidget(
+        requestId: requestId,
+        requestTitle: requestTitle,
+        currentUser: currentUser,
+      ),
+    );
+  }
+}
