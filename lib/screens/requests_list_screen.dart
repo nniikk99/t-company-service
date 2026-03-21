@@ -382,6 +382,18 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
                       color: Color(0xFF94A3B8),
                     ),
                   ),
+                  if (request.companyName != null && request.companyName!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        request.companyName!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF3B82F6), // Blue title for company
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -407,7 +419,8 @@ class _RequestsListScreenState extends State<RequestsListScreen> {
                 color: Color(0xFF1E293B),
               ),
             ),
-            if (request.equipmentModel != null)
+            if (request.equipmentModel != null && 
+                !(request.equipmentName ?? '').contains(request.equipmentModel!))
               Text(
                 request.equipmentModel!,
                 style: const TextStyle(

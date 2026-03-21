@@ -66,6 +66,7 @@ class ServiceRequest {
   final String? engineerName;
   final String? creatorName;
   final String? approvedByName;
+  final String? companyName;
   final String? operatorContact;
   final String? siteManagerContact;
   final String? responsibleContact;
@@ -131,6 +132,7 @@ class ServiceRequest {
     this.isAcceptedByClient,
     this.clientAcceptanceComment,
     this.clientAcceptedAt,
+    this.companyName,
   });
 
   // Геттеры для удобства
@@ -253,6 +255,7 @@ class ServiceRequest {
 
     // approved_by хранится как текстовое поле с именем (не FK)
     final String? approvedFullName = json['approved_by'] as String?;
+    final String? companyName = author?['company_name'] as String?;
 
     return ServiceRequest(
       id: json['id'],
@@ -321,6 +324,7 @@ class ServiceRequest {
       isAcceptedByClient: json['is_accepted_by_client'],
       clientAcceptanceComment: json['client_acceptance_comment'],
       clientAcceptedAt: json['client_accepted_at'] != null ? DateTime.parse(json['client_accepted_at']) : null,
+      companyName: companyName,
     );
   }
 

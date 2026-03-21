@@ -319,7 +319,7 @@ class SupabaseService {
   static Future<List<Map<String, dynamic>>> getCompanyServiceRequests(String companyId) async {
     final response = await _client
         .from('service_requests')
-        .select('*, equipment(name, model), author:user_profiles!service_requests_user_id_fkey(first_name, last_name)')
+        .select('*, equipment(name, model), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name)')
         .eq('company_id', companyId)
         .order('created_at', ascending: false);
 
@@ -331,7 +331,7 @@ class SupabaseService {
         .from('service_requests')
         .select('''
           *,
-          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role),
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
           equipment(
             name, model, serial_number,
             site:sites(
@@ -352,7 +352,7 @@ class SupabaseService {
         .from('service_requests')
         .select('''
           *,
-          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role),
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
           equipment(
             name, model, serial_number,
             site:sites(
@@ -374,7 +374,7 @@ class SupabaseService {
         .from('service_requests')
         .select('''
           *,
-          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role),
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
           equipment(
             name, model, serial_number,
             site:sites(
@@ -1280,7 +1280,7 @@ class SupabaseService {
   static Future<List<ServiceRequest>> getEngineerAssignedRequests(String engineerId) async {
     final response = await _client
         .from('service_requests')
-        .select('*, equipment(name, model, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
+        .select('*, equipment(name, model, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
         .eq('assigned_engineer_id', engineerId)
         .or('status.eq.approved,status.eq.inProgress,status.eq.waitingForInvoice,status.eq.waitingForPayment')
         .order('created_at', ascending: false);
@@ -1340,7 +1340,7 @@ class SupabaseService {
     try {
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
           .eq('supplier_id', supplierUserId)
           .neq('status', 'cancelled')
           .order('created_at', ascending: false);
@@ -1480,7 +1480,7 @@ class SupabaseService {
       // 2. Ищем свободные заявки на этих площадках
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
           .inFilter('site_id', siteIds)
           .isFilter('assigned_engineer_id', null)
           .eq('status', 'pending')
@@ -1619,7 +1619,7 @@ class SupabaseService {
     try {
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
           .eq('id', requestId)
           .maybeSingle();
 
