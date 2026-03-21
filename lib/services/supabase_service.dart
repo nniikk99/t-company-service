@@ -2793,7 +2793,7 @@ class SupabaseService {
       }).select().single();
       
       // Уведомляем участников о новом сообщении
-      _notifyParties(requestId, 'Новое сообщение', 'У вас новое сообщение в заявке.', message: message);
+      _notifyParties(requestId, 'Новое сообщение', message ?? 'Вам прислали вложение в чат.', message: message);
       
       print('✅ Сообщение отправлено: ${response['id']}');
     } catch (e) {
@@ -2860,15 +2860,17 @@ class SupabaseService {
         print('⚠️ Ошибка получения списка админов для уведомления: $e');
       }
       
+      final String shortId = requestId.length > 5 ? requestId.substring(0, 5).toUpperCase() : requestId.toUpperCase();
+      
       for (final uid in notifyIds) {
-        // Пропускаем если отправитель это текущий пользователь (опционально)
+        // Пропускаем если отправитель это текущий пользователь
         if (uid == currentUser?.id) continue;
         
         await createNotification(
           userId: uid,
-          title: title,
+          title: 'Новое сообщение по заявке #$shortId',
           message: body,
-          type: 'requestUpdate',
+          type: 'newMessage',
           relatedId: requestId,
         );
         

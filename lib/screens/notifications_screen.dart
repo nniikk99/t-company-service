@@ -5,6 +5,7 @@ import '../models/user.dart';
 import '../models/notification.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/requests/chat_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final User user;
@@ -421,12 +422,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                        onTap: () => _markAsRead(notification),
+                        onTap: () => _handleNotificationTap(notification),
                       ),
                     );
                   },
                 ),
     );
+  }
+
+  void _handleNotificationTap(AppNotification notification) async {
+    await _markAsRead(notification);
+    
+    if (notification.type == NotificationType.newMessage) {
+      final String? requestId = notification.relatedId ?? notification.data?['requestId'];
+      if (requestId != null) {
+        _navigateToChat(requestId);
+      }
+    }
+  }
+
+  Future<void> _navigateToChat(String requestId) async {
+    setState(() => _isLoading = true);
+    try {
+      final request = await SupabaseService.getRequestById(requestId);
+      setState(() => _isLoading = false);
+      
+      if (request != null && mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatPage(
+              requestId: request.id,
+              requestTitle: request.title,
+              currentUser: widget.user,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print('Error navigating to chat: $e');
+    }
   }
 
   Widget _getNotificationIcon(NotificationType type) {
@@ -449,6 +485,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return const Icon(Icons.add_business, color: Colors.green);
       case NotificationType.siteAssignment:
         return const Icon(Icons.location_on, color: Colors.purple);
+      case NotificationType.newMessage:
+        return const Icon(Icons.chat_bubble_outline_rounded, color: Colors.blue);
     }
   }
 

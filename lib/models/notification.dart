@@ -8,6 +8,7 @@ enum NotificationType {
   companyJoinRequest,
   companyCreationRequest,
   siteAssignment,
+  newMessage,
 }
 
 class AppNotification {
@@ -17,6 +18,7 @@ class AppNotification {
   final String title;
   final String message;
   final Map<String, dynamic>? data;
+  final String? relatedId;
   final bool isRead;
   final DateTime createdAt;
 
@@ -27,6 +29,7 @@ class AppNotification {
     required this.title,
     required this.message,
     this.data,
+    this.relatedId,
     this.isRead = false,
     required this.createdAt,
   });
@@ -39,6 +42,7 @@ class AppNotification {
       title: json['title']?.toString() ?? '',
       message: json['message']?.toString() ?? '',
       data: json['data'] as Map<String, dynamic>?,
+      relatedId: json['related_id']?.toString() ?? json['relatedId']?.toString(),
       isRead: json['is_read'] ?? json['isRead'] ?? false,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? json['createdAt']?.toString() ?? '') ?? DateTime.now(),
     );
@@ -66,6 +70,8 @@ class AppNotification {
         return NotificationType.companyCreationRequest;
       case 'siteAssignment':
         return NotificationType.siteAssignment;
+      case 'newMessage':
+        return NotificationType.newMessage;
       default:
         return NotificationType.systemAlert;
     }
@@ -79,6 +85,7 @@ class AppNotification {
       'title': title,
       'message': message,
       'data': data,
+      'relatedId': relatedId,
       'isRead': isRead,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -91,6 +98,7 @@ class AppNotification {
     String? title,
     String? message,
     Map<String, dynamic>? data,
+    String? relatedId,
     bool? isRead,
     DateTime? createdAt,
   }) {
@@ -101,6 +109,7 @@ class AppNotification {
       title: title ?? this.title,
       message: message ?? this.message,
       data: data ?? this.data,
+      relatedId: relatedId ?? this.relatedId,
       isRead: isRead ?? this.isRead,
       createdAt: createdAt ?? this.createdAt,
     );
