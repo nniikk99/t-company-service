@@ -1660,7 +1660,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 ],
               ),
               Expanded(
-                child: PdfIFrameView(url: url, label: 'Счет на оплату'),
+                child: PdfIframeView(url: url, label: 'Счет на оплату'),
               ),
             ],
           ),
