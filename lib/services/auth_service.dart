@@ -20,7 +20,7 @@ class AuthService {
     final response = await _client
         .from('companies')
         .select('id')
-        .eq('inn', inn)
+        .eq('company_inn', inn)
         .maybeSingle();
     
     return response?['id'];
@@ -35,6 +35,7 @@ class AuthService {
     final response = await _client.from('companies').insert({
       'name': name,
       'inn': inn,
+      'company_inn': inn,
       'description': description,
     }).select().single();
 

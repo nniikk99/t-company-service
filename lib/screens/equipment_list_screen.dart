@@ -1447,7 +1447,8 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController modelController = TextEditingController();
     final TextEditingController serialController = TextEditingController();
-    String? selectedLocation = _locations.first;
+    final validSites = _locations.where((l) => l != 'Все площадки').toList();
+    String? selectedLocation = validSites.isNotEmpty ? validSites.first : null;
     
     showDialog(
       context: context,
@@ -1512,15 +1513,25 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              if (selectedLocation == null || selectedLocation == 'Все площадки') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Пожалуйста, выберите конкретную площадку')),
+                );
+                return;
+              }
+
               if (titleController.text.isNotEmpty &&
-                  modelController.text.isNotEmpty &&
-                  selectedLocation != null) {
+                  modelController.text.isNotEmpty) {
                 Navigator.pop(context);
                 await _addNewEquipment(
                   titleController.text,
                   modelController.text,
                   serialController.text,
                   selectedLocation!,
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Пожалуйста, заполните название и модель')),
                 );
               }
             },

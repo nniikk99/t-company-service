@@ -211,8 +211,10 @@ class _DatabaseManagementScreenState extends State<DatabaseManagementScreen> {
     final filtered = items.where((item) {
       final query = _searchQuery.toLowerCase();
       if (type == ManagementView.companies) {
-        return (item['name'] ?? '').toLowerCase().contains(query) || 
-               (item['inn'] ?? '').toLowerCase().contains(query);
+        final name = (item['name'] ?? '').toString().toLowerCase();
+        final companyInn = (item['company_inn'] ?? '').toString().toLowerCase();
+        final inn = (item['inn'] ?? '').toString().toLowerCase();
+        return name.contains(query) || companyInn.contains(query) || inn.contains(query);
       } else if (type == ManagementView.users) {
         final fullName = '${item['first_name']} ${item['last_name']}'.toLowerCase();
         return fullName.contains(query) || (item['email'] ?? '').toLowerCase().contains(query);
@@ -269,8 +271,16 @@ class _DatabaseManagementScreenState extends State<DatabaseManagementScreen> {
     String deleteType = '';
     
     if (type == ManagementView.companies) {
+      final String? companyInn = item['company_inn'];
+      final String? altInn = item['inn'];
+      final String displayInn = (companyInn != null && companyInn.toString().isNotEmpty) 
+          ? companyInn.toString() 
+          : (altInn != null && altInn.toString().isNotEmpty) 
+              ? altInn.toString() 
+              : 'не указан';
+      
       title = item['name'] ?? 'Без названия';
-      subtitle = 'ИНН: ${item['inn'] ?? 'не указан'}';
+      subtitle = 'ИНН: $displayInn';
       deleteType = 'company';
     } else if (type == ManagementView.users) {
       title = '${item['first_name'] ?? ''} ${item['last_name'] ?? ''}'.trim();

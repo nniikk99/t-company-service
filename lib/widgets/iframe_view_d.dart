@@ -7,7 +7,7 @@ class IframeView extends StatefulWidget {
   final double height;
   final String title;
 
-  const IframeView({super.key, required this.url, this.height = 400, required this.title});
+  const IframeView({super.key, required this.url, this.height = double.infinity, required this.title});
 
   @override
   _IframeViewState createState() => _IframeViewState();
@@ -34,21 +34,30 @@ class _IframeViewState extends State<IframeView> {
   }
 
   String _getDrivePreviewUrl(String url) {
+    if (url.isEmpty) return '';
+
     if (url.contains('drive.google.com/file/d/')) {
       final startIndex = url.indexOf('d/') + 2;
       final endIndex = url.indexOf('/', startIndex);
       if (endIndex != -1) {
         final id = url.substring(startIndex, endIndex);
-        return 'https://drive.google.com/file/d/\$id/preview';
+        return 'https://drive.google.com/file/d/$id/preview';
       } else {
         // Handle cases like drive.google.com/file/d/ID?xxx
         final qIndex = url.indexOf('?', startIndex);
         if (qIndex != -1) {
            final id = url.substring(startIndex, qIndex);
-           return 'https://drive.google.com/file/d/\$id/preview';
+           return 'https://drive.google.com/file/d/$id/preview';
         }
       }
     }
+
+    // Поддержка Google Docs Viewer для PDF
+    if (url.toLowerCase().contains('.pdf') || 
+        url.contains('storage/v1/object/public')) {
+      return 'https://docs.google.com/viewer?url=${Uri.encodeComponent(url)}&embedded=true';
+    }
+
     return url;
   }
 

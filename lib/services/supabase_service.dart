@@ -800,40 +800,55 @@ class SupabaseService {
           break;
           
         case AppUserModel.UserRole.siteManager:
-          // Менеджер площадки видит оборудование только назначенных ему площадок
+          // Менеджер площадки видит оборудование только назначенных ему площадок + неназначенное оборудование своей компании
           print('🔍 Загружаем оборудование для менеджера площадки');
           if (user.assignedSiteIds != null && user.assignedSiteIds!.isNotEmpty) {
-            print('🔍 Назначенные площадки: ${user.assignedSiteIds}');
+            final siteIds = user.assignedSiteIds!.map((id) => '"$id"').join(',');
             final response = await _client
                 .from('equipment')
                 .select('*')
-                .inFilter('site_id', user.assignedSiteIds!)
+                .or('site_id.in.($siteIds),and(company_id.eq.${user.companyId},site_id.is.null)')
                 .order('name');
             equipment = (response as List)
                 .map((json) => Equipment.fromJson(json))
                 .toList();
-            print('🔍 Найдено оборудования: ${equipment.length}');
-          } else {
-            print('⚠️ У менеджера площадки нет назначенных площадок');
+          } else if (user.companyId != null) {
+            // Если нет назначенных площадок, все равно показываем неназначенное оборудование компании
+            final response = await _client
+                .from('equipment')
+                .select('*')
+                .isFilter('site_id', null)
+                .eq('company_id', user.companyId!)
+                .order('name');
+            equipment = (response as List)
+                .map((json) => Equipment.fromJson(json))
+                .toList();
           }
           break;
           
         case AppUserModel.UserRole.operatorPM:
-          // Оператор ПМ видит оборудование с назначенных ему площадок
+          // Оператор ПМ видит оборудование с назначенных ему площадок + неназначенное оборудование своей компании
           print('🔍 Загружаем оборудование для оператора ПМ');
           if (user.assignedSiteIds != null && user.assignedSiteIds!.isNotEmpty) {
-            print('🔍 Назначенные площадки: ${user.assignedSiteIds}');
+            final siteIds = user.assignedSiteIds!.map((id) => '"$id"').join(',');
             final response = await _client
                 .from('equipment')
                 .select('*')
-                .inFilter('site_id', user.assignedSiteIds!)
+                .or('site_id.in.($siteIds),and(company_id.eq.${user.companyId},site_id.is.null)')
                 .order('name');
             equipment = (response as List)
                 .map((json) => Equipment.fromJson(json))
                 .toList();
-            print('🔍 Найдено оборудования: ${equipment.length}');
-          } else {
-            print('⚠️ У оператора ПМ нет назначенных площадок');
+          } else if (user.companyId != null) {
+            final response = await _client
+                .from('equipment')
+                .select('*')
+                .isFilter('site_id', null)
+                .eq('company_id', user.companyId!)
+                .order('name');
+            equipment = (response as List)
+                .map((json) => Equipment.fromJson(json))
+                .toList();
           }
           break;
           
@@ -882,7 +897,7 @@ class SupabaseService {
     final response = await _client
         .from('companies')
         .select('id')
-        .eq('inn', inn)
+        .or('inn.eq.$inn,company_inn.eq.$inn')
         .maybeSingle();
     
     return response?['id'];
@@ -894,12 +909,15 @@ class SupabaseService {
     String? description,
     String? orgType, // 'customer' | 'supplier' | 'service_partner'
   }) async {
-    final response = await _client.from('companies').insert({
+    final Map<String, dynamic> insertData = {
       'name': name,
+      'inn': inn,
       'company_inn': inn,
-      'description': description,
+      if (description != null) 'description': description,
       if (orgType != null) 'org_type': orgType,
-    }).select().single();
+    };
+    
+    final response = await _client.from('companies').insert(insertData).select().single();
 
     return response['id'];
   }
@@ -993,30 +1011,41 @@ class SupabaseService {
     required String companyInn,
     required String companyName,
     required String role,
+    String status = 'pending',
   }) async {
+    final Map<String, dynamic> insertData = {
+      'user_id': userId,
+      'company_id': companyId,
+      'company_inn': companyInn,
+      'company_name': companyName,
+      'role': role,
+      'status': status,
+      'requested_at': DateTime.now().toIso8601String(),
+    };
+    
+    if (status == 'approved') {
+      insertData['approved_at'] = DateTime.now().toIso8601String();
+    }
+
     final response = await _client
         .from('user_companies')
-        .insert({
-          'user_id': userId,
-          'company_id': companyId,
-          'company_inn': companyInn,
-          'company_name': companyName,
-          'role': role,
-          'status': 'pending',
-        })
+        .insert(insertData)
         .select()
         .single();
-    // Создаем уведомление админам (простая реализация — отправим супер администратору)
-    try {
-      await createNotification(
-        userId: '00000000-0000-0000-0000-000000000001',
-        title: 'Заявка на присоединение к компании',
-        message: 'Пользователь запросил роль $role в "$companyName" (ИНН $companyInn).',
-        type: 'companyJoinRequest',
-        relatedId: response['id'],
-        data: {'requestId': response['id']},
-      );
-    } catch (_) {}
+        
+    // Создаем уведомление админам только для новых заявок (статус pending)
+    if (status == 'pending') {
+      try {
+        await createNotification(
+          userId: '00000000-0000-0000-0000-000000000001',
+          title: 'Заявка на присоединение к компании',
+          message: 'Пользователь запросил роль $role в "$companyName" (ИНН $companyInn).',
+          type: 'companyJoinRequest',
+          relatedId: response['id'],
+          data: {'requestId': response['id']},
+        );
+      } catch (_) {}
+    }
     
     return UserCompany.fromJson(response);
   }
@@ -1778,7 +1807,7 @@ class SupabaseService {
           .from('user_profiles')
           .select('*')
           .or(orFilter)
-          .inFilter('role', ['siteManager', 'operatorPM', 'engineer'])
+          .inFilter('role', ['siteManager', 'operatorPM', 'engineer', 'pendingApproval'])
           .order('first_name');
       
       print('🔍 Результат поиска сотрудников компании: ${(response as List).length} чел.');

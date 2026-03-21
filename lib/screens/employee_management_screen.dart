@@ -418,62 +418,103 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
                                   ),
                                   SizedBox(height: 8),
                                   Text(
-                                    'В компании нет менеджеров площадок или операторов ПМ',
+                                    'В компании нет менеджеров или операторов ПМ',
                                     style: TextStyle(color: Colors.grey),
                                   ),
                                 ],
                               ),
                             )
-                          : ListView.builder(
+                          : ListView(
                               padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: _employees.length,
-                              itemBuilder: (context, index) {
-                                final employee = _employees[index];
-                                final assignedSitesCount = employee.assignedSiteIds?.length ?? 0;
-                                
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  child: ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundColor: _getRoleColor(employee.role),
-                                      child: Text(
-                                        '${employee.firstName[0]}${employee.lastName[0]}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    title: Text(employee.fullName),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(employee.roleDisplayName),
-                                        Text('Назначено площадок: $assignedSitesCount'),
-                                      ],
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.swap_horiz),
-                                          tooltip: 'Изменить роль',
-                                          onPressed: () => _showChangeRoleDialog(employee),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ElevatedButton(
-                                          onPressed: () => _showSiteAssignmentDialog(employee),
-                                          child: const Text('Управлять'),
-                                        ),
-                                      ],
-                                    ),
+                              children: [
+                                if (_employees.any((e) => e.role == UserRole.pendingApproval)) ...[
+                                  Text(
+                                    'Ожидают одобрения (${_employees.where((e) => e.role == UserRole.pendingApproval).length})',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.orange),
                                   ),
-                                );
-                              },
+                                  const SizedBox(height: 8),
+                                  ..._employees
+                                      .where((e) => e.role == UserRole.pendingApproval)
+                                      .map((employee) => _buildEmployeeCard(employee)),
+                                  const SizedBox(height: 16),
+                                ],
+                                if (_employees.any((e) => e.role != UserRole.pendingApproval)) ...[
+                                  Text(
+                                    'Сотрудники (${_employees.where((e) => e.role != UserRole.pendingApproval).length})',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ..._employees
+                                      .where((e) => e.role != UserRole.pendingApproval)
+                                      .map((employee) => _buildEmployeeCard(employee)),
+                                ],
+                              ],
                             ),
                     ),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildEmployeeCard(User employee) {
+    final isPending = employee.role == UserRole.pendingApproval;
+    final assignedSitesCount = employee.assignedSiteIds?.length ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: isPending ? 2 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isPending ? BorderSide(color: Colors.orange.withOpacity(0.5)) : BorderSide.none,
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: _getRoleColor(employee.role),
+          child: Text(
+            '${employee.firstName.isNotEmpty ? employee.firstName[0] : '?'}${employee.lastName.isNotEmpty ? employee.lastName[0] : '?'}'
+                .toUpperCase(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        title: Text(employee.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(employee.roleDisplayName, 
+              style: TextStyle(color: isPending ? Colors.orange[800] : Colors.grey[700])),
+            if (!isPending) Text('Назначено площадок: $assignedSitesCount'),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isPending) 
+              ElevatedButton(
+                onPressed: () => _showChangeRoleDialog(employee),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Одобрить'),
+              )
+            else ...[
+              IconButton(
+                icon: const Icon(Icons.swap_horiz),
+                tooltip: 'Изменить роль',
+                onPressed: () => _showChangeRoleDialog(employee),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => _showSiteAssignmentDialog(employee),
+                child: const Text('Управлять'),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -485,6 +526,8 @@ class _EmployeeManagementScreenState extends State<EmployeeManagementScreen> {
         return Colors.blue;
       case UserRole.engineer:
         return Colors.orange;
+      case UserRole.pendingApproval:
+        return Colors.grey[400]!;
       default:
         return Colors.grey;
     }

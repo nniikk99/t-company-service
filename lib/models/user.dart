@@ -227,6 +227,7 @@ class User {
       'company_id': companyId,
       'company_name': companyName,
       'company_inn': companyInn,
+      'inn': companyInn,
       'company_address': companyAddress,
       'company_phone': companyPhone,
       'company_email': companyEmail,

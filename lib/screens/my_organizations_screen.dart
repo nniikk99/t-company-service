@@ -34,8 +34,10 @@ class _MyOrganizationsScreenState extends State<MyOrganizationsScreen> {
       // пробуем найти эту компанию и показать её
       if (companies.isEmpty) {
         final profile = await SupabaseService.getUserProfile(widget.user.id);
-        final inn = profile?['company_inn'];
-        if (inn != null) {
+        final String? profileInn = profile?['company_inn'] ?? profile?['inn'];
+        
+        if (profileInn != null && profileInn.toString().isNotEmpty) {
+          final String inn = profileInn.toString();
           final companyId = await SupabaseService.findCompanyByInn(inn);
           if (companyId != null) {
             final companyData = await SupabaseService.getCompany(companyId);
@@ -44,7 +46,7 @@ class _MyOrganizationsScreenState extends State<MyOrganizationsScreen> {
               // Создаем временный объект для отображения
               companies = [
                 UserCompany(
-                  id: 'temp',
+                  id: 'temp_${widget.user.id}_$companyId',
                   userId: widget.user.id,
                   companyId: companyId,
                   companyName: companyData['name'] ?? 'Ваша компания',

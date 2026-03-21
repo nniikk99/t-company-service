@@ -7,7 +7,7 @@ class PdfIframeView extends StatefulWidget {
   final double height;
   final String label;
 
-  const PdfIframeView({super.key, required this.url, required this.label, this.height = 400});
+  const PdfIframeView({super.key, required this.url, required this.label, this.height = double.infinity});
 
   @override
   _PdfIframeViewState createState() => _PdfIframeViewState();
@@ -34,6 +34,9 @@ class _PdfIframeViewState extends State<PdfIframeView> {
   }
 
   String _getDrivePreviewUrl(String url) {
+    if (url.isEmpty) return '';
+    
+    // Google Drive links
     if (url.contains('drive.google.com/file/d/')) {
       final startIndex = url.indexOf('/d/') + 3;
       final endIndex = url.indexOf('/', startIndex);
@@ -54,11 +57,55 @@ class _PdfIframeViewState extends State<PdfIframeView> {
         final id = url.split('id=')[1].split('&')[0];
         return 'https://drive.google.com/file/d/$id/preview';
     }
+
+    // Если это PDF или другой документ, используем Google Docs Viewer как прокси
+    // Это часто помогает обойти блокировку iframe браузером (CORS, X-Frame-Options)
+    if (url.toLowerCase().contains('.pdf') || 
+        url.contains('application/pdf') || 
+        url.contains('storage/v1/object/public')) {
+      return 'https://docs.google.com/viewer?url=${Uri.encodeComponent(url)}&embedded=true';
+    }
+    
     return url;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isImage = widget.url.toLowerCase().contains('.jpg') || 
+                   widget.url.toLowerCase().contains('.jpeg') || 
+                   widget.url.toLowerCase().contains('.png') || 
+                   widget.url.toLowerCase().contains('.webp') ||
+                   widget.url.toLowerCase().contains('.gif');
+
+    if (isImage) {
+      return SizedBox(
+        height: widget.height,
+        width: double.infinity,
+        child: InteractiveViewer(
+          child: Image.network(
+            widget.url,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return const Center(child: CircularProgressIndicator());
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    SizedBox(height: 12),
+                    Text('Не удалось загрузить изображение'),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: widget.height,
       child: Stack(

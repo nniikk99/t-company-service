@@ -134,16 +134,42 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
         createdAt: DateTime.now(),
       );
 
-      // Сохраняем пользователя
+      // Сохраняем пользователя в Supabase
+      await SupabaseService.createUser(user);
+      print('User saved to Supabase successfully');
+      
+      // Создаем связку с компанией в user_companies (для отображения в "Мои организации")
+      final isNewCompany = existingCompanyId == null;
       try {
-        await SupabaseService.createUser(user);
-        print('User saved to Supabase successfully');
+        await SupabaseService.requestJoinCompany(
+          userId: user.id,
+          companyId: companyId,
+          companyInn: user.companyInn!,
+          companyName: user.companyName!,
+          role: isNewCompany ? 'companyResponsible' : 'siteManager', 
+          status: isNewCompany ? 'approved' : 'pending',
+        );
+        print('Company link created successfully (status: ${isNewCompany ? 'approved' : 'pending'})');
       } catch (e) {
-        print('Supabase error: $e');
-        // Сохраняем локально как резерв
+        print('Error creating company link: $e');
+        // Не фатально, но пользователь не увидит организацию в списке сразу
       }
       
-      await StorageService.saveUser(user);
+      // Освежаем данные пользователя из Supabase перед сохранением в локальное хранилище
+      // Это поможет сразу подтянуть роль и компанию
+      try {
+        final refreshedData = await SupabaseService.getUserProfile(user.id);
+        if (refreshedData != null) {
+          final refreshedUser = AppUserModel.User.fromJson(refreshedData);
+          await StorageService.saveUser(refreshedUser);
+        } else {
+          await StorageService.saveUser(user);
+        }
+      } catch (e) {
+        print('Error refreshing user data after registration: $e');
+        await StorageService.saveUser(user);
+      }
+      
       print('User saved to local storage successfully');
 
       // Показываем результат
