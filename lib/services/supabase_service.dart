@@ -2839,15 +2839,12 @@ class SupabaseService {
       final authorId = req.userId;
       final engineerId = req.assignedEngineerId;
       
-      // 2. Добавляем уведомление в системную таблицу (для UI Mini App)
-      // Нам нужно создать уведомление для каждого участника (пока просто в таблицу)
-      // В реальности тут лучше цикл по всем причастным.
-      
       Set<String> notifyIds = {authorId};
       if (engineerId != null) notifyIds.add(engineerId);
       
-      // Добавляем всех администраторов в список (они видят всё)
+      // Добавляем всех, кто имеет отношение к заявке
       try {
+        // 2а. Администраторы
         final adminsResponse = await _client
             .from('user_profiles')
             .select('id')
@@ -2856,8 +2853,33 @@ class SupabaseService {
         for (var admin in adminsResponse as List) {
           notifyIds.add(admin['id']);
         }
+
+        // 2б. Ответственные лица компании клиента и менеджеры площадки
+        if (req.companyId != null || req.companyInn != null) {
+          final clientStaffResponse = await _client
+              .from('user_profiles')
+              .select('id')
+              .or('role.eq.companyResponsible,role.eq.siteManager')
+              .or('company_id.eq.${req.companyId},company_inn.eq.${req.companyInn}');
+          
+          for (var staff in clientStaffResponse as List) {
+            notifyIds.add(staff['id']);
+          }
+        }
+
+        // 2в. Сотрудники поставщика (если заявка привязана к поставщику)
+        if (req.supplierId != null) {
+          final supplierStaffResponse = await _client
+              .from('user_profiles')
+              .select('id')
+              .eq('supplier_id', req.supplierId!);
+          
+          for (var user in supplierStaffResponse as List) {
+            notifyIds.add(user['id']);
+          }
+        }
       } catch (e) {
-        print('⚠️ Ошибка получения списка админов для уведомления: $e');
+        print('⚠️ Ошибка получения дополнительных участников для уведомления: $e');
       }
       
       final String shortId = requestId.length > 5 ? requestId.substring(0, 5).toUpperCase() : requestId.toUpperCase();
