@@ -2846,12 +2846,12 @@ class SupabaseService {
       Set<String> notifyIds = {authorId};
       if (engineerId != null) notifyIds.add(engineerId);
       
-      // Добавляем администраторов для уведомлений
+      // Добавляем всех администраторов в список (они видят всё)
       try {
         final adminsResponse = await _client
             .from('user_profiles')
             .select('id')
-            .inFilter('role', ['superAdmin', 'administrator']);
+            .or('role.eq.superAdmin,role.eq.administrator,role.eq.super_admin');
         
         for (var admin in adminsResponse as List) {
           notifyIds.add(admin['id']);
@@ -2866,12 +2866,17 @@ class SupabaseService {
         // Пропускаем если отправитель это текущий пользователь
         if (uid == currentUser?.id) continue;
         
+        // Определяем тип уведомления (если заголовок "Новое сообщение" - это newMessage)
+        final String notificationType = title == 'Новое сообщение' ? 'newMessage' : 'requestUpdate';
+        final String finalTitle = title == 'Новое сообщение' ? 'Новое сообщение по заявке #$shortId' : title;
+
         await createNotification(
           userId: uid,
-          title: 'Новое сообщение по заявке #$shortId',
+          title: finalTitle,
           message: body,
-          type: 'newMessage',
+          type: notificationType,
           relatedId: requestId,
+          data: {'requestId': requestId},
         );
         
         // 3. Отправляем в Telegram
