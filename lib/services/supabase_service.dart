@@ -1299,6 +1299,23 @@ class SupabaseService {
         .eq('id', notificationId);
   }
 
+  /// Получение уведомлений пользователя
+  static Future<List<Map<String, dynamic>>> getNotifications(String userId) async {
+    final response = await _client
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(response as List);
+  }
+
+  static Future<void> markNotificationAsRead(String notificationId) async {
+    await _client
+        .from('notifications')
+        .update({'is_read': true})
+        .eq('id', notificationId);
+  }
+
   /// Переключение активной компании пользователя
   static Future<void> switchActiveCompany(String userId, String companyId, String companyInn) async {
     await _client

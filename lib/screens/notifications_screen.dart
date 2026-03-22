@@ -29,7 +29,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _loadNotifications() async {
     try {
-      final notifications = await StorageService.getNotifications(userId: widget.user.id);
+      final notificationsData = await SupabaseService.getNotifications(widget.user.id);
+      final notifications = notificationsData.map((json) => AppNotification.fromJson(json)).toList();
       
       // Загружаем состояние обработанных уведомлений из локального хранилища
       final prefs = await SharedPreferences.getInstance();
@@ -47,9 +48,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _isLoading = false;
       });
       
-      print('📋 Загружено уведомлений: ${notifications.length}');
-      print('📋 Обработанных уведомлений: ${processedNotifications.length}');
+      print('📋 Загружено уведомлений (Supabase): ${notifications.length}');
     } catch (e) {
+      print('❌ Ошибка загрузки уведомлений из Supabase: $e');
       setState(() {
         _isLoading = false;
       });
@@ -60,10 +61,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (notification.isRead) return;
     
     try {
-      await StorageService.markNotificationAsRead(notification.id);
+      await SupabaseService.markNotificationAsRead(notification.id);
       await _loadNotifications();
     } catch (e) {
-      // Игнорируем ошибку
+      print('❌ Ошибка отметки как прочитанного: $e');
     }
   }
 
@@ -89,7 +90,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // Сохраняем состояние в локальное хранилище
       await _saveProcessedNotifications();
 
-      await StorageService.markNotificationAsRead(notification.id);
+      await SupabaseService.markNotificationAsRead(notification.id);
       await _loadNotifications();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -132,7 +133,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // Сохраняем состояние в локальное хранилище
       await _saveProcessedNotifications();
 
-      await StorageService.markNotificationAsRead(notification.id);
+      await SupabaseService.markNotificationAsRead(notification.id);
       await _loadNotifications();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -253,7 +254,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               onPressed: () async {
                 // Отметить все как прочитанные
                 for (final notification in _notifications.where((n) => !n.isRead)) {
-                  await StorageService.markNotificationAsRead(notification.id);
+                  await SupabaseService.markNotificationAsRead(notification.id);
                 }
                 await _loadNotifications();
               },
