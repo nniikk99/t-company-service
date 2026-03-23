@@ -648,57 +648,25 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   Widget _buildEngineerCard() {
-    String initials = _currentRequest.engineerName?.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase() ?? 'И';
-    
+    final name = _currentRequest.engineerName ?? 'Инженер не указан';
+    final initials = name
+        .split(' ')
+        .map((n) => n.isNotEmpty ? n[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
+
     return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildCardHeader(Icons.engineering_outlined, 'Назначенный инженер'),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF1F5F9),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    color: Color(0xFF475569),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currentRequest.engineerName ?? 'Инженер не указан',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                    const Text(
-                      'Сервисный инженер компании',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          _buildPersonRow(
+            initials: initials,
+            name: name,
+            role: 'Сервисный инженер',
+            phone: null, // телефон инженера в модели не хранится
           ),
         ],
       ),
@@ -906,10 +874,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildCardHeader(Icons.phone_outlined, 'Контакты'),
+          _buildCardHeader(Icons.contacts_outlined, 'Контакты'),
           const SizedBox(height: 16),
           if (widget.request.responsibleContact != null)
-            _buildContactItem('Инициатор', widget.request.responsibleContact!),
+            _buildContactItem('Инициатор', widget.request.responsibleContact!, isInitiator: true),
           if (widget.request.siteManagerContact != null)
             _buildContactItem('Менеджер площадки', widget.request.siteManagerContact!),
           if (widget.request.operatorContact != null)
@@ -919,117 +887,182 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
-  Widget _buildContactItem(String role, String contactInfo) {
+  /// Универсальный парсер строки контакта → имя, роль, телефон
+  /// Форматы: "Имя Фамилия (Роль) телефон" или "Имя Фамилия (телефон)"
+  Map<String, String?> _parseContact(String contactInfo, String role) {
     String name = contactInfo;
     String? phone;
-    
-    // Пытаемся вытащить телефон (простая версия)
-    final phoneRegex = RegExp(r'(\+7|7|8)[\s\-]?\(?[0-9]{3}\)?[\s\-]?([0-9]{3})[\s\-]?([0-9]{2})[\s\-]?([0-9]{2})');
-    final match = phoneRegex.firstMatch(contactInfo);
-    if (match != null) {
-      phone = match.group(0);
-      name = contactInfo.replaceAll(phone!, '').trim();
-      if (name.isEmpty) name = 'Без имени';
+    String displayRole = role;
+
+    // Извлекаем телефон через regex
+    final phoneRx = RegExp(r'(\+7|7|8)[\s\-]?\(?\d{3}\)?[\s\-]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}');
+    final phoneMatch = phoneRx.firstMatch(contactInfo);
+    if (phoneMatch != null) {
+      phone = phoneMatch.group(0)!.trim();
+      name = contactInfo.replaceAll(phone, '').trim();
     }
 
-    String initials = name.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase();
-    if (initials.isEmpty) initials = '?';
+    // Убираем артефакты "()" после замены телефона
+    name = name.replaceAll(RegExp(r'\(\s*\)'), '').trim();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Row(
+    // Если в имени есть (Роль), извлекаем её
+    final roleRx = RegExp(r'^(.+?)\s*\(([^)]+)\)\s*$');
+    final roleMatch = roleRx.firstMatch(name);
+    if (roleMatch != null) {
+      final possibleName = roleMatch.group(1)?.trim() ?? '';
+      final possibleRole = roleMatch.group(2)?.trim() ?? '';
+      if (!RegExp(r'\d{5,}').hasMatch(possibleRole) && possibleName.isNotEmpty) {
+        name = possibleName;
+        displayRole = possibleRole;
+      }
+    }
+
+    return {
+      'name': name.isEmpty ? 'Не указан' : name,
+      'role': displayRole,
+      'phone': phone,
+    };
+  }
+
+  Widget _buildPersonRow({
+    required String initials,
+    required String name,
+    required String role,
+    String? phone,
+    bool isInitiator = false,
+  }) {
+    return Row(
+      children: [
+        // Аватар
+        Container(
+          width: 44,
+          height: 44,
+          decoration: const BoxDecoration(
+            color: Color(0xFFDBEAFE),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            initials,
+            style: const TextStyle(
+              color: Color(0xFF2563EB),
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Текстовая колонка
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDBEAFE),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initials,
-                  style: const TextStyle(
-                    color: Color(0xFF2563EB),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              // Имя + плашка «Инициатор»
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
                       name,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         fontSize: 15,
                         color: Color(0xFF0F172A),
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(
-                          role,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF64748B),
-                          ),
+                  ),
+                  if (isInitiator) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDBEAFE),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Инициатор',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF2563EB),
+                          fontWeight: FontWeight.bold,
                         ),
-                        if (role == 'Инициатор') ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDBEAFE),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'Инициатор',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF2563EB),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                   ],
+                ],
+              ),
+              const SizedBox(height: 2),
+              // Роль
+              Text(
+                role,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
                 ),
               ),
+              // Телефон
+              if (phone != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  phone,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF3B82F6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ],
           ),
-          if (phone != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => launchUrl(Uri.parse('tel:${phone!.replaceAll(RegExp(r'[^\d+]'), '')}')),
-                icon: const Icon(Icons.phone_outlined, size: 16),
-                label: const Text('Позвонить'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF2563EB),
-                  side: const BorderSide(color: Color(0xFFDBEAFE)),
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+        // Круглая кнопка звонка
+        if (phone != null)
+          Material(
+            color: const Color(0xFFDBEAFE),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => launchUrl(Uri.parse('tel:${phone.replaceAll(RegExp(r'[^\d+]'), '')}')),
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(
+                  Icons.phone_rounded,
+                  color: Color(0xFF2563EB),
+                  size: 20,
                 ),
               ),
             ),
-          ],
-        ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildContactItem(String role, String contactInfo, {bool isInitiator = false}) {
+    final parsed = _parseContact(contactInfo, role);
+    final name = parsed['name'] ?? 'Не указан';
+    final displayRole = parsed['role'] ?? role;
+    final phone = parsed['phone'];
+    final initials = name
+        .split(' ')
+        .map((n) => n.isNotEmpty ? n[0] : '')
+        .take(2)
+        .join()
+        .toUpperCase();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: _buildPersonRow(
+        initials: initials,
+        name: name,
+        role: displayRole,
+        phone: phone,
+        isInitiator: isInitiator,
       ),
     );
   }
