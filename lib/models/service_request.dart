@@ -64,6 +64,7 @@ class ServiceRequest {
   final String? serialNumber;
   final String? siteName;
   final String? engineerName;
+  final String? engineerPhone;
   final String? creatorName;
   final String? approvedByName;
   final String? companyName;
@@ -120,6 +121,7 @@ class ServiceRequest {
     this.serialNumber,
     this.siteName,
     this.engineerName,
+    this.engineerPhone,
     this.creatorName,
     this.approvedByName,
     this.companyInn,
@@ -212,8 +214,10 @@ class ServiceRequest {
     final creator = json['user_profiles'] as Map<String, dynamic>?;
 
     String? engineerFullName;
+    String? engineerPhone;
     if (engineer != null) {
       engineerFullName = '${engineer['first_name'] ?? ''} ${engineer['last_name'] ?? ''}'.trim();
+      engineerPhone = engineer['phone'] as String?;
     }
 
     // Новая логика: данные иерархии из вложенных объектов
@@ -312,6 +316,7 @@ class ServiceRequest {
       serialNumber: equipment?['serial_number'],
       siteName: site?['name'] ?? equipment?['location'],
       engineerName: engineerFullName,
+      engineerPhone: engineerPhone,
       creatorName: creatorFullName,
       approvedByName: approvedFullName,
       companyInn: json['company_inn'],

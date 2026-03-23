@@ -1317,9 +1317,21 @@ class SupabaseService {
   static Future<List<ServiceRequest>> getEngineerAssignedRequests(String engineerId) async {
     final response = await _client
         .from('service_requests')
-        .select('*, equipment(name, model, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
+        .select('''
+          *,
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
+          equipment(
+            name, model, manufacturer, serial_number, location,
+            site:sites(
+              name, address,
+              manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
+            ),
+            operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
+          ),
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+        ''')
         .eq('assigned_engineer_id', engineerId)
-        .or('status.eq.approved,status.eq.inProgress,status.eq.waitingForInvoice,status.eq.waitingForPayment')
+        .or('status.eq.approved,status.eq.inProgress,status.eq.waitingForInvoice,status.eq.waitingForPayment,status.eq.waitingForAcceptance')
         .order('created_at', ascending: false);
 
     return (response as List)
@@ -1348,7 +1360,19 @@ class SupabaseService {
 
     final response = await _client
         .from('service_requests')
-        .select()
+        .select('''
+          *,
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
+          equipment(
+            name, model, manufacturer, serial_number, location,
+            site:sites(
+              name, address,
+              manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
+            ),
+            operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
+          ),
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+        ''')
         .eq('assigned_engineer_id', engineerId)
         .eq('status', 'completed')
         .gte('engineer_completed_at', startDate.toIso8601String())
@@ -1372,12 +1396,23 @@ class SupabaseService {
   }
 
   /// Получение заявок для поставщика
-  /// Поставщик видит только заявки на оборудование, которое он поставил
   static Future<List<ServiceRequest>> getSupplierRequests(String supplierUserId) async {
     try {
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
+          .select('''
+            *,
+            author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
+            equipment(
+              name, model, manufacturer, serial_number, location,
+              site:sites(
+                name, address,
+                manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
+              ),
+              operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
+            ),
+            assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+          ''')
           .eq('supplier_id', supplierUserId)
           .neq('status', 'cancelled')
           .order('created_at', ascending: false);

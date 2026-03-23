@@ -666,7 +666,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             initials: initials,
             name: name,
             role: 'Сервисный инженер',
-            phone: null, // телефон инженера в модели не хранится
+            phone: _currentRequest.engineerPhone,
           ),
         ],
       ),
