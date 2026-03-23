@@ -274,10 +274,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   String _getRequestId(ServiceRequest request) {
-    if (request.id.length > 5) {
-      return '#${request.id.substring(0, 5).toUpperCase()}';
-    }
-    return '#${request.id.toUpperCase()}';
+    return request.displayId;
   }
 
   Widget _buildStatusChip(ServiceRequest request) {

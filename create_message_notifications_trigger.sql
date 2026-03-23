@@ -27,6 +27,7 @@ BEGIN
     sr.company_id,
     sr.company_inn,
     sr.supplier_id,
+    sr.request_number,
     sr.id AS request_id
   INTO v_request
   FROM service_requests sr
@@ -36,8 +37,12 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Короткий ID заявки (первые 5 символов в верхнем регистре)
-  v_short_id    := UPPER(SUBSTRING(NEW.request_id::TEXT, 1, 5));
+  -- Короткий ID заявки (6-значный номер или первые 5 символов)
+  IF v_request.request_number IS NOT NULL THEN
+    v_short_id := LPAD(v_request.request_number::TEXT, 6, '0');
+  ELSE
+    v_short_id := UPPER(SUBSTRING(NEW.request_id::TEXT, 1, 5));
+  END IF;
   v_sender_id   := NEW.sender_id::TEXT;
   v_notif_title := 'Новое сообщение по заявке #' || v_short_id;
   v_notif_message := COALESCE(NEW.message, 'Вам прислали вложение в чат.');

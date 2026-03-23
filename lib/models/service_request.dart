@@ -27,6 +27,7 @@ enum RequestPriority {
 
 class ServiceRequest {
   final String id;
+  final int? requestNumber; // Автоинкрементный номер заявки
   final String clientId;               // Для обратной совместимости
   final String? companyId;             // Новое поле для Supabase
   final String? supplierId;            // ID поставщика, которому видна заявка (из equipment)
@@ -89,6 +90,7 @@ class ServiceRequest {
 
   ServiceRequest({
     required this.id,
+    this.requestNumber,
     required this.clientId,
     this.companyId,
     this.supplierId,
@@ -138,6 +140,10 @@ class ServiceRequest {
   });
 
   // Геттеры для удобства
+  String get displayId => requestNumber != null 
+      ? '#${requestNumber.toString().padLeft(6, '0')}'
+      : '#${id.substring(0, 5).toUpperCase()}';
+
   String get statusDisplayName {
     switch (status) {
       case RequestStatus.draft:
@@ -263,6 +269,7 @@ class ServiceRequest {
 
     return ServiceRequest(
       id: json['id'],
+      requestNumber: json['request_number'],
       clientId: json['client_id'] ?? json['company_id'] ?? '',
       companyId: json['company_id'],
       supplierId: json['supplier_id'],

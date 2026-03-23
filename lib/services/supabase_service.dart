@@ -2946,7 +2946,7 @@ class SupabaseService {
         print('⚠️ Ошибка получения дополнительных участников для уведомления: $e');
       }
       
-      final String shortId = requestId.length > 5 ? requestId.substring(0, 5).toUpperCase() : requestId.toUpperCase();
+      final String displayId = req.displayId;
       
       for (final uid in notifyIds) {
         // Пропускаем отправителя сообщения (senderId приоритет, иначе currentUser)
@@ -2955,7 +2955,7 @@ class SupabaseService {
         
         // Определяем тип уведомления (если заголовок "Новое сообщение" - это newMessage)
         final String notificationType = title == 'Новое сообщение' ? 'newMessage' : 'requestUpdate';
-        final String finalTitle = title == 'Новое сообщение' ? 'Новое сообщение по заявке #$shortId' : title;
+        final String finalTitle = title == 'Новое сообщение' ? 'Новое сообщение по заявке $displayId' : title;
 
         await createNotification(
           userId: uid,

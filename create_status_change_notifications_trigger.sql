@@ -64,7 +64,13 @@ BEGIN
   END IF;
 
   v_status_name    := get_request_status_name(NEW.status::TEXT);
-  v_short_id       := UPPER(LEFT(NEW.id::TEXT, 5));
+  
+  IF NEW.request_number IS NOT NULL THEN
+    v_short_id := LPAD(NEW.request_number::TEXT, 6, '0');
+  ELSE
+    v_short_id := UPPER(LEFT(NEW.id::TEXT, 5));
+  END IF;
+
   v_changed_at_str := TO_CHAR(NOW() AT TIME ZONE 'Europe/Moscow', 'DD.MM.YYYY HH24:MI');
 
   v_notif_title   := 'Статус заявки #' || v_short_id || ' изменён';
