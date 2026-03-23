@@ -1653,10 +1653,11 @@ class SupabaseService {
 
   /// Получение заявки по ID
   static Future<ServiceRequest?> getRequestById(String requestId) async {
+    // Попытка 1: полный запрос с джойнами
     try {
       final response = await _client
           .from('service_requests')
-          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name), site:sites!service_requests_site_id_fkey(name, address, region)')
+          .select('*, equipment(name, model, manufacturer, serial_number, location), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name), assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)')
           .eq('id', requestId)
           .maybeSingle();
 
@@ -1665,7 +1666,23 @@ class SupabaseService {
       }
       return null;
     } catch (e) {
-      print('❌ Ошибка загрузки заявки: $e');
+      print('⚠️ getRequestById (полный запрос) ошибка: $e — пробуем упрощённый');
+    }
+
+    // Попытка 2: упрощённый запрос без джойнов
+    try {
+      final response = await _client
+          .from('service_requests')
+          .select('*')
+          .eq('id', requestId)
+          .maybeSingle();
+
+      if (response != null) {
+        return ServiceRequest.fromJson(response);
+      }
+      return null;
+    } catch (e) {
+      print('❌ getRequestById (упрощённый) ошибка: $e');
       return null;
     }
   }
