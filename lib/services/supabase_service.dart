@@ -328,7 +328,19 @@ class SupabaseService {
   static Future<List<Map<String, dynamic>>> getCompanyServiceRequests(String companyId) async {
     final response = await _client
         .from('service_requests')
-        .select('*, equipment(name, model), author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name)')
+        .select('''
+          *,
+          author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
+          equipment(
+            name, model, manufacturer, serial_number, location,
+            site:sites(
+              name, address,
+              manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
+            ),
+            operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
+          ),
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+        ''')
         .eq('company_id', companyId)
         .order('created_at', ascending: false);
 
@@ -342,14 +354,14 @@ class SupabaseService {
           *,
           author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
           equipment(
-            name, model, serial_number,
+            name, model, manufacturer, serial_number, location,
             site:sites(
               name, address,
               manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
         ''')
         .order('created_at', ascending: false);
 
@@ -363,14 +375,14 @@ class SupabaseService {
           *,
           author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
           equipment(
-            name, model, serial_number,
+            name, model, manufacturer, serial_number, location,
             site:sites(
               name, address,
               manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
         ''')
         .eq('company_inn', inn)
         .order('created_at', ascending: false);
@@ -385,14 +397,14 @@ class SupabaseService {
           *,
           author:user_profiles!service_requests_user_id_fkey(first_name, last_name, phone, role, company_name),
           equipment(
-            name, model, serial_number,
+            name, model, manufacturer, serial_number, location,
             site:sites(
               name, address,
               manager:user_profiles!sites_contact_person_id_fkey(first_name, last_name, phone)
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
         ''')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
