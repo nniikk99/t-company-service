@@ -2792,8 +2792,8 @@ class SupabaseService {
         'attachments': attachments,
       }).select().single();
       
-      // Уведомляем участников о новом сообщении
-      _notifyParties(requestId, 'Новое сообщение', message ?? 'Вам прислали вложение в чат.', message: message);
+      // Уведомляем участников о новом сообщении (передаём senderId чтобы исключить отправителя)
+      _notifyParties(requestId, 'Новое сообщение', message ?? 'Вам прислали вложение в чат.', message: message, senderId: senderId);
       
       print('✅ Сообщение отправлено: ${response['id']}');
     } catch (e) {
@@ -2830,7 +2830,7 @@ class SupabaseService {
 
   // === NOTIFICATION SYSTEM ===
 
-  static Future<void> _notifyParties(String requestId, String title, String body, {String? message}) async {
+  static Future<void> _notifyParties(String requestId, String title, String body, {String? message, String? senderId}) async {
     try {
       // 1. Получаем заявку и участников
       final req = await getRequestById(requestId);
@@ -2885,8 +2885,9 @@ class SupabaseService {
       final String shortId = requestId.length > 5 ? requestId.substring(0, 5).toUpperCase() : requestId.toUpperCase();
       
       for (final uid in notifyIds) {
-        // Пропускаем если отправитель это текущий пользователь
-        if (uid == currentUser?.id) continue;
+        // Пропускаем отправителя сообщения (senderId приоритет, иначе currentUser)
+        final String skipId = senderId ?? currentUser?.id ?? '';
+        if (uid == skipId) continue;
         
         // Определяем тип уведомления (если заголовок "Новое сообщение" - это newMessage)
         final String notificationType = title == 'Новое сообщение' ? 'newMessage' : 'requestUpdate';

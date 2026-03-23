@@ -270,8 +270,8 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _loadUnreadNotifications() async {
     try {
-      final notifications = await StorageService.getNotifications(userId: _currentUser.id);
-      final unread = notifications.where((n) => !n.isRead).length;
+      final notificationsData = await SupabaseService.getNotifications(_currentUser.id);
+      final unread = notificationsData.where((n) => n['is_read'] == false || n['is_read'] == null).length;
       
       if (mounted) {
         setState(() {
@@ -709,7 +709,7 @@ class _MainScreenState extends State<MainScreen> {
                 _buildMenuItem(
                   icon: Icons.notifications_none,
                   title: 'Уведомления',
-                  badge: '3', // Временная статичная цифра для соответствия дизайну
+                  badge: _unreadNotifications > 0 ? '$_unreadNotifications' : null,
                   onTap: _handleNotificationsClick,
                 ),
                 const Divider(color: Color(0xFFF1F5F9), height: 1, indent: 24, endIndent: 24),
