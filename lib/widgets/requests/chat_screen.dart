@@ -345,26 +345,78 @@ class _ChatWidgetState extends State<ChatWidget> {
   }
 }
 
-class ChatPage extends StatelessWidget {
+class ChatPage extends StatefulWidget {
   final String requestId;
-  final String requestTitle;
+  final String? requestTitle;  // теперь необязательный — можем загрузить сами
   final AppUserModel.User currentUser;
 
   const ChatPage({
     super.key,
     required this.requestId,
-    required this.requestTitle,
+    this.requestTitle,
     required this.currentUser,
   });
 
   @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  String? _loadedTitle;
+  bool _loadingTitle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.requestTitle == null || widget.requestTitle!.isEmpty) {
+      _loadTitle();
+    }
+  }
+
+  Future<void> _loadTitle() async {
+    setState(() => _loadingTitle = true);
+    try {
+      final req = await SupabaseService.getRequestById(widget.requestId);
+      if (mounted && req != null) {
+        setState(() {
+          _loadedTitle = req.title;
+          _loadingTitle = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingTitle = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final title = widget.requestTitle ?? _loadedTitle;
+    final shortId = widget.requestId.length >= 8
+        ? widget.requestId.substring(0, 8).toUpperCase()
+        : widget.requestId.toUpperCase();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(
-          'Чат заявка - $requestTitle', 
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Обсуждение заявки',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              _loadingTitle ? 'Загрузка...' : (title ?? '#$shortId'),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF64748B),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1E293B),
@@ -372,9 +424,9 @@ class ChatPage extends StatelessWidget {
         centerTitle: true,
       ),
       body: ChatWidget(
-        requestId: requestId,
-        requestTitle: requestTitle,
-        currentUser: currentUser,
+        requestId: widget.requestId,
+        requestTitle: title ?? '#$shortId',
+        currentUser: widget.currentUser,
       ),
     );
   }

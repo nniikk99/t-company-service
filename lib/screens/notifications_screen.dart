@@ -443,27 +443,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _navigateToChat(String requestId) async {
-    setState(() => _isLoading = true);
-    try {
-      final request = await SupabaseService.getRequestById(requestId);
-      setState(() => _isLoading = false);
-      
-      if (request != null && mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatPage(
-              requestId: request.id,
-              requestTitle: request.title,
-              currentUser: widget.user,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      print('Error navigating to chat: $e');
-    }
+    if (!mounted) return;
+    // Открываем ChatPage сразу — он сам загрузит название заявки
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatPage(
+          requestId: requestId,
+          // requestTitle не передаём — ChatPage загрузит его сам
+          currentUser: widget.user,
+        ),
+      ),
+    );
   }
 
   Widget _getNotificationIcon(NotificationType type) {
