@@ -2793,7 +2793,12 @@ class SupabaseService {
       }).select().single();
       
       // Уведомляем участников о новом сообщении (передаём senderId чтобы исключить отправителя)
-      _notifyParties(requestId, 'Новое сообщение', message ?? 'Вам прислали вложение в чат.', message: message, senderId: senderId);
+      // unawaited намеренно не используем – логируем ошибки
+      try {
+        await _notifyParties(requestId, 'Новое сообщение', message ?? 'Вам прислали вложение в чат.', message: message, senderId: senderId);
+      } catch (notifyError) {
+        print('⚠️ Ошибка создания уведомлений (не блокируем): $notifyError');
+      }
       
       print('✅ Сообщение отправлено: ${response['id']}');
     } catch (e) {
