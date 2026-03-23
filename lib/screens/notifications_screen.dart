@@ -434,10 +434,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _handleNotificationTap(AppNotification notification) async {
     await _markAsRead(notification);
     
-    if (notification.type == NotificationType.newMessage) {
+    if (notification.type == NotificationType.newMessage ||
+        notification.type == NotificationType.requestUpdate) {
       final String? requestId = notification.relatedId ?? notification.data?['requestId'];
       if (requestId != null) {
-        _navigateToChat(requestId);
+        if (notification.type == NotificationType.newMessage) {
+          _navigateToChat(requestId);
+        } else {
+          // Для requestUpdate открываем чат заявки тоже (позже здесь можно добавить открытие карточки заявки)
+          _navigateToChat(requestId);
+        }
       }
     }
   }
@@ -479,6 +485,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return const Icon(Icons.location_on, color: Colors.purple);
       case NotificationType.newMessage:
         return const Icon(Icons.chat_bubble_outline_rounded, color: Colors.blue);
+      case NotificationType.requestUpdate:
+        return const Icon(Icons.update_rounded, color: Color(0xFF2563EB));
     }
   }
 

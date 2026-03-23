@@ -9,6 +9,7 @@ enum NotificationType {
   companyCreationRequest,
   siteAssignment,
   newMessage,
+  requestUpdate, // изменение статуса заявки
 }
 
 class AppNotification {
@@ -72,6 +73,8 @@ class AppNotification {
         return NotificationType.siteAssignment;
       case 'newMessage':
         return NotificationType.newMessage;
+      case 'requestUpdate':
+        return NotificationType.requestUpdate;
       default:
         return NotificationType.systemAlert;
     }
