@@ -2792,13 +2792,8 @@ class SupabaseService {
         'attachments': attachments,
       }).select().single();
       
-      // Уведомляем участников о новом сообщении (передаём senderId чтобы исключить отправителя)
-      // unawaited намеренно не используем – логируем ошибки
-      try {
-        await _notifyParties(requestId, 'Новое сообщение', message ?? 'Вам прислали вложение в чат.', message: message, senderId: senderId);
-      } catch (notifyError) {
-        print('⚠️ Ошибка создания уведомлений (не блокируем): $notifyError');
-      }
+      // Уведомления создаются автоматически через SQL-триггер trg_notify_new_request_message
+      // Не вызываем _notifyParties здесь, чтобы избежать дублирования уведомлений
       
       print('✅ Сообщение отправлено: ${response['id']}');
     } catch (e) {
