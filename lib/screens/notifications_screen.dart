@@ -6,6 +6,7 @@ import '../models/notification.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
 import '../widgets/requests/chat_screen.dart';
+import '../widgets/requests/request_details_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final User user;
@@ -434,33 +435,68 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _handleNotificationTap(AppNotification notification) async {
     await _markAsRead(notification);
     
-    if (notification.type == NotificationType.newMessage ||
-        notification.type == NotificationType.requestUpdate) {
-      final String? requestId = notification.relatedId ?? notification.data?['requestId'];
-      if (requestId != null) {
-        if (notification.type == NotificationType.newMessage) {
-          _navigateToChat(requestId);
-        } else {
-          // Для requestUpdate открываем чат заявки тоже (позже здесь можно добавить открытие карточки заявки)
-          _navigateToChat(requestId);
-        }
-      }
+    final String? requestId = notification.relatedId ?? notification.data?['requestId'];
+    if (requestId == null) return;
+
+    if (notification.type == NotificationType.newMessage) {
+      // Новое сообщение → открываем чат
+      _navigateToChat(requestId);
+    } else if (notification.type == NotificationType.requestUpdate) {
+      // Изменение статуса → открываем карточку заявки
+      _navigateToRequest(requestId);
     }
   }
 
   Future<void> _navigateToChat(String requestId) async {
     if (!mounted) return;
-    // Открываем ChatPage сразу — он сам загрузит название заявки
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatPage(
           requestId: requestId,
-          // requestTitle не передаём — ChatPage загрузит его сам
           currentUser: widget.user,
         ),
       ),
     );
+  }
+
+  Future<void> _navigateToRequest(String requestId) async {
+    if (!mounted) return;
+    // Показываем индикатор загрузки
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final request = await SupabaseService.getRequestById(requestId);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // закрываем индикатор
+
+      if (request != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RequestDetailsScreen(
+              request: request,
+              currentUser: widget.user,
+              onStatusChanged: () {}, // заглушка: обновление статуса не нужно в этом потоке
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Заявка не найдена')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
+      }
+    }
   }
 
   Widget _getNotificationIcon(NotificationType type) {
