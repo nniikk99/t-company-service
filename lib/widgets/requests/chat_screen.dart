@@ -79,7 +79,7 @@ class _ChatWidgetState extends State<ChatWidget> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          0.0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -203,10 +203,11 @@ class _ChatWidgetState extends State<ChatWidget> {
                       ? _buildEmptyState()
                       : ListView.builder(
                           controller: _scrollController,
+                          reverse: true, // исправляет работу с клавиатурой
                           padding: const EdgeInsets.all(16),
                           itemCount: _messages.length,
                           itemBuilder: (context, index) {
-                            final message = _messages[index];
+                            final message = _messages[_messages.length - 1 - index];
                             final isMe = message.senderId == widget.currentUser.id;
                             return _buildMessageBubble(message, isMe);
                           },
