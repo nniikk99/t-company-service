@@ -87,6 +87,9 @@ class ServiceRequest {
   final String? engineerComment;
   final DateTime? engineerStartedAt;
   final DateTime? engineerCompletedAt;
+  final int? engineerRating;
+  final double? engineerAverageRating;
+  final int? engineerRatingCount;
 
   ServiceRequest({
     required this.id,
@@ -137,6 +140,9 @@ class ServiceRequest {
     this.clientAcceptanceComment,
     this.clientAcceptedAt,
     this.companyName,
+    this.engineerRating,
+    this.engineerAverageRating,
+    this.engineerRatingCount,
   });
 
   // Геттеры для удобства
@@ -221,9 +227,13 @@ class ServiceRequest {
 
     String? engineerFullName;
     String? engineerPhone;
+    double? avgRating;
+    int? ratingCnt;
     if (engineer != null) {
       engineerFullName = '${engineer['first_name'] ?? ''} ${engineer['last_name'] ?? ''}'.trim();
       engineerPhone = engineer['phone'] as String?;
+      avgRating = engineer['average_rating'] != null ? (engineer['average_rating'] as num).toDouble() : null;
+      ratingCnt = engineer['rating_count'] as int?;
     }
 
     // Новая логика: данные иерархии из вложенных объектов
@@ -337,6 +347,9 @@ class ServiceRequest {
       clientAcceptanceComment: json['client_acceptance_comment'],
       clientAcceptedAt: json['client_accepted_at'] != null ? DateTime.parse(json['client_accepted_at']) : null,
       companyName: companyName,
+      engineerRating: json['engineer_rating'] as int?,
+      engineerAverageRating: avgRating,
+      engineerRatingCount: ratingCnt,
     );
   }
 

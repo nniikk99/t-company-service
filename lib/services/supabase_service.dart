@@ -339,7 +339,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
         ''')
         .eq('company_id', companyId)
         .order('created_at', ascending: false);
@@ -361,7 +361,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
         ''')
         .order('created_at', ascending: false);
 
@@ -382,7 +382,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
         ''')
         .eq('company_inn', inn)
         .order('created_at', ascending: false);
@@ -404,7 +404,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
         ''')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
@@ -1340,7 +1340,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
         ''')
         .eq('assigned_engineer_id', engineerId)
         .or('status.eq.approved,status.eq.inProgress,status.eq.waitingForInvoice,status.eq.waitingForPayment,status.eq.waitingForAcceptance')
@@ -1383,7 +1383,7 @@ class SupabaseService {
             ),
             operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
           ),
-          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+          assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
         ''')
         .eq('assigned_engineer_id', engineerId)
         .eq('status', 'completed')
@@ -1423,7 +1423,7 @@ class SupabaseService {
               ),
               operator:user_profiles!equipment_responsible_user_id_fkey(first_name, last_name, phone)
             ),
-            assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone)
+            assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
           ''')
           .eq('supplier_id', supplierUserId)
           .neq('status', 'cancelled')
@@ -1640,16 +1640,22 @@ class SupabaseService {
   }
 
   /// Приемка работ клиентом
-  static Future<void> acceptServiceWork(String requestId, {required bool isAccepted, String? comment}) async {
+  static Future<void> acceptServiceWork(String requestId, {required bool isAccepted, String? comment, int? rating}) async {
+    final Map<String, dynamic> updateData = {
+      'status': isAccepted ? 'waitingForInvoice' : 'inProgress', // Если есть серьезные замечания, можно вернуть в работу
+      'is_accepted_by_client': isAccepted,
+      'client_acceptance_comment': comment,
+      'client_accepted_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    
+    if (rating != null) {
+      updateData['engineer_rating'] = rating;
+    }
+
     await _client
         .from('service_requests')
-        .update({
-          'status': isAccepted ? 'waitingForInvoice' : 'inProgress', // Если есть серьезные замечания, можно вернуть в работу
-          'is_accepted_by_client': isAccepted,
-          'client_acceptance_comment': comment,
-          'client_accepted_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        })
+        .update(updateData)
         .eq('id', requestId);
 
     if (isAccepted) {

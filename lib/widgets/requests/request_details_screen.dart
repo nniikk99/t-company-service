@@ -659,11 +659,72 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         children: [
           _buildCardHeader(Icons.engineering_outlined, 'Назначенный инженер'),
           const SizedBox(height: 16),
-          _buildPersonRow(
-            initials: initials,
-            name: name,
-            role: 'Сервисный инженер',
-            phone: _currentRequest.engineerPhone,
+          GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: Row(
+                    children: [
+                      Container(
+                        width: 44, height: 44,
+                        decoration: const BoxDecoration(color: Color(0xFFDBEAFE), shape: BoxShape.circle),
+                        alignment: Alignment.center,
+                        child: Text(initials, style: const TextStyle(color: Color(0xFF2563EB), fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Рейтинг инженера', style: TextStyle(color: Color(0xFF64748B))),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.star_rounded, color: _currentRequest.engineerAverageRating != null ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0), size: 36),
+                          const SizedBox(width: 8),
+                          Text(
+                            _currentRequest.engineerAverageRating != null 
+                              ? _currentRequest.engineerAverageRating!.toStringAsFixed(1) 
+                              : 'Нет оценок',
+                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
+                        ],
+                      ),
+                      if (_currentRequest.engineerRatingCount != null && _currentRequest.engineerRatingCount! > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'На основе ${_currentRequest.engineerRatingCount} оценок',
+                            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                          ),
+                        ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Ок')),
+                  ],
+                ),
+              );
+            },
+            child: Container(
+              color: Colors.transparent, // для обработки кликов по всей области
+              child: _buildPersonRow(
+                initials: initials,
+                name: name,
+                role: 'Сервисный инженер',
+                phone: _currentRequest.engineerPhone,
+              ),
+            ),
           ),
         ],
       ),
@@ -1484,9 +1545,66 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       ),
     ).then((accepted) async {
       if (accepted == true && mounted) {
+        
+        // Шаг 3: Оценка работы инженера
+        bool ratingConfirmed = false;
+        int currentRating = 5;
+        
+        await showDialog(
+          context: context,
+          builder: (ctx) => StatefulBuilder(
+            builder: (context, setRatingState) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: const Text('Оценка работы', style: TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Оцените, пожалуйста, качество работы инженера:', style: TextStyle(color: Color(0xFF64748B)), textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        icon: Icon(
+                          index < currentRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          size: 44,
+                          color: index < currentRating ? const Color(0xFFF59E0B) : const Color(0xFFE2E8F0),
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          setRatingState(() => currentRating = index + 1);
+                        },
+                      );
+                    }),
+                  ),
+                ],
+              ),
+              actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    ratingConfirmed = true;
+                    Navigator.pop(ctx);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981), // Green for final completion
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Оценить и принять', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        if (!ratingConfirmed || !mounted) return;
+
         setState(() => _isLoading = true);
         try {
-          await SupabaseService.acceptServiceWork(_currentRequest.id, isAccepted: true, comment: comment);
+          await SupabaseService.acceptServiceWork(_currentRequest.id, isAccepted: true, comment: comment, rating: currentRating);
           if (mounted) {
              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                content: Text('Работы успешно приняты!'), 
