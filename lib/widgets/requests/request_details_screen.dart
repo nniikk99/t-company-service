@@ -216,6 +216,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   _buildEngineerCard(),
                   const SizedBox(height: 12),
                 ],
+                _buildDescriptionCard(),
+                const SizedBox(height: 12),
                 if (_currentRequest.engineerComment != null && _currentRequest.engineerComment!.isNotEmpty) ...[
                   _buildEngineerResultCard(),
                   const SizedBox(height: 12),
@@ -229,8 +231,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 _buildSiteCard(),
                 const SizedBox(height: 12),
                 _buildContactsCard(),
-                const SizedBox(height: 12),
-                _buildDescriptionCard(),
                 if (_currentRequest.invoiceAmount != null || _currentRequest.invoiceUrl != null) ...[
                   const SizedBox(height: 12),
                   _buildPaymentCard(),
