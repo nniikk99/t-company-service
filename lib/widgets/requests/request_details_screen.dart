@@ -234,9 +234,11 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 _buildSiteCard(),
                 const SizedBox(height: 12),
                 _buildContactsCard(),
-                if (_currentRequest.invoiceAmount != null || _currentRequest.invoiceUrl != null) ...[
+                const SizedBox(height: 12),
+                _buildPaymentCard(),
+                if (widget.currentUser.role == AppUserModel.UserRole.engineer) ...[
                   const SizedBox(height: 12),
-                  _buildPaymentCard(),
+                  _buildEarningsCard(),
                 ],
                 const SizedBox(height: 12),
                 _buildChatCard(),
@@ -817,6 +819,125 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEarningsCard() {
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(Icons.account_balance_wallet_outlined, 'Ваш заработок'),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF), // blue-50
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBFDBFE)), // blue-200
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Заработано по заявке',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1E3A8A), // blue-900
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_currentRequest.calculatedEngineerEarnings.toStringAsFixed(2)} руб.',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1D4ED8), // blue-700
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Эта сумма учитывается в вашей статистике за вычетом комиссии площадки и НДС.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF3B82F6), // blue-500
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentCard() {
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(Icons.payments_outlined, 'Оплата и счет'),
+          const SizedBox(height: 16),
+          if (_currentRequest.invoiceAmount == null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF9C3), // yellow-100
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFDE047)), // yellow-400
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Color(0xFFCA8A04), size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Минимальная ставка выезда инженера на объект = 5 000 руб.',
+                      style: TextStyle(
+                        color: Color(0xFF854D0E), // yellow-800
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4), // green-50
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBBF7D0)), // green-200
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Итоговая стоимость:',
+                    style: TextStyle(
+                      color: Color(0xFF166534), // green-800
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${_currentRequest.invoiceAmount} руб.',
+                    style: const TextStyle(
+                      color: Color(0xFF15803D), // green-700
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

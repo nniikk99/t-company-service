@@ -125,10 +125,50 @@ class _EngineerStatisticsScreenState extends State<EngineerStatisticsScreen> {
     final avgTime = _calculateAverageTime();
     final thisWeekRequests = _getRequestsForPeriod('week').length;
     final thisMonthRequests = _getRequestsForPeriod('month').length;
+    final periodRequests = _getRequestsForPeriod(_selectedPeriod);
+    final totalEarnings = _completedRequests.fold(0.0, (sum, r) => sum + r.calculatedEngineerEarnings);
+    final periodEarnings = periodRequests.fold(0.0, (sum, r) => sum + r.calculatedEngineerEarnings);
+
+    final periodLabel = {
+      'week': 'Заработок за неделю',
+      'month': 'Заработок за месяц',
+      'year': 'Заработок за год',
+    }[_selectedPeriod] ?? 'Заработано за период';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Доход',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Всего заработано',
+                '${totalEarnings.toStringAsFixed(0)} ₽',
+                Icons.account_balance_wallet,
+                Colors.green[700]!,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                periodLabel,
+                '${periodEarnings.toStringAsFixed(0)} ₽',
+                Icons.payments_outlined,
+                Colors.blue[700]!,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
         const Text(
           'Общая статистика',
           style: TextStyle(
@@ -433,12 +473,26 @@ class _EngineerStatisticsScreenState extends State<EngineerStatisticsScreen> {
                 ),
               ),
               const Spacer(),
-              Text(
-                _formatDate(request.engineerCompletedAt!),
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatDate(request.engineerCompletedAt!),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '+${request.calculatedEngineerEarnings.toStringAsFixed(0)} ₽',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

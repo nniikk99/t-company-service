@@ -156,6 +156,19 @@ class ServiceRequest {
     this.actCreatedAt,
     this.contractNumber,
   });
+  // Расчет итоговой суммы (с учетом минимальной ставки 5000)
+  double get calculatedTotalAmount {
+    return invoiceAmount ?? estimatedCost ?? 5000.0;
+  }
+
+  // Расчет заработка инженера (80% от суммы без НДС 22%)
+  double get calculatedEngineerEarnings {
+    final amount = calculatedTotalAmount;
+    // Формула: сумма без НДС = общая сумма - (общая сумма * 22 / 122)
+    final vatAmount = amount * 22 / 122;
+    final amountWithoutVat = amount - vatAmount;
+    return amountWithoutVat * 0.8;
+  }
 
   // Геттеры для удобства
   String get displayId => requestNumber != null 
