@@ -31,6 +31,7 @@ class ActGeneratorService {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
             // Расчет НДС и итоговых сумм
             final double totalAmount = (request.invoiceAmount ?? 0).toDouble();
             const double vatRate = 22.0;
