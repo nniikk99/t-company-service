@@ -22,6 +22,9 @@ dependencies:
   lucide_icons: ^0.257.0
   postgres: ^3.5.9
   intl: ^0.20.2
+  pdf: ^3.10.8
+  printing: ^5.12.0
+  share_plus: ^9.0.0
 
   crypto: any
 dev_dependencies:

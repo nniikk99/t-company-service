@@ -91,6 +91,13 @@ class ServiceRequest {
   final double? engineerAverageRating;
   final int? engineerRatingCount;
 
+  // Поля для документов (Акты)
+  final String? executorCompanyId;     // ID компании-исполнителя
+  final String? actUrl;                // Ссылка на PDF акта
+  final String? actNumber;             // Номер акта (АКТ-00001)
+  final DateTime? actCreatedAt;        // Дата формирования акта
+  final String? contractNumber;        // Номер договора (опционально)
+
   ServiceRequest({
     required this.id,
     this.requestNumber,
@@ -143,6 +150,11 @@ class ServiceRequest {
     this.engineerRating,
     this.engineerAverageRating,
     this.engineerRatingCount,
+    this.executorCompanyId,
+    this.actUrl,
+    this.actNumber,
+    this.actCreatedAt,
+    this.contractNumber,
   });
 
   // Геттеры для удобства
@@ -350,6 +362,11 @@ class ServiceRequest {
       engineerRating: json['engineer_rating'] as int?,
       engineerAverageRating: avgRating,
       engineerRatingCount: ratingCnt,
+      executorCompanyId: json['executor_company_id'],
+      actUrl: json['act_url'],
+      actNumber: json['act_number'],
+      actCreatedAt: json['act_created_at'] != null ? DateTime.parse(json['act_created_at']) : null,
+      contractNumber: json['contract_number'],
     );
   }
 
@@ -382,6 +399,11 @@ class ServiceRequest {
       'engineer_comment': engineerComment,
       'engineer_started_at': engineerStartedAt?.toIso8601String(),
       'engineer_completed_at': engineerCompletedAt?.toIso8601String(),
+      if (executorCompanyId != null) 'executor_company_id': executorCompanyId,
+      if (actUrl != null) 'act_url': actUrl,
+      if (actNumber != null) 'act_number': actNumber,
+      if (actCreatedAt != null) 'act_created_at': actCreatedAt!.toIso8601String(),
+      if (contractNumber != null) 'contract_number': contractNumber,
     };
   }
 

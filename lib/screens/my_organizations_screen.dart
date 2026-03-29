@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart' as AppUserModel;
 import '../models/user_company.dart';
+import '../models/company.dart' as AppCompanyModel;
+import '../widgets/company_details_dialog.dart';
 import '../services/supabase_service.dart';
 
 class MyOrganizationsScreen extends StatefulWidget {
@@ -326,37 +328,54 @@ class _MyOrganizationsScreenState extends State<MyOrganizationsScreen> {
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Color(0xFFE0F2FE),
-                          child: Icon(Icons.business, color: Color(0xFF0284C7)),
-                        ),
-                        title: Text(uc.companyName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('ИНН: ${uc.companyInn}'),
-                            Text('Статус: ${uc.statusDisplayName}', 
-                              style: TextStyle(
-                                color: uc.status == 'approved' ? Colors.green : (uc.status == 'rejected' ? Colors.red : Colors.orange),
-                                fontWeight: FontWeight.w600,
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () async {
+                          final companyData = await SupabaseService.getCompany(uc.companyId);
+                          if (companyData != null && mounted) {
+                            final company = AppCompanyModel.Company.fromJson(companyData);
+                            showDialog(
+                              context: context,
+                              builder: (context) => CompanyDetailsDialog(
+                                company: company,
+                                canEdit: uc.status == 'approved', // Редактировать можно только одобренные связи
+                                onUpdate: _loadUserCompanies,
                               ),
-                            ),
-                          ],
-                        ),
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (val) {
-                            if (val == 'edit') {
-                              _editCompany(uc);
-                            } else if (val == 'delete') {
-                              _deleteCompanyLink(uc);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            if (uc.status == 'approved')
-                              const PopupMenuItem(value: 'edit', child: Text('Редактировать')),
-                            const PopupMenuItem(value: 'delete', child: Text('Удалить')),
-                          ],
+                            );
+                          }
+                        },
+                        child: ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: Color(0xFFE0F2FE),
+                            child: Icon(Icons.business, color: Color(0xFF0284C7)),
+                          ),
+                          title: Text(uc.companyName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('ИНН: ${uc.companyInn}'),
+                              Text('Статус: ${uc.statusDisplayName}', 
+                                style: TextStyle(
+                                  color: uc.status == 'approved' ? Colors.green : (uc.status == 'rejected' ? Colors.red : Colors.orange),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (val) {
+                              if (val == 'edit') {
+                                _editCompany(uc);
+                              } else if (val == 'delete') {
+                                _deleteCompanyLink(uc);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              if (uc.status == 'approved')
+                                const PopupMenuItem(value: 'edit', child: Text('Редактировать')),
+                              const PopupMenuItem(value: 'delete', child: Text('Удалить')),
+                            ],
+                          ),
                         ),
                       ),
                     );

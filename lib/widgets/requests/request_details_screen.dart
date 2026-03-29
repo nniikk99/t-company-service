@@ -18,6 +18,9 @@ import '../assign_engineer_dialog.dart';
 import '../equipment_specifications_widget.dart';
 import '../equipment_maintenance_widget.dart';
 import '../../theme/app_theme.dart';
+import '../../services/act_generator_service.dart';
+import '../../models/company.dart' as AppCompanyModel;
+import 'package:share_plus/share_plus.dart';
 
 
 class RequestDetailsScreen extends StatefulWidget {
@@ -237,6 +240,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 ],
                 const SizedBox(height: 12),
                 _buildChatCard(),
+                const SizedBox(height: 12),
+                _buildDocumentsCard(),
                 const SizedBox(height: 24),
               ],
             ),
@@ -815,6 +820,167 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildDocumentsCard() {
+    final bool hasAct = _currentRequest.actUrl != null;
+    final bool canGenerate = widget.currentUser.role == AppUserModel.UserRole.administrator || 
+                             widget.currentUser.role == AppUserModel.UserRole.supplier;
+    
+    // Акт можно генерировать только когда работы выполнены инженером или позже
+    final bool isReadyForAct = _currentRequest.status != RequestStatus.pending && 
+                               _currentRequest.status != RequestStatus.approved &&
+                               _currentRequest.status != RequestStatus.inProgress &&
+                               _currentRequest.status != RequestStatus.rejected &&
+                               _currentRequest.status != RequestStatus.cancelled;
+
+    if (!hasAct && !canGenerate) return const SizedBox.shrink();
+
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(Icons.description_outlined, 'Документы'),
+          const SizedBox(height: 16),
+          if (hasAct) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.picture_as_pdf, color: Colors.red, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _currentRequest.actNumber ?? 'Акт выполненных работ',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        if (_currentRequest.actCreatedAt != null)
+                          Text(
+                            'Сформирован: ${DateFormat('dd.MM.yyyy HH:mm').format(_currentRequest.actCreatedAt!)}',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.share_outlined, color: Color(0xFF2563EB)),
+                    onPressed: () => Share.shareUri(Uri.parse(_currentRequest.actUrl!)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.open_in_new, color: Color(0xFF2563EB)),
+                    onPressed: () => launchUrl(Uri.parse(_currentRequest.actUrl!)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (canGenerate && isReadyForAct) ...[
+            if (hasAct) const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isLoading ? null : _handleGenerateAct,
+                icon: const Icon(Icons.refresh),
+                label: Text(hasAct ? 'Переформировать акт' : 'Сформировать акт'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: const BorderSide(color: Color(0xFF2563EB)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ] else if (!hasAct && canGenerate && !isReadyForAct)
+            const Padding(
+              padding: EdgeInsets.only(top: 8.0),
+              child: Text(
+                'Формирование акта будет доступно после завершения работ инженером.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleGenerateAct() async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Получаем список организаций пользователя
+      final userCompanies = await SupabaseService.getUserCompanies(widget.currentUser.id);
+      
+      if (userCompanies.isEmpty) {
+        throw 'У вас нет привязанных организаций для формирования акта. Перейдите в "Мои организации" и добавьте компанию.';
+      }
+
+      // 2. Если организаций больше одной - даем выбрать. Если одна - берем её.
+      String? selectedCompanyId;
+      if (userCompanies.length == 1) {
+        selectedCompanyId = userCompanies.first.companyId;
+      } else {
+        selectedCompanyId = await showDialog<String>(
+          context: context,
+          builder: (ctx) => SimpleDialog(
+            title: const Text('Выберите организацию-исполнителя'),
+            children: userCompanies.map((uc) => SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, uc.companyId),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(uc.companyName, style: const TextStyle(fontSize: 16)),
+              ),
+            )).toList(),
+          ),
+        );
+      }
+
+      if (selectedCompanyId == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // 3. Загружаем полные реквизиты исполнителя и заказчика
+      final executorData = await SupabaseService.getCompany(selectedCompanyId);
+      if (executorData == null) throw 'Данные об организации исполнителя не найдены';
+      final executor = AppCompanyModel.Company.fromJson(executorData);
+
+      if (!executor.isRequisitesComplete) {
+         throw 'Реквизиты организации "${executor.name}" не заполнены полностью (ИНН, БИК, Счет). Пожалуйста, заполните их в разделе "Мои организации".';
+      }
+
+      final customerId = _currentRequest.companyId;
+      if (customerId == null) throw 'В заявке не указан заказчик';
+      final customerData = await SupabaseService.getCompany(customerId);
+      if (customerData == null) throw 'Данные об организации заказчика не найдены';
+      final customer = AppCompanyModel.Company.fromJson(customerData);
+
+      // 4. Генерируем и загружаем акт
+      await ActGeneratorService.generateAndUploadAct(
+        request: _currentRequest,
+        executor: executor,
+        customer: customer,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Акт успешно сформирован!'), backgroundColor: Colors.green),
+        );
+        _refreshRequest();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildChatCard() {
