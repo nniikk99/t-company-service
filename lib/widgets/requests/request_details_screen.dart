@@ -938,6 +938,14 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 ],
               ),
             ),
+          if (_currentRequest.invoiceUrl != null) ...[
+            const SizedBox(height: 16),
+            _buildSmallButton(
+              onPressed: () => _viewPdf(_currentRequest.invoiceUrl!, 'Счет на оплату'),
+              icon: Icons.description_outlined,
+              label: 'Посмотреть счет (PDF/Фото)',
+            ),
+          ],
         ],
       ),
     );
@@ -2147,36 +2155,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPaymentCard() {
-    return _buildCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildCardHeader(Icons.payment_outlined, 'Оплата и счет'),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Сумма к оплате:', style: TextStyle(color: Color(0xFF64748B))),
-              Text(
-                '${_currentRequest.invoiceAmount ?? 0} ₽',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-              ),
-            ],
-          ),
-          if (_currentRequest.invoiceUrl != null) ...[
-            const SizedBox(height: 16),
-            _buildSmallButton(
-              onPressed: () => _viewPdf(_currentRequest.invoiceUrl!, 'Счет на оплату'),
-              icon: Icons.description_outlined,
-              label: 'Посмотреть счет (PDF/Фото)',
-            ),
-          ],
-        ],
-      ),
     );
   }
 
