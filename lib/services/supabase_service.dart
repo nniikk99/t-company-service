@@ -1343,7 +1343,6 @@ class SupabaseService {
           assigned_engineer:user_profiles!service_requests_assigned_engineer_id_fkey(first_name, last_name, phone, average_rating, rating_count)
         ''')
         .eq('assigned_engineer_id', engineerId)
-        .or('status.eq.approved,status.eq.inProgress,status.eq.waitingForInvoice,status.eq.waitingForPayment,status.eq.waitingForAcceptance')
         .order('created_at', ascending: false);
 
     return (response as List)
