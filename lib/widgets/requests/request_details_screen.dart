@@ -875,7 +875,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.open_in_new, color: Color(0xFF2563EB)),
-                    onPressed: () => launchUrl(Uri.parse(_currentRequest.actUrl!)),
+                    onPressed: () => _viewPdf(_currentRequest.actUrl!, 'Акт выполненных работ'),
                   ),
                 ],
               ),
@@ -2049,7 +2049,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           if (_currentRequest.invoiceUrl != null) ...[
             const SizedBox(height: 16),
             _buildSmallButton(
-              onPressed: () => _viewInvoice(_currentRequest.invoiceUrl!),
+              onPressed: () => _viewPdf(_currentRequest.invoiceUrl!, 'Счет на оплату'),
               icon: Icons.description_outlined,
               label: 'Посмотреть счет (PDF/Фото)',
             ),
@@ -2059,7 +2059,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
-  void _viewInvoice(String url) async {
+  void _viewPdf(String url, String title) async {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -2074,7 +2074,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           child: Column(
             children: [
               AppBar(
-                title: const Text('Просмотр счета', style: TextStyle(fontSize: 16)),
+                title: Text(title, style: const TextStyle(fontSize: 16)),
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFF1E293B),
                 elevation: 0,
@@ -2091,7 +2091,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 ],
               ),
               Expanded(
-                child: PdfIframeView(url: url, label: 'Счет на оплату'),
+                child: PdfIframeView(url: url, label: title),
               ),
             ],
           ),
