@@ -722,8 +722,8 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 const Divider(color: Color(0xFFF1F5F9), height: 1, indent: 24, endIndent: 24),
                 
-                // Мои организации (для Клиентов и Админов)
-                if (_currentUser.role != UserRole.supplier && _currentUser.role != UserRole.engineer) ...[
+                // Мои организации (для Клиентов, Админов и Поставщиков)
+                if (_currentUser.role != UserRole.engineer) ...[
                   _buildMenuItem(
                     icon: Icons.apartment_outlined,
                     title: 'Мои организации',
