@@ -31,97 +31,111 @@ class ActGeneratorService {
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Шапка
-              pw.Text(
-                'АКТ № $actNumber от ${dateFormat.format(actDate)} г.',
-                style: pw.TextStyle(font: fontBold, fontSize: 16),
-              ),
-              pw.Text(
-                'сдачи-приемки выполненных работ (оказанных услуг)',
-                style: pw.TextStyle(font: font, fontSize: 12),
-              ),
-              pw.Divider(thickness: 1, height: 20),
+            // Расчет НДС и итоговых сумм
+            final double totalAmount = (request.invoiceAmount ?? 0).toDouble();
+            const double vatRate = 22.0;
+            final double vatAmount = executor.vatIncluded 
+                ? (totalAmount * vatRate / (100 + vatRate)) 
+                : 0.0;
+            
+            String formatCurrency(double amount) {
+              final int rubles = amount.floor();
+              final int kopeks = ((amount - rubles) * 100).round();
+              return '$rubles руб. ${kopeks.toString().padLeft(2, '0')} коп.';
+            }
 
-              // Стороны
-              _buildPartyInfo('Исполнитель', executor, font, fontBold),
-              pw.SizedBox(height: 10),
-              _buildPartyInfo('Заказчик', customer, font, fontBold),
-              pw.SizedBox(height: 20),
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                // Шапка
+                pw.Text(
+                  'АКТ № $actNumber от ${dateFormat.format(actDate)} г.',
+                  style: pw.TextStyle(font: fontBold, fontSize: 16),
+                ),
+                pw.Text(
+                  'сдачи-приемки выполненных работ (оказанных услуг)',
+                  style: pw.TextStyle(font: font, fontSize: 12),
+                ),
+                pw.Divider(thickness: 1, height: 20),
 
-              if (request.contractNumber != null && request.contractNumber!.isNotEmpty)
-                pw.Padding(
-                  padding: const pw.EdgeInsets.only(bottom: 10),
-                  child: pw.Text(
-                    'Основание: Договор № ${request.contractNumber}',
-                    style: pw.TextStyle(font: font, fontSize: 10),
+                // Стороны
+                _buildPartyInfo('Исполнитель', executor, font, fontBold),
+                pw.SizedBox(height: 10),
+                _buildPartyInfo('Заказчик', customer, font, fontBold),
+                pw.SizedBox(height: 20),
+
+                if (request.contractNumber != null && request.contractNumber!.isNotEmpty)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(bottom: 10),
+                    child: pw.Text(
+                      'Основание: Договор № ${request.contractNumber}',
+                      style: pw.TextStyle(font: font, fontSize: 10),
+                    ),
                   ),
+
+                // Таблица работ
+                pw.Table(
+                  border: pw.TableBorder.all(width: 0.5),
+                  children: [
+                    // Заголовок таблицы
+                    pw.TableRow(
+                      decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                      children: [
+                        _buildTableCell('№', fontBold, width: 30),
+                        _buildTableCell('Наименование работ, услуг', fontBold),
+                        _buildTableCell('Кол-во', fontBold, width: 50),
+                        _buildTableCell('Цена', fontBold, width: 70),
+                        _buildTableCell('Сумма', fontBold, width: 80),
+                      ],
+                    ),
+                    // Строка с работой
+                    pw.TableRow(
+                      children: [
+                        _buildTableCell('1', font),
+                        _buildTableCell(
+                          'Сервисное обслуживание: ${request.equipmentName ?? "Оборудование"} (${request.typeDisplayName}). Заявка ${request.displayId}',
+                          font,
+                        ),
+                        _buildTableCell('1', font),
+                        _buildTableCell('${request.invoiceAmount ?? 0} руб.', font),
+                        _buildTableCell('${request.invoiceAmount ?? 0} руб.', font),
+                      ],
+                    ),
+                  ],
                 ),
 
-              // Таблица работ
-              pw.Table(
-                border: pw.TableBorder.all(width: 0.5),
-                children: [
-                  // Заголовок таблицы
-                  pw.TableRow(
-                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
-                    children: [
-                      _buildTableCell('№', fontBold, width: 30),
-                      _buildTableCell('Наименование работ, услуг', fontBold),
-                      _buildTableCell('Кол-во', fontBold, width: 50),
-                      _buildTableCell('Цена', fontBold, width: 70),
-                      _buildTableCell('Сумма', fontBold, width: 80),
-                    ],
-                  ),
-                  // Строка с работой
-                  pw.TableRow(
-                    children: [
-                      _buildTableCell('1', font),
-                      _buildTableCell(
-                        'Сервисное обслуживание: ${request.equipmentName ?? "Оборудование"} (${request.typeDisplayName}). Заявка ${request.displayId}',
-                        font,
-                      ),
-                      _buildTableCell('1', font),
-                      _buildTableCell('${request.invoiceAmount ?? 0} .руб', font),
-                      _buildTableCell('${request.invoiceAmount ?? 0} .руб', font),
-                    ],
-                  ),
-                ],
-              ),
+                // Итого
+                pw.SizedBox(height: 10),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Итого:  ${formatCurrency(totalAmount)}',
+                      style: pw.TextStyle(font: fontBold, fontSize: 11),
+                    ),
+                  ],
+                ),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      executor.vatIncluded 
+                        ? 'В том числе НДС (22%): ${formatCurrency(vatAmount)}' 
+                        : 'Без НДС.',
+                      style: pw.TextStyle(font: font, fontSize: 10),
+                    ),
+                  ],
+                ),
 
-              // Итого
-              pw.SizedBox(height: 10),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.end,
-                children: [
-                  pw.Text(
-                    'Итого:  ${request.invoiceAmount ?? 0} руб. 00 коп.',
-                    style: pw.TextStyle(font: fontBold, fontSize: 11),
-                  ),
-                ],
-              ),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.end,
-                children: [
-                  pw.Text(
-                    executor.vatIncluded ? 'В том числе НДС.' : 'Без НДС.',
-                    style: pw.TextStyle(font: font, fontSize: 10),
-                  ),
-                ],
-              ),
-
-              pw.SizedBox(height: 20),
-              pw.Text(
-                'Всего оказано услуг на сумму: ${request.invoiceAmount ?? 0} руб. 00 коп.',
-                style: pw.TextStyle(font: font, fontSize: 11),
-              ),
-              pw.Text(
-                'Вышеуказанные услуги выполнены полностью и в срок. Заказчик претензий по объему, качеству и срокам оказания услуг не имеет.',
-                style: pw.TextStyle(font: font, fontSize: 10, fontStyle: pw.FontStyle.italic),
-              ),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  'Всего оказано услуг на сумму: ${formatCurrency(totalAmount)}',
+                  style: pw.TextStyle(font: font, fontSize: 11),
+                ),
+                pw.Text(
+                  'Вышеуказанные услуги выполнены полностью и в срок. Заказчик претензий по объему, качеству и срокам оказания услуг не имеет.',
+                  style: pw.TextStyle(font: font, fontSize: 10, fontStyle: pw.FontStyle.italic),
+                ),
 
               pw.SizedBox(height: 40),
 
