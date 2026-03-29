@@ -41,6 +41,10 @@ class User {
   final String? passwordHash;               // Хэш пароля для безопасности
   final List<String>? serviceRegions;       // Регионы обслуживания для инженера
   
+  // Тарифы инженера
+  final double? callOutRate;
+  final double? hourlyRate;
+  
   // Telegram интеграция
   final String? telegramId;
   final int? telegramUserId;
@@ -73,6 +77,8 @@ class User {
     this.createdBy,
     this.passwordHash,
     this.serviceRegions,
+    this.callOutRate,
+    this.hourlyRate,
     this.telegramId,
     this.telegramUserId,
     this.telegramUsername,
@@ -159,6 +165,8 @@ class User {
       serviceRegions: json['service_regions'] != null 
           ? List<String>.from(json['service_regions'])
           : null,
+      callOutRate: json['call_out_rate'] != null ? (json['call_out_rate'] as num).toDouble() : null,
+      hourlyRate: json['hourly_rate'] != null ? (json['hourly_rate'] as num).toDouble() : null,
       telegramId: json['telegram_id']?.toString(),
       telegramUserId: json['telegram_user_id'],
       telegramUsername: json['telegram_username'],
@@ -238,6 +246,8 @@ class User {
       'created_by': createdBy,
       'password_hash': passwordHash,
       'service_regions': serviceRegions,
+      'call_out_rate': callOutRate,
+      'hourly_rate': hourlyRate,
       'telegram_id': telegramId,
       'telegram_user_id': telegramUserId,
       'telegram_username': telegramUsername,
@@ -295,6 +305,8 @@ class User {
     List<String>? assignedSiteIds,
     String? createdBy,
     String? passwordHash,
+    double? callOutRate,
+    double? hourlyRate,
     String? telegramId,
     int? telegramUserId,
     String? telegramUsername,
@@ -322,6 +334,8 @@ class User {
       assignedSiteIds: assignedSiteIds ?? this.assignedSiteIds,
       createdBy: createdBy ?? this.createdBy,
       passwordHash: passwordHash ?? this.passwordHash,
+      callOutRate: callOutRate ?? this.callOutRate,
+      hourlyRate: hourlyRate ?? this.hourlyRate,
       telegramId: telegramId ?? this.telegramId,
       telegramUserId: telegramUserId ?? this.telegramUserId,
       telegramUsername: telegramUsername ?? this.telegramUsername,

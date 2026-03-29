@@ -52,6 +52,24 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   RealtimeChannel? _subscription;
 
 
+  bool get _isInternalEngineer {
+    if (widget.currentUser.role != AppUserModel.UserRole.engineer) return false;
+    // Если ИНН компании инженера совпадает с ИНН компании-поставщика (через company_inn или supplierId)
+    if (widget.currentUser.supplierId != null && widget.currentUser.supplierId == _currentRequest.supplierId) {
+      return true;
+    }
+    return false;
+  }
+
+  String _getPaymentTypeDisplay() {
+    switch (_currentRequest.paymentType) {
+      case PaymentType.platform: return 'Через платформу (T-CO)';
+      case PaymentType.supplier: return 'Напрямую поставщику';
+      case PaymentType.warranty: return 'Гарантийный выезд';
+      default: return 'Через платформу';
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -182,12 +200,23 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           ],
         ),
         actions: [
-          if (widget.currentUser.role == AppUserModel.UserRole.administrator)
+          if (widget.currentUser.role == AppUserModel.UserRole.administrator) ...[
+            IconButton(
+              icon: const Icon(Icons.edit, color: Color(0xFF4A90E2)),
+              tooltip: 'Редактировать данные',
+              onPressed: () => _showEditRequestDialog(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_note, color: Color(0xFF4A90E2)),
+              tooltip: 'Изменить статус',
+              onPressed: () => _showChangeStatusDialog(),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
               tooltip: 'Удалить заявку',
               onPressed: () => _confirmDelete(),
             ),
+          ],
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(24),
@@ -236,7 +265,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 _buildContactsCard(),
                 const SizedBox(height: 12),
                 _buildPaymentCard(),
-                if (widget.currentUser.role == AppUserModel.UserRole.engineer) ...[
+                if (widget.currentUser.role == AppUserModel.UserRole.engineer && !_isInternalEngineer) ...[
                   const SizedBox(height: 12),
                   _buildEarningsCard(),
                 ],
@@ -860,8 +889,17 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                Text(
+                  'Тип оплаты: ${_getPaymentTypeDisplay()}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF1D4ED8),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 const Text(
-                  'Эта сумма учитывается в вашей статистике за вычетом комиссии площадки и НДС.',
+                  'Заработок формируется из ставки за выезд и отработанных часов.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF3B82F6), // blue-500
@@ -1418,6 +1456,213 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         isInitiator: isInitiator,
       ),
     );
+  }
+
+  Future<void> _showEditRequestDialog() async {
+    final titleController = TextEditingController(text: _currentRequest.title);
+    final descController = TextEditingController(text: _currentRequest.description);
+    RequestPriority selectedPriority = _currentRequest.priority;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Редактировать детали заявки'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: titleController,
+                      decoration: const InputDecoration(labelText: 'Заголовок'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: descController,
+                      maxLines: 5,
+                      decoration: const InputDecoration(labelText: 'Описание'),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<RequestPriority>(
+                      value: selectedPriority,
+                      decoration: const InputDecoration(labelText: 'Приоритет'),
+                      items: RequestPriority.values.map((priority) {
+                        String name = 'Обычный';
+                        switch (priority) {
+                          case RequestPriority.low: name = 'Низкий'; break;
+                          case RequestPriority.normal: name = 'Обычный'; break;
+                          case RequestPriority.high: name = 'Высокий'; break;
+                          case RequestPriority.urgent: name = 'Срочный'; break;
+                        }
+                        return DropdownMenuItem(value: priority, child: Text(name));
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => selectedPriority = val);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () => _showAssignEngineerManually(ctx),
+                      icon: const Icon(Icons.person_search),
+                      label: Text(_currentRequest.assignedEngineerId == null ? 'Назначить инженера' : 'Сменить инженера'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Отмена'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Сохранить'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      try {
+        setState(() => _isLoading = true);
+        final updates = {
+          'title': titleController.text,
+          'description': descController.text,
+          'priority': selectedPriority.toString().split('.').last,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        await SupabaseService.updateServiceRequest(_currentRequest.id, updates);
+        
+        // Добавляем сообщение в чат
+        await SupabaseService.sendRequestMessage(
+          requestId: _currentRequest.id,
+          senderId: widget.currentUser.id,
+          message: '🔧 Администратор внес изменения в детали заявки.',
+        );
+
+        await _refreshRequest();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Заявка успешно обновлена')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка обновления: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  void _showAssignEngineerManually(BuildContext parentContext) async {
+    // Временно закрываем текущий диалог или открываем поверх? Поверх безопаснее для состояния.
+    await showDialog(
+      context: context,
+      builder: (ctx) => AssignEngineerDialog(
+        requestId: _currentRequest.id,
+        approverName: widget.currentUser.fullName,
+        onEngineerAssigned: () {
+          _refreshRequest();
+        },
+      ),
+    );
+  }
+
+  Future<void> _showChangeStatusDialog() async {
+    RequestStatus selectedStatus = _currentRequest.status;
+
+    final result = await showDialog<RequestStatus>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Изменить статус заявки'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: RequestStatus.values.map((status) {
+                  // Для правильного отображения названия статуса используем фиктивную заявку
+                  final dummy = ServiceRequest(
+                    id: '', clientId: '', userId: '', type: RequestType.repair, title: '', description: '', status: status, createdAt: DateTime.now()
+                  );
+                  return RadioListTile<RequestStatus>(
+                    title: Text(dummy.statusDisplayName),
+                    value: status,
+                    groupValue: selectedStatus,
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() => selectedStatus = val);
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Отмена'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, selectedStatus),
+                  child: const Text('Сохранить'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && result != _currentRequest.status) {
+      try {
+        setState(() => _isLoading = true);
+        final updates = <String, dynamic>{
+          'status': result.toString().split('.').last,
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        // Если сброс из стадии Выполнена
+        if (_currentRequest.status == RequestStatus.completed) {
+           updates['completed_at'] = null;
+           updates['engineer_completed_at'] = null;
+        }
+
+        await SupabaseService.updateServiceRequest(_currentRequest.id, updates);
+        
+        // Добавляем сообщение в чат
+        final dummy = ServiceRequest(
+          id: '', clientId: '', userId: '', type: RequestType.repair, title: '', description: '', status: result, createdAt: DateTime.now()
+        );
+        await SupabaseService.sendRequestMessage(
+          requestId: _currentRequest.id,
+          senderId: widget.currentUser.id,
+          message: '🔄 Администратор изменил статус заявки на: ${dummy.statusDisplayName}',
+        );
+
+        await _refreshRequest();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Статус успешно изменен')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка обновления статуса: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _confirmDelete() async {

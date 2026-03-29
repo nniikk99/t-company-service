@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import '../models/service_request.dart';
 import '../services/supabase_service.dart';
 
+import '../models/user.dart' as AppUserModel;
+
 class EngineerStatisticsScreen extends StatefulWidget {
   final String engineerId;
+  final AppUserModel.User currentUser;
 
   const EngineerStatisticsScreen({
     super.key,
     required this.engineerId,
+    required this.currentUser,
   });
 
   @override
@@ -135,40 +139,45 @@ class _EngineerStatisticsScreenState extends State<EngineerStatisticsScreen> {
       'year': 'Заработок за год',
     }[_selectedPeriod] ?? 'Заработано за период';
 
+    // Проверяем является ли текущий инженер штатным для всех своих заявок? Мы просто не показываем карточки доходов если текущий пользователь инженер со supplierId
+    final isInternal = widget.currentUser.role == AppUserModel.UserRole.engineer && widget.currentUser.supplierId != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Доход',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
+        if (!isInternal) ...[
+          const Text(
+            'Доход',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Всего заработано',
-                '${totalEarnings.toStringAsFixed(0)} ₽',
-                Icons.account_balance_wallet,
-                Colors.green[700]!,
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Всего заработано',
+                  '${totalEarnings.toStringAsFixed(0)} ₽',
+                  Icons.account_balance_wallet,
+                  Colors.green[700]!,
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard(
-                periodLabel,
-                '${periodEarnings.toStringAsFixed(0)} ₽',
-                Icons.payments_outlined,
-                Colors.blue[700]!,
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildStatCard(
+                  periodLabel,
+                  '${periodEarnings.toStringAsFixed(0)} ₽',
+                  Icons.payments_outlined,
+                  Colors.blue[700]!,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
         const Text(
           'Общая статистика',
           style: TextStyle(

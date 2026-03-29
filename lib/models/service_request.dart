@@ -17,12 +17,17 @@ enum RequestStatus {
   completed,       // Выполнена
   cancelled,       // Отменена
 }
-
 enum RequestPriority {
   low,             // Низкий
   normal,          // Обычный
   high,            // Высокий
   urgent,          // Срочный
+}
+
+enum PaymentType {
+  platform,        // Через платформу T-CO
+  supplier,        // Напрямую поставщику
+  warranty,        // Гарантийный ремонт
 }
 
 class ServiceRequest {
@@ -98,6 +103,11 @@ class ServiceRequest {
   final DateTime? actCreatedAt;        // Дата формирования акта
   final String? contractNumber;        // Номер договора (опционально)
 
+  // Новые поля для тарификации
+  final PaymentType paymentType;
+  final double? engineerCallOutRate;
+  final double? engineerHourlyRate;
+
   ServiceRequest({
     required this.id,
     this.requestNumber,
@@ -155,19 +165,36 @@ class ServiceRequest {
     this.actNumber,
     this.actCreatedAt,
     this.contractNumber,
+    this.paymentType = PaymentType.platform,
+    this.engineerCallOutRate,
+    this.engineerHourlyRate,
   });
   // Расчет итоговой суммы (с учетом минимальной ставки 5000)
   double get calculatedTotalAmount {
     return invoiceAmount ?? estimatedCost ?? 5000.0;
   }
 
-  // Расчет заработка инженера (80% от суммы без НДС 22%)
+  // Расчет заработка инженера (Часы работы * Часовая ставка + Выезд)
   double get calculatedEngineerEarnings {
-    final amount = calculatedTotalAmount;
-    // Формула: сумма без НДС = общая сумма - (общая сумма * 22 / 122)
-    final vatAmount = amount * 22 / 122;
-    final amountWithoutVat = amount - vatAmount;
-    return amountWithoutVat * 0.8;
+    final callOut = engineerCallOutRate ?? 5000.0;
+    final hourly = engineerHourlyRate ?? 1500.0;
+
+    if (engineerStartedAt == null || engineerCompletedAt == null) {
+      return callOut; // Только выезд, если время не зафиксировано
+    }
+
+    final duration = engineerCompletedAt!.difference(engineerStartedAt!);
+    final minutes = duration.inMinutes;
+    final remainder = minutes % 60;
+    
+    double hours = (minutes / 60).floorToDouble();
+    if (remainder > 45) {
+      hours += 1.0;
+    } else if (remainder >= 16) {
+      hours += 0.5;
+    }
+    
+    return callOut + (hours * hourly);
   }
 
   // Геттеры для удобства
@@ -380,7 +407,18 @@ class ServiceRequest {
       actNumber: json['act_number'],
       actCreatedAt: json['act_created_at'] != null ? DateTime.parse(json['act_created_at']) : null,
       contractNumber: json['contract_number'],
+      paymentType: _parsePaymentType(json['payment_type']),
+      engineerCallOutRate: json['engineer_call_out_rate'] != null ? (json['engineer_call_out_rate'] as num).toDouble() : null,
+      engineerHourlyRate: json['engineer_hourly_rate'] != null ? (json['engineer_hourly_rate'] as num).toDouble() : null,
     );
+  }
+
+  static PaymentType _parsePaymentType(String? type) {
+    switch (type) {
+      case 'supplier': return PaymentType.supplier;
+      case 'warranty': return PaymentType.warranty;
+      default: return PaymentType.platform;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -417,6 +455,9 @@ class ServiceRequest {
       if (actNumber != null) 'act_number': actNumber,
       if (actCreatedAt != null) 'act_created_at': actCreatedAt!.toIso8601String(),
       if (contractNumber != null) 'contract_number': contractNumber,
+      'payment_type': paymentType.toString().split('.').last,
+      'engineer_call_out_rate': engineerCallOutRate,
+      'engineer_hourly_rate': engineerHourlyRate,
     };
   }
 
@@ -448,6 +489,9 @@ class ServiceRequest {
     String? engineerComment,
     DateTime? engineerStartedAt,
     DateTime? engineerCompletedAt,
+    PaymentType? paymentType,
+    double? engineerCallOutRate,
+    double? engineerHourlyRate,
   }) {
     return ServiceRequest(
       id: id ?? this.id,
@@ -477,6 +521,9 @@ class ServiceRequest {
       engineerComment: engineerComment ?? this.engineerComment,
       engineerStartedAt: engineerStartedAt ?? this.engineerStartedAt,
       engineerCompletedAt: engineerCompletedAt ?? this.engineerCompletedAt,
+      paymentType: paymentType ?? this.paymentType,
+      engineerCallOutRate: engineerCallOutRate ?? this.engineerCallOutRate,
+      engineerHourlyRate: engineerHourlyRate ?? this.engineerHourlyRate,
     );
   }
 }

@@ -146,6 +146,8 @@ class SupabaseService {
     String? comments,
     bool? isOnVacation,
     String? role,
+    double? callOutRate,
+    double? hourlyRate,
   }) async {
     final updateData = <String, dynamic>{
       'updated_at': DateTime.now().toIso8601String(),
@@ -166,6 +168,8 @@ class SupabaseService {
     if (comments != null) updateData['comments'] = comments;
     if (isOnVacation != null) updateData['is_on_vacation'] = isOnVacation;
     if (role != null) updateData['role'] = role;
+    if (callOutRate != null) updateData['call_out_rate'] = callOutRate;
+    if (hourlyRate != null) updateData['hourly_rate'] = hourlyRate;
 
     await _client
         .from('user_profiles')
@@ -1395,12 +1399,22 @@ class SupabaseService {
   }
 
   /// Назначение заявки инженеру (для администраторов)
-  static Future<void> assignRequestToEngineer(String requestId, String engineerId) async {
+  static Future<void> assignRequestToEngineer(String requestId, String engineerId, {
+    String paymentType = 'platform',
+  }) async {
+    // Получаем текущие ставки инженера
+    final engineerProfile = await getUserProfile(engineerId);
+    final double callOutRate = (engineerProfile?['call_out_rate'] as num?)?.toDouble() ?? 5000.0;
+    final double hourlyRate = (engineerProfile?['hourly_rate'] as num?)?.toDouble() ?? 1500.0;
+
     await _client
         .from('service_requests')
         .update({
           'assigned_engineer_id': engineerId,
           'status': 'approved', // Заявка переходит в статус "одобрена" для работы инженера
+          'payment_type': paymentType,
+          'engineer_call_out_rate': callOutRate,
+          'engineer_hourly_rate': hourlyRate,
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
@@ -1474,6 +1488,7 @@ class SupabaseService {
     required String supplierUserId,
     required String approverName, // Имя того, кто назначает
     bool startWorkImmediately = false,
+    String paymentType = 'supplier', // По умолчанию поставщику, так как назначает поставщик
   }) async {
     try {
       // Проверка 1: Заявка принадлежит этому поставщику
@@ -1494,7 +1509,7 @@ class SupabaseService {
       // Проверка 2: Инженер принадлежит этому поставщику
       final engineerResponse = await _client
           .from('user_profiles')
-          .select('id, role, supplier_id')
+          .select('id, role, supplier_id, call_out_rate, hourly_rate')
           .eq('id', engineerId)
           .maybeSingle();
 
@@ -1510,11 +1525,18 @@ class SupabaseService {
         throw Exception('Этот инженер не принадлежит вашему поставщику');
       }
 
+      // Получаем ставки инженера
+      final double callOutRate = (engineerResponse['call_out_rate'] as num?)?.toDouble() ?? 5000.0;
+      final double hourlyRate = (engineerResponse['hourly_rate'] as num?)?.toDouble() ?? 1500.0;
+
       // Обновляем заявку: назначаем инженера и меняем статус
       final status = startWorkImmediately ? 'inProgress' : 'approved';
-      final updateData = {
+      final updateData = <String, dynamic>{
         'assigned_engineer_id': engineerId,
         'status': status,
+        'payment_type': paymentType,
+        'engineer_call_out_rate': callOutRate,
+        'engineer_hourly_rate': hourlyRate,
         'updated_at': DateTime.now().toIso8601String(),
       };
 

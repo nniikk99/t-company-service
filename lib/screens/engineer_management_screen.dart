@@ -214,6 +214,13 @@ class _EngineerManagementScreenState extends State<EngineerManagementScreen> {
                   ),
                 ),
                 
+                // Иконка редактирования тарифов
+                IconButton(
+                  onPressed: () => _editEngineerRates(engineer),
+                  icon: const Icon(Icons.edit, color: Colors.blueGrey),
+                  tooltip: 'Изменить тарифы',
+                ),
+                
                 // Иконка входа
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -253,6 +260,78 @@ class _EngineerManagementScreenState extends State<EngineerManagementScreen> {
           user: engineer,
           adminUser: widget.adminUser,
         ),
+      ),
+    );
+  }
+
+  void _editEngineerRates(AppUserModel.User engineer) {
+    final callOutCtrl = TextEditingController(text: engineer.callOutRate?.toString() ?? '5000');
+    final hourlyCtrl = TextEditingController(text: engineer.hourlyRate?.toString() ?? '1500');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Тарифы: ${engineer.fullName}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: callOutCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Ставка за выезд (руб)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: hourlyCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Почасовая ставка (руб)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final callOut = double.tryParse(callOutCtrl.text);
+              final hourly = double.tryParse(hourlyCtrl.text);
+              
+              if (callOut != null && hourly != null) {
+                Navigator.pop(ctx);
+                setState(() => _isLoading = true);
+                try {
+                  await SupabaseService.updateUserProfile(
+                    userId: engineer.id,
+                    callOutRate: callOut,
+                    hourlyRate: hourly,
+                  );
+                  await _loadEngineers();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Тарифы успешно обновлены')),
+                    );
+                  }
+                } catch (e) {
+                  setState(() => _isLoading = false);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Ошибка обновления: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text('Сохранить'),
+          ),
+        ],
       ),
     );
   }

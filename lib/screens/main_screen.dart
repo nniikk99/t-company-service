@@ -557,7 +557,10 @@ class _MainScreenState extends State<MainScreen> {
         }
         // Для инженеров показываем специальную статистику
         if (_currentUser.role == UserRole.engineer) {
-          return EngineerStatisticsScreen(engineerId: _currentUser.id);
+          return EngineerStatisticsScreen(
+            engineerId: _currentUser.id,
+            currentUser: _currentUser,
+          );
         }
         return AnalyticsScreen(user: _currentUser);
       case ViewType.cart:
