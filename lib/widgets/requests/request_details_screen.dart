@@ -63,7 +63,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
   String _getPaymentTypeDisplay() {
     switch (_currentRequest.paymentType) {
-      case PaymentType.platform: return 'Через платформу (T-CO)';
+      case PaymentType.platform: return 'Через платформу';
       case PaymentType.supplier: return 'Напрямую поставщику';
       case PaymentType.warranty: return 'Гарантийный выезд';
       default: return 'Через платформу';
@@ -943,7 +943,7 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
             items: const [
               DropdownMenuItem(
                 value: PaymentType.platform,
-                child: Text('Через платформу (T-CO)'),
+                child: Text('Через платформу'),
               ),
               DropdownMenuItem(
                 value: PaymentType.supplier,
@@ -1553,24 +1553,29 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: const Text('Изменить статус заявки'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: RequestStatus.values.map((status) {
-                  // Для правильного отображения названия статуса используем фиктивную заявку
-                  final dummy = ServiceRequest(
-                    id: '', clientId: '', userId: '', type: RequestType.repair, title: '', description: '', status: status, createdAt: DateTime.now()
-                  );
-                  return RadioListTile<RequestStatus>(
-                    title: Text(dummy.statusDisplayName),
-                    value: status,
-                    groupValue: selectedStatus,
-                    onChanged: (val) {
-                      if (val != null) {
-                        setDialogState(() => selectedStatus = val);
-                      }
-                    },
-                  );
-                }).toList(),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: RequestStatus.values.map((status) {
+                      // Для правильного отображения названия статуса используем фиктивную заявку
+                      final dummy = ServiceRequest(
+                        id: '', clientId: '', userId: '', type: RequestType.repair, title: '', description: '', status: status, createdAt: DateTime.now()
+                      );
+                      return RadioListTile<RequestStatus>(
+                        title: Text(dummy.statusDisplayName),
+                        value: status,
+                        groupValue: selectedStatus,
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() => selectedStatus = val);
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
               actions: [
                 TextButton(
