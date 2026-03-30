@@ -1451,6 +1451,100 @@ class SupabaseService {
     }
   }
 
+  /// Получение статистики для дэшборда
+  static Future<Map<String, int>> getDashboardStatistics(AppUserModel.User user) async {
+    try {
+      final role = user.role;
+      int equipmentCount = 0;
+      int requestsCount = 0;
+      int ordersCount = 0;
+
+      if (role == AppUserModel.UserRole.administrator) {
+        // Админ видит всё
+        final equipRes = await _client.from('equipment').select('id');
+        equipmentCount = (equipRes as List).length;
+
+        final reqRes = await _client.from('service_requests')
+            .select('id')
+            .neq('type', 'partsOrder');
+        requestsCount = (reqRes as List).length;
+
+        final orderRes = await _client.from('service_requests')
+            .select('id')
+            .eq('type', 'partsOrder');
+        ordersCount = (orderRes as List).length;
+      } else if (role == AppUserModel.UserRole.supplier) {
+        // Поставщик видит по своему ID (бренду)
+        final equipRes = await _client.from('equipment')
+            .select('id')
+            .eq('supplier_id', user.id);
+        equipmentCount = (equipRes as List).length;
+
+        final reqRes = await _client.from('service_requests')
+            .select('id')
+            .eq('supplier_id', user.id)
+            .neq('type', 'partsOrder');
+        requestsCount = (reqRes as List).length;
+
+        final orderRes = await _client.from('service_requests')
+            .select('id')
+            .eq('supplier_id', user.id)
+            .eq('type', 'partsOrder');
+        ordersCount = (orderRes as List).length;
+      } else {
+        // Для Клиентов - по ИНН компании, если есть, иначе по ID компании
+        final profile = await getUserProfile(user.id);
+        final inn = profile?['company_inn'];
+        final companyId = user.companyId;
+
+        if (inn != null && inn.isNotEmpty) {
+          final equipRes = await _client.from('equipment')
+              .select('id')
+              .eq('company_inn', inn);
+          equipmentCount = (equipRes as List).length;
+
+          final reqRes = await _client.from('service_requests')
+              .select('id')
+              .eq('company_inn', inn)
+              .neq('type', 'partsOrder');
+          requestsCount = (reqRes as List).length;
+
+          final orderRes = await _client.from('service_requests')
+              .select('id')
+              .eq('company_inn', inn)
+              .eq('type', 'partsOrder');
+          ordersCount = (orderRes as List).length;
+        } else if (companyId != null) {
+          final equipRes = await _client.from('equipment')
+              .select('id')
+              .eq('company_id', companyId);
+          equipmentCount = (equipRes as List).length;
+
+          final reqRes = await _client.from('service_requests')
+              .select('id')
+              .eq('company_id', companyId)
+              .neq('type', 'partsOrder');
+          requestsCount = (reqRes as List).length;
+
+          final orderRes = await _client.from('service_requests')
+              .select('id')
+              .eq('company_id', companyId)
+              .eq('type', 'partsOrder');
+          ordersCount = (orderRes as List).length;
+        }
+      }
+
+      return {
+        'equipment': equipmentCount,
+        'requests': requestsCount,
+        'orders': ordersCount,
+      };
+    } catch (e) {
+      print('❌ Ошибка загрузки статистики: $e');
+      return {'equipment': 0, 'requests': 0, 'orders': 0};
+    }
+  }
+
   /// Получение инженеров поставщика
   /// Возвращает список всех инженеров, принадлежащих данному поставщику
   static Future<List<AppUserModel.User>> getSupplierEngineers(String supplierUserId) async {

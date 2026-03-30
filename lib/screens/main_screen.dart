@@ -58,6 +58,12 @@ class _MainScreenState extends State<MainScreen> {
   String? _selectedEquipmentId;
   int _unreadNotifications = 0; // Счетчик непрочитанных уведомлений
   
+  // Статистика для профиля
+  int _equipmentCount = 0;
+  int _requestsCount = 0;
+  int _ordersCount = 0;
+  bool _isLoadingStats = true;
+  
   // Модальные окна
   final bool _serviceModalOpen = false;
   bool _partsModalOpen = false;
@@ -132,13 +138,29 @@ class _MainScreenState extends State<MainScreen> {
     }
     
     _loadUnreadNotifications(); // Загружаем количество непрочитанных уведомлений
+    _loadStatistics(); // Загружаем статистику для дэшборда
+  }
+
+  Future<void> _loadStatistics() async {
+    if (_currentUser.role == UserRole.engineer) return;
+    
+    final stats = await SupabaseService.getDashboardStatistics(_currentUser);
+    if (mounted) {
+      setState(() {
+        _equipmentCount = stats['equipment'] ?? 0;
+        _requestsCount = stats['requests'] ?? 0;
+        _ordersCount = stats['orders'] ?? 0;
+        _isLoadingStats = false;
+      });
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Обновляем счетчик уведомлений при каждом возврате на экран
+    // Обновляем счетчик уведомлений и статистику при каждом возврате на экран
     _loadUnreadNotifications();
+    _loadStatistics();
   }
 
   // Обработчики событий (как в React коде)
@@ -681,18 +703,20 @@ class _MainScreenState extends State<MainScreen> {
           
           const SizedBox(height: 24),
           
-          // Статистика
-          Row(
-            children: [
-              Expanded(child: _buildStatCard('4', 'Оборудование')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('5', 'Заявки')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('2', 'Заказы')),
-            ],
-          ),
+          // Статистика (не показываем для инженеров)
+          if (_currentUser.role != UserRole.engineer)
+            Row(
+              children: [
+                Expanded(child: _buildStatCard(_isLoadingStats ? '...' : '$_equipmentCount', 'Оборудование')),
+                const SizedBox(width: 12),
+                Expanded(child: _buildStatCard(_isLoadingStats ? '...' : '$_requestsCount', 'Заявки')),
+                const SizedBox(width: 12),
+                Expanded(child: _buildStatCard(_isLoadingStats ? '...' : '$_ordersCount', 'Заказы')),
+              ],
+            ),
           
-          const SizedBox(height: 24),
+          if (_currentUser.role != UserRole.engineer)
+            const SizedBox(height: 24),
           
           // Опции меню
           Container(
