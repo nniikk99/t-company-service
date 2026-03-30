@@ -487,6 +487,32 @@ class SupabaseService {
     }
   }
 
+  /// Загрузка фото модели оборудования для поставщика
+  static Future<String?> uploadEquipmentModelPhoto(String supplierId, Uint8List fileBytes, String fileName) async {
+    try {
+      final fileExt = fileName.split('.').last;
+      final path = '$supplierId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      
+      print('📤 Загрузка фото модели в Storage: equipment-models/$path');
+      
+      await _client.storage.from('equipment-models').uploadBinary(
+        path,
+        fileBytes,
+        fileOptions: FileOptions(
+          contentType: 'image/$fileExt',
+          upsert: true
+        ),
+      );
+      
+      final publicUrl = _client.storage.from('equipment-models').getPublicUrl(path);
+      print('✅ Фото загружено, URL: $publicUrl');
+      return publicUrl;
+    } catch (e) {
+      print('❌ Ошибка загрузки фото модели: $e');
+      return null;
+    }
+  }
+
   /// Обновление списка вложений в БД
   static Future<void> updateServiceRequestAttachments(String requestId, List<String> attachments) async {
     await _client
