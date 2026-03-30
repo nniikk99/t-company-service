@@ -202,11 +202,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         actions: [
           if (widget.currentUser.role == AppUserModel.UserRole.administrator) ...[
             IconButton(
-              icon: const Icon(Icons.edit, color: Color(0xFF4A90E2)),
-              tooltip: 'Редактировать данные',
-              onPressed: () => _showEditRequestDialog(),
-            ),
-            IconButton(
               icon: const Icon(Icons.edit_note, color: Color(0xFF4A90E2)),
               tooltip: 'Изменить статус',
               onPressed: () => _showChangeStatusDialog(),
@@ -246,6 +241,10 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                 const SizedBox(height: 12),
                 if (_currentRequest.assignedEngineerId != null) ...[
                   _buildEngineerCard(),
+                  const SizedBox(height: 12),
+                ],
+                if (widget.currentUser.role == AppUserModel.UserRole.administrator) ...[
+                  _buildAdminPaymentTypeCard(),
                   const SizedBox(height: 12),
                 ],
                 _buildDescriptionCard(),
@@ -914,6 +913,92 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
+  Widget _buildAdminPaymentTypeCard() {
+    return _buildCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(Icons.payment_outlined, 'Управление оплатой'),
+          const SizedBox(height: 16),
+          const Text(
+            'Выберите способ взаиморасчета:',
+            style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<PaymentType>(
+            value: _currentRequest.paymentType,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: PaymentType.platform,
+                child: Text('Через платформу (T-CO)'),
+              ),
+              DropdownMenuItem(
+                value: PaymentType.supplier,
+                child: Text('Напрямую поставщику'),
+              ),
+              DropdownMenuItem(
+                value: PaymentType.warranty,
+                child: Text('Гарантийный выезд'),
+              ),
+            ],
+            onChanged: (val) async {
+              if (val != null && val != _currentRequest.paymentType) {
+                try {
+                  setState(() => _isLoading = true);
+                  await SupabaseService.updateServiceRequest(_currentRequest.id, {
+                    'payment_type': val.toString().split('.').last,
+                    'updated_at': DateTime.now().toIso8601String(),
+                  });
+                  
+                  // Добавляем сообщение в чат
+                  String displayName = '';
+                  switch(val) {
+                    case PaymentType.platform: displayName = 'через платформу'; break;
+                    case PaymentType.supplier: displayName = 'напрямую поставщику'; break;
+                    case PaymentType.warranty: displayName = 'гарантийный выезд'; break;
+                  }
+                  
+                  await SupabaseService.sendRequestMessage(
+                    requestId: _currentRequest.id,
+                    senderId: widget.currentUser.id,
+                    message: '💳 Администратор изменил способ оплаты на: $displayName',
+                  );
+
+                  await _refreshRequest();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Способ оплаты изменен')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Ошибка обновления: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPaymentCard() {
     return _buildCard(
       child: Column(
@@ -1458,125 +1543,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
     );
   }
 
-  Future<void> _showEditRequestDialog() async {
-    final titleController = TextEditingController(text: _currentRequest.title);
-    final descController = TextEditingController(text: _currentRequest.description);
-    RequestPriority selectedPriority = _currentRequest.priority;
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Редактировать детали заявки'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Заголовок'),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: descController,
-                      maxLines: 5,
-                      decoration: const InputDecoration(labelText: 'Описание'),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<RequestPriority>(
-                      value: selectedPriority,
-                      decoration: const InputDecoration(labelText: 'Приоритет'),
-                      items: RequestPriority.values.map((priority) {
-                        String name = 'Обычный';
-                        switch (priority) {
-                          case RequestPriority.low: name = 'Низкий'; break;
-                          case RequestPriority.normal: name = 'Обычный'; break;
-                          case RequestPriority.high: name = 'Высокий'; break;
-                          case RequestPriority.urgent: name = 'Срочный'; break;
-                        }
-                        return DropdownMenuItem(value: priority, child: Text(name));
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) setDialogState(() => selectedPriority = val);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () => _showAssignEngineerManually(ctx),
-                      icon: const Icon(Icons.person_search),
-                      label: Text(_currentRequest.assignedEngineerId == null ? 'Назначить инженера' : 'Сменить инженера'),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Отмена'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Сохранить'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result == true) {
-      try {
-        setState(() => _isLoading = true);
-        final updates = {
-          'title': titleController.text,
-          'description': descController.text,
-          'priority': selectedPriority.toString().split('.').last,
-          'updated_at': DateTime.now().toIso8601String(),
-        };
-
-        await SupabaseService.updateServiceRequest(_currentRequest.id, updates);
-        
-        // Добавляем сообщение в чат
-        await SupabaseService.sendRequestMessage(
-          requestId: _currentRequest.id,
-          senderId: widget.currentUser.id,
-          message: '🔧 Администратор внес изменения в детали заявки.',
-        );
-
-        await _refreshRequest();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Заявка успешно обновлена')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка обновления: $e'), backgroundColor: Colors.red),
-          );
-        }
-      }
-    }
-  }
-
-  void _showAssignEngineerManually(BuildContext parentContext) async {
-    // Временно закрываем текущий диалог или открываем поверх? Поверх безопаснее для состояния.
-    await showDialog(
-      context: context,
-      builder: (ctx) => AssignEngineerDialog(
-        requestId: _currentRequest.id,
-        approverName: widget.currentUser.fullName,
-        onEngineerAssigned: () {
-          _refreshRequest();
-        },
-      ),
-    );
-  }
-
   Future<void> _showChangeStatusDialog() async {
     RequestStatus selectedStatus = _currentRequest.status;
 
@@ -1634,6 +1600,18 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
         if (_currentRequest.status == RequestStatus.completed) {
            updates['completed_at'] = null;
            updates['engineer_completed_at'] = null;
+        }
+
+        // Если сброс в Новую или Черновик - полностью очищаем данные о назначении
+        if (result == RequestStatus.pending || result == RequestStatus.draft) {
+           updates['assigned_engineer_id'] = null;
+           updates['engineer_call_out_rate'] = null;
+           updates['engineer_hourly_rate'] = null;
+           updates['engineer_started_at'] = null;
+           updates['engineer_completed_at'] = null;
+           updates['approved_at'] = null;
+           updates['approved_by'] = null;
+           updates['approved_by_user_id'] = null;
         }
 
         await SupabaseService.updateServiceRequest(_currentRequest.id, updates);

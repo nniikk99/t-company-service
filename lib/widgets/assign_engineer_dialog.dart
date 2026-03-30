@@ -23,7 +23,6 @@ class AssignEngineerDialog extends StatefulWidget {
 class _AssignEngineerDialogState extends State<AssignEngineerDialog> {
   List<AppUserModel.User> _engineers = [];
   AppUserModel.User? _selectedEngineer;
-  String _paymentType = 'platform'; // По умолчанию через платформу
   bool _isLoading = true;
   bool _isAssigning = false;
 
@@ -80,13 +79,11 @@ class _AssignEngineerDialogState extends State<AssignEngineerDialog> {
           supplierUserId: widget.supplierUserId!,
           approverName: widget.approverName,
           startWorkImmediately: false,
-          paymentType: _paymentType,
         );
       } else {
         await SupabaseService.assignRequestToEngineer(
           widget.requestId,
           _selectedEngineer!.id,
-          paymentType: _paymentType,
         );
       }
 
@@ -302,49 +299,7 @@ class _AssignEngineerDialogState extends State<AssignEngineerDialog> {
                 ),
               ),
 
-            // Выбор типа оплаты
-            if (!_isLoading && _engineers.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Тип оплаты:',
-                style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _paymentType,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'platform',
-                        child: Text('Через платформу (T-CO)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'supplier',
-                        child: Text('Напрямую поставщику'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'warranty',
-                        child: Text('Гарантийный выезд'),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _paymentType = val;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
+
 
             const SizedBox(height: 24),
 
