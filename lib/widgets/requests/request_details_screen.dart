@@ -963,20 +963,6 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
                     'updated_at': DateTime.now().toIso8601String(),
                   });
                   
-                  // Добавляем сообщение в чат
-                  String displayName = '';
-                  switch(val) {
-                    case PaymentType.platform: displayName = 'через платформу'; break;
-                    case PaymentType.supplier: displayName = 'напрямую поставщику'; break;
-                    case PaymentType.warranty: displayName = 'гарантийный выезд'; break;
-                  }
-                  
-                  await SupabaseService.sendRequestMessage(
-                    requestId: _currentRequest.id,
-                    senderId: widget.currentUser.id,
-                    message: '💳 Администратор изменил способ оплаты на: $displayName',
-                  );
-
                   await _refreshRequest();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(

@@ -247,8 +247,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Уведомления'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Уведомления',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           if (_notifications.any((n) => !n.isRead))
             TextButton(
@@ -280,38 +294,72 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   itemCount: _notifications.length,
                   itemBuilder: (context, index) {
                     final notification = _notifications[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            spreadRadius: 1,
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
                       child: ListTile(
-                        leading: _getNotificationIcon(notification.type),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: _getNotificationIcon(notification.type),
+                        ),
                         title: Text(
                           notification.title,
                           style: TextStyle(
-                            fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                            fontSize: 15,
+                            fontWeight: notification.isRead ? FontWeight.w500 : FontWeight.bold,
+                            color: const Color(0xFF0F172A),
                           ),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(notification.message),
                             const SizedBox(height: 4),
+                            Text(
+                              notification.message,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             // Экшен-кнопки для заявок на компании
                             if ((notification.type == NotificationType.companyJoinRequest ||
                                 notification.type == NotificationType.companyCreationRequest) &&
                                 !_processedNotifications.containsKey(notification.id)) ...[
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               Row(
                                 children: [
                                   Expanded(
-                                    child: OutlinedButton(
+                                    child: ElevatedButton(
                                       onPressed: () async {
                                         await _handleApproveRequest(notification);
                                       },
-                                      style: OutlinedButton.styleFrom(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF2563EB),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         padding: const EdgeInsets.symmetric(vertical: 10),
                                       ),
                                       child: const Text('Принять'),
@@ -324,10 +372,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                         await _handleRejectRequest(notification);
                                       },
                                       style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.red,
+                                        side: const BorderSide(color: Color(0xFFFEE2E2)),
+                                        backgroundColor: const Color(0xFFFEF2F2),
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         padding: const EdgeInsets.symmetric(vertical: 10),
-                                        side: const BorderSide(color: Colors.red),
                                       ),
-                                      child: const Text('Отклонить', style: TextStyle(color: Colors.red)),
+                                      child: const Text('Отклонить'),
                                     ),
                                   ),
                                 ],
@@ -338,22 +390,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             if ((notification.type == NotificationType.companyJoinRequest ||
                                 notification.type == NotificationType.companyCreationRequest) &&
                                 _processedNotifications.containsKey(notification.id)) ...[
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
                               Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
                                       color: _processedNotifications[notification.id] == 'approved' 
-                                          ? Colors.green.withOpacity(0.1)
-                                          : Colors.red.withOpacity(0.1),
+                                          ? const Color(0xFFDCFCE7)
+                                          : const Color(0xFFFEE2E2),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: _processedNotifications[notification.id] == 'approved' 
-                                            ? Colors.green
-                                            : Colors.red,
-                                        width: 1,
-                                      ),
                                     ),
                                     child: Text(
                                       _processedNotifications[notification.id] == 'approved' 
@@ -361,66 +407,50 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                           : '✗ Отклонено',
                                       style: TextStyle(
                                         color: _processedNotifications[notification.id] == 'approved' 
-                                            ? Colors.green
-                                            : Colors.red,
-                                        fontWeight: FontWeight.w500,
+                                            ? const Color(0xFF15803D)
+                                            : const Color(0xFFB91C1C),
+                                        fontWeight: FontWeight.w600,
                                         fontSize: 12,
                                       ),
                                     ),
                                   ),
                                   const Spacer(),
                                   // Кнопка отмены решения
-                                  GestureDetector(
-                                    onTap: () => _undoDecision(notification),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.refresh,
-                                        size: 16,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
+                                  IconButton(
+                                    onPressed: () => _undoDecision(notification),
+                                    icon: const Icon(Icons.refresh, size: 20, color: Color(0xFF94A3B8)),
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: 12),
                                   // Кнопка удаления
-                                  GestureDetector(
-                                    onTap: () => _deleteNotification(notification),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(
-                                        Icons.delete_outline,
-                                        size: 16,
-                                        color: Colors.red,
-                                      ),
-                                    ),
+                                  IconButton(
+                                    onPressed: () => _deleteNotification(notification),
+                                    icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFF87171)),
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
                                   ),
                                 ],
                               ),
                             ],
+                            const SizedBox(height: 8),
                             Text(
                               _formatDate(notification.createdAt),
                               style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF94A3B8),
                               ),
                             ),
                           ],
                         ),
                         trailing: notification.isRead
-                            ? null
+                            ? const Icon(Icons.chevron_right, size: 16, color: Color(0xFFCBD5E1))
                             : Container(
                                 width: 8,
                                 height: 8,
                                 decoration: const BoxDecoration(
-                                  color: Colors.blue,
+                                  color: Color(0xFF2563EB),
                                   shape: BoxShape.circle,
                                 ),
                               ),
