@@ -1795,14 +1795,41 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(response);
   }
 
-  /// Группы запчастей для модели (Fig. 1, Fig. 2, ...)
+  /// Группы запчастей для модели (Fig. 1, Fig. 2, ...).
+  /// Терпимо к вариантам названия: "T7", "Tennant T7", "TENNANT T7" — все ведут к одному.
   static Future<List<Map<String, dynamic>>> getPartGroups(String equipmentModel) async {
-    final response = await _client
+    final candidates = _modelCandidates(equipmentModel);
+    for (final candidate in candidates) {
+      final response = await _client
+          .from('equipment_part_groups')
+          .select('*')
+          .eq('equipment_model', candidate)
+          .order('sort_order');
+      final rows = List<Map<String, dynamic>>.from(response);
+      if (rows.isNotEmpty) return rows;
+    }
+    // Последняя попытка — ilike
+    final fallback = await _client
         .from('equipment_part_groups')
         .select('*')
-        .eq('equipment_model', equipmentModel)
+        .ilike('equipment_model', '%${candidates.last}%')
         .order('sort_order');
-    return List<Map<String, dynamic>>.from(response);
+    return List<Map<String, dynamic>>.from(fallback);
+  }
+
+  /// Генерирует варианты названия модели для поиска.
+  /// "Tennant T7" -> ["Tennant T7", "T7", "tennant t7"]
+  static List<String> _modelCandidates(String raw) {
+    final cleaned = raw.trim();
+    final results = <String>{cleaned};
+    final words = cleaned.split(RegExp(r'\s+'));
+    if (words.length > 1) {
+      results.add(words.last);          // T7
+      results.add(words.first);         // Tennant
+    }
+    results.add(cleaned.toUpperCase());
+    results.add(cleaned.toLowerCase());
+    return results.where((s) => s.isNotEmpty).toList();
   }
 
   /// Позиции внутри одной группы (упорядочены по номеру позиции)
@@ -1818,12 +1845,16 @@ class SupabaseService {
   /// URL PDF мануала, прописанный для модели в equipment_models
   static Future<String?> getManualPdfUrl(String equipmentModel) async {
     try {
-      final response = await _client
-          .from('equipment_models')
-          .select('manual_pdf_url')
-          .eq('model', equipmentModel)
-          .maybeSingle();
-      return response?['manual_pdf_url'] as String?;
+      for (final candidate in _modelCandidates(equipmentModel)) {
+        final response = await _client
+            .from('equipment_models')
+            .select('manual_pdf_url')
+            .eq('model', candidate)
+            .maybeSingle();
+        final url = response?['manual_pdf_url'] as String?;
+        if (url != null && url.isNotEmpty) return url;
+      }
+      return null;
     } catch (_) {
       return null;
     }

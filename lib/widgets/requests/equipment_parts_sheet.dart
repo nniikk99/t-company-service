@@ -271,7 +271,32 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
           : _error != null
               ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
               : _groups.isEmpty
-                  ? const Center(child: Text('Каталог для этой модели пуст'))
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            const Text('Каталог для этой модели пуст',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Искали по: "${widget.equipmentModel}"',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Производитель: "${widget.equipmentManufacturer ?? "—"}"',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   : _buildContent(),
       bottomNavigationBar: _groups.isEmpty ? null : _buildPagination(),
     );
