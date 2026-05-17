@@ -36,17 +36,31 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     _load();
   }
 
+  String? _debugInfo;
+
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _debugInfo = null;
+    });
     try {
+      final stopwatch = Stopwatch()..start();
       final groups = await SupabaseService.getPartGroups(widget.equipmentModel);
+      stopwatch.stop();
+      // ignore: avoid_print
+      print('[EquipmentPartsSheet] model="${widget.equipmentModel}" -> ${groups.length} groups in ${stopwatch.elapsedMilliseconds}ms');
       setState(() {
         _groups = groups;
         _loading = false;
+        _debugInfo = 'Запрос: ${stopwatch.elapsedMilliseconds}ms, получено ${groups.length} групп';
       });
       if (groups.isNotEmpty) {
         _loadPartsForCurrent();
       }
-    } catch (e) {
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('[EquipmentPartsSheet] ERROR: $e\n$st');
       setState(() {
         _error = 'Не удалось загрузить каталог: $e';
         _loading = false;
@@ -318,7 +332,7 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.32,
           child: (diagramUrl == null || diagramUrl.isEmpty)
-              ? _placeholderDiagram(figureNum, groupName)
+              ? _placeholderDiagram(figureNum, groupName, reason: 'Схема не задана в БД')
               : Container(
                   color: Colors.white,
                   width: double.infinity,
@@ -332,7 +346,13 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
                         if (progress == null) return child;
                         return const Center(child: CircularProgressIndicator());
                       },
-                      errorBuilder: (_, __, ___) => _placeholderDiagram(figureNum, groupName),
+                      errorBuilder: (_, error, ___) => _placeholderDiagram(
+                        figureNum,
+                        groupName,
+                        reason: 'Не удалось загрузить схему',
+                        debugUrl: diagramUrl,
+                        errorText: error.toString(),
+                      ),
                     ),
                   ),
                 ),
@@ -508,20 +528,38 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     );
   }
 
-  Widget _placeholderDiagram(int figureNum, String name) {
+  Widget _placeholderDiagram(int figureNum, String name,
+      {String reason = '', String? debugUrl, String? errorText}) {
     return Container(
       width: double.infinity,
       color: const Color(0xFFEFF6FF),
-      child: Center(
+      padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.image_outlined, size: 48, color: Color(0xFF3B82F6)),
-            const SizedBox(height: 8),
-            Text('Fig. $figureNum', style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text(name, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            const Icon(Icons.image_outlined, size: 40, color: Color(0xFF3B82F6)),
             const SizedBox(height: 4),
-            const Text('PDF мануал не задан', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            Text('Fig. $figureNum',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(name,
+                style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 6),
+            Text(reason,
+                style: const TextStyle(color: Colors.red, fontSize: 11),
+                textAlign: TextAlign.center),
+            if (debugUrl != null) ...[
+              const SizedBox(height: 6),
+              SelectableText(debugUrl,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 9)),
+            ],
+            if (errorText != null) ...[
+              const SizedBox(height: 4),
+              Text(errorText,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 9),
+                  textAlign: TextAlign.center),
+            ],
           ],
         ),
       ),
