@@ -193,6 +193,13 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
       _search = '';
     });
     _loadPartsForCurrent();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollPaginationToCurrent());
+  }
+
+  @override
+  void dispose() {
+    _paginationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -521,16 +528,10 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     );
   }
 
+  final ScrollController _paginationController = ScrollController();
+
   Widget _buildPagination() {
     if (_groups.length <= 1) return const SizedBox.shrink();
-    // Показываем максимум 6 номеров вокруг текущего
-    const maxButtons = 6;
-    int start = (_currentGroupIndex - maxButtons ~/ 2).clamp(0, _groups.length - maxButtons).clamp(0, _groups.length);
-    int end = (start + maxButtons).clamp(0, _groups.length);
-    if (end - start < maxButtons && start > 0) {
-      start = (end - maxButtons).clamp(0, _groups.length);
-    }
-    final visible = List.generate(end - start, (i) => start + i);
 
     return SafeArea(
       child: Container(
@@ -540,16 +541,34 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
           border: Border(top: BorderSide(color: Colors.grey.shade200)),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             _navBtn(Icons.chevron_left, _currentGroupIndex > 0,
                 () => _goToGroup(_currentGroupIndex - 1)),
-            ...visible.map((i) => _pageBtn(i)),
+            Expanded(
+              child: ListView.builder(
+                controller: _paginationController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: _groups.length,
+                itemBuilder: (_, i) => _pageBtn(i),
+              ),
+            ),
             _navBtn(Icons.chevron_right, _currentGroupIndex < _groups.length - 1,
                 () => _goToGroup(_currentGroupIndex + 1)),
           ],
         ),
       ),
+    );
+  }
+
+  void _scrollPaginationToCurrent() {
+    if (!_paginationController.hasClients) return;
+    const btnWidth = 46.0; // 40 ширина + 2*3 padding
+    final target = (_currentGroupIndex * btnWidth) - 100;
+    _paginationController.animateTo(
+      target.clamp(0.0, _paginationController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
     );
   }
 
