@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
 import '../../models/equipment_part.dart';
 import '../../services/supabase_service.dart';
 
+/// Полноэкранный каталог запчастей по группам мануала.
+/// Сверху — PDF-схема группы, снизу — список позиций с кнопкой "+".
 class EquipmentPartsSheet extends StatefulWidget {
   final String equipmentModel;
   final String? equipmentManufacturer;
@@ -19,87 +23,102 @@ class EquipmentPartsSheet extends StatefulWidget {
 }
 
 class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
-  List<Map<String, dynamic>> _parts = [];
+  List<Map<String, dynamic>> _groups = [];
+  Map<String, List<Map<String, dynamic>>> _partsByGroup = {};
   List<RecommendedPart> _selected = [];
-  String _search = '';
-  String _selectedCategory = 'Все';
+  String? _manualPdfUrl;
+  int _currentGroupIndex = 0;
   bool _loading = true;
-
-  final List<String> _categories = [
-    'Все',
-    'Расходные материалы',
-    'Основные узлы',
-    'Части корпуса',
-    'Аксессуары',
-    'Другое',
-  ];
+  String? _error;
+  String _search = '';
 
   @override
   void initState() {
     super.initState();
     _selected = List.from(widget.initialSelected);
-    _loadParts();
+    _load();
   }
 
-  Future<void> _loadParts() async {
+  Future<void> _load() async {
     try {
-      final data = await SupabaseService.getSpareParts(
-        modelFilter: widget.equipmentModel,
-      );
+      final groups = await SupabaseService.getPartGroups(widget.equipmentModel);
+      final pdfUrl = await SupabaseService.getManualPdfUrl(widget.equipmentModel);
       setState(() {
-        _parts = List<Map<String, dynamic>>.from(data);
+        _groups = groups;
+        _manualPdfUrl = pdfUrl;
         _loading = false;
       });
+      if (groups.isNotEmpty) {
+        _loadPartsForCurrent();
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      setState(() {
+        _error = 'Не удалось загрузить каталог: $e';
+        _loading = false;
+      });
     }
   }
 
-  List<Map<String, dynamic>> get _filtered {
-    return _parts.where((p) {
+  Future<void> _loadPartsForCurrent() async {
+    if (_currentGroupIndex >= _groups.length) return;
+    final group = _groups[_currentGroupIndex];
+    final groupId = group['id'] as String;
+    if (_partsByGroup.containsKey(groupId)) return;
+    try {
+      final parts = await SupabaseService.getPartsByGroup(groupId);
+      if (mounted) {
+        setState(() => _partsByGroup[groupId] = parts);
+      }
+    } catch (_) {}
+  }
+
+  Map<String, dynamic>? get _currentGroup =>
+      _groups.isNotEmpty && _currentGroupIndex < _groups.length
+          ? _groups[_currentGroupIndex]
+          : null;
+
+  List<Map<String, dynamic>> get _currentParts {
+    final g = _currentGroup;
+    if (g == null) return [];
+    final all = _partsByGroup[g['id'] as String] ?? [];
+    if (_search.isEmpty) return all;
+    final q = _search.toLowerCase();
+    return all.where((p) {
       final name = (p['name'] ?? '').toString().toLowerCase();
       final article = (p['article'] ?? '').toString().toLowerCase();
-      final q = _search.toLowerCase();
-      final matchesSearch = q.isEmpty || name.contains(q) || article.contains(q);
-      final matchesCat = _selectedCategory == 'Все' || p['category'] == _selectedCategory;
-      return matchesSearch && matchesCat;
+      return name.contains(q) || article.contains(q);
     }).toList();
   }
 
-  bool _isSelected(Map<String, dynamic> part) =>
-      _selected.any((s) => s.article == (part['article'] ?? ''));
-
-  int _selectedQty(Map<String, dynamic> part) {
+  int _selectedQty(String article) {
     try {
-      return _selected.firstWhere((s) => s.article == (part['article'] ?? '')).qty;
+      return _selected.firstWhere((s) => s.article == article).qty;
     } catch (_) {
       return 0;
     }
   }
 
-  Future<void> _onTap(Map<String, dynamic> part) async {
-    final article = part['article'] ?? '';
-    final currentQty = _selectedQty(part).clamp(1, 99);
+  Future<void> _onAdd(Map<String, dynamic> part) async {
+    final article = (part['article'] ?? '').toString();
+    final currentQty = _selectedQty(article);
     final qty = await _showQtyDialog(part, currentQty == 0 ? 1 : currentQty);
     if (qty == null) return;
-    if (qty <= 0) {
-      setState(() => _selected.removeWhere((s) => s.article == article));
-      return;
-    }
     setState(() {
       _selected.removeWhere((s) => s.article == article);
-      _selected.add(RecommendedPart(
-        position: 0,
-        article: article,
-        name: part['name'] ?? '',
-        qty: qty,
-      ));
+      if (qty > 0) {
+        _selected.add(RecommendedPart(
+          position: (part['position_number'] as int?) ?? 0,
+          article: article,
+          name: (part['name'] ?? '').toString(),
+          qty: qty,
+        ));
+      }
     });
   }
 
   Future<int?> _showQtyDialog(Map<String, dynamic> part, int initialQty) async {
     int qty = initialQty;
-    final isAlreadySelected = _isSelected(part);
+    final isAlreadySelected = _selectedQty((part['article'] ?? '').toString()) > 0;
 
     return showDialog<int>(
       context: context,
@@ -107,16 +126,18 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
         builder: (ctx, setS) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
-            part['name'] ?? '',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            'Поз. ${part['position_number']}',
+            style: const TextStyle(fontSize: 14, color: Color(0xFF3B82F6)),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Арт: ${part['article'] ?? ''}',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-              ),
+              Text(part['name'] ?? '',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('Арт: ${part['article'] ?? ''}',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 13)),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -133,11 +154,9 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
                       border: Border.all(color: const Color(0xFF3B82F6)),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(
-                      '$qty',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
+                    child: Text('$qty',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   ),
                   IconButton(
                     onPressed: qty < 99 ? () => setS(() => qty++) : null,
@@ -163,9 +182,8 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              child: const Text('Добавить'),
+              child: Text(isAlreadySelected ? 'Изменить' : 'Добавить'),
             ),
           ],
         ),
@@ -173,10 +191,17 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     );
   }
 
+  void _goToGroup(int index) {
+    if (index < 0 || index >= _groups.length) return;
+    setState(() {
+      _currentGroupIndex = index;
+      _search = '';
+    });
+    _loadPartsForCurrent();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -187,8 +212,16 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Запчасти для ${widget.equipmentManufacturer != null ? '${widget.equipmentManufacturer} ' : ''}${widget.equipmentModel}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              '${widget.equipmentManufacturer ?? ''} ${widget.equipmentModel}'.trim().toUpperCase(),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF3B82F6),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Text(
+              'Каталог запчастей',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -197,268 +230,412 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
           child: Container(color: Colors.grey.withOpacity(0.2), height: 1),
         ),
         actions: [
-          TextButton.icon(
-            onPressed: () => Navigator.pop(context, _selected),
-            icon: const Icon(Icons.check, color: Color(0xFF3B82F6)),
-            label: Text(
-              'Готово${_selected.isNotEmpty ? ' (${_selected.length})' : ''}',
-              style: const TextStyle(
-                color: Color(0xFF3B82F6),
-                fontWeight: FontWeight.bold,
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _showSearchDialog,
+          ),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                onPressed: () => Navigator.pop(context, _selected),
               ),
-            ),
+              if (_selected.isNotEmpty)
+                Positioned(
+                  right: 6,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      '${_selected.length}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search + categories
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Column(
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Поиск по артикулу или названию...',
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                    filled: true,
-                    fillColor: const Color(0xFFF1F5F9),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  ),
-                  onChanged: (v) => setState(() => _search = v),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+              : _groups.isEmpty
+                  ? const Center(child: Text('Каталог для этой модели пуст'))
+                  : _buildContent(),
+      bottomNavigationBar: _groups.isEmpty ? null : _buildPagination(),
+    );
+  }
+
+  Widget _buildContent() {
+    final group = _currentGroup!;
+    final figureNum = group['figure_number'] as int;
+    final groupName = group['group_name'] as String;
+    final pdfPage = group['pdf_page'] as int?;
+    final parts = _currentParts;
+
+    return Column(
+      children: [
+        // PDF view сверху (35% высоты)
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.32,
+          child: _manualPdfUrl == null || _manualPdfUrl!.isEmpty
+              ? _placeholderDiagram(figureNum, groupName)
+              : _PdfPageView(
+                  key: ValueKey('pdf-$figureNum'),
+                  pdfUrl: _manualPdfUrl!,
+                  page: pdfPage ?? 1,
                 ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _categories.map((cat) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(cat),
-                        selected: _selectedCategory == cat,
-                        onSelected: (v) { if (v) setState(() => _selectedCategory = cat); },
-                        selectedColor: const Color(0xFF3B82F6).withOpacity(0.15),
-                        labelStyle: TextStyle(
-                          color: _selectedCategory == cat ? const Color(0xFF3B82F6) : Colors.black87,
-                          fontWeight: _selectedCategory == cat ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 13,
-                        ),
-                      ),
-                    )).toList(),
+        ),
+
+        // Заголовок группы
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('ГР. $figureNum',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF3B82F6))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  groupName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Шапка таблицы
+        Container(
+          color: const Color(0xFFF8FAFC),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Row(
+            children: const [
+              SizedBox(
+                width: 30,
+                child: Text('№',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF94A3B8),
+                        fontWeight: FontWeight.bold)),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text('АРТИКУЛ / НАИМЕНОВАНИЕ',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF94A3B8),
+                        fontWeight: FontWeight.bold)),
+              ),
+              Text('КОЛ-ВО',
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF94A3B8),
+                      fontWeight: FontWeight.bold)),
+              SizedBox(width: 50),
+            ],
+          ),
+        ),
+
+        // Список позиций
+        Expanded(
+          child: parts.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text('Загрузка позиций...',
+                        style: TextStyle(color: Colors.grey)),
                   ),
+                )
+              : ListView.separated(
+                  itemCount: parts.length,
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: Colors.grey[200]),
+                  itemBuilder: (context, i) => _buildPartRow(parts[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPartRow(Map<String, dynamic> part) {
+    final article = (part['article'] ?? '').toString();
+    final selectedQty = _selectedQty(article);
+    final isSelected = selectedQty > 0;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Номер позиции
+          SizedBox(
+            width: 30,
+            child: Text(
+              '${part['position_number']}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF3B82F6),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Артикул + название
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(article,
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(
+                  (part['name'] ?? '').toString(),
+                  style: const TextStyle(fontSize: 12),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
 
-          // Selected chips summary
-          if (_selected.isNotEmpty)
-            Container(
-              width: double.infinity,
-              color: const Color(0xFFEFF6FF),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: _selected.map((p) => Chip(
-                  label: Text('${p.name} ×${p.qty}',
-                      style: const TextStyle(fontSize: 11)),
-                  deleteIcon: const Icon(Icons.close, size: 14),
-                  onDeleted: () => setState(() =>
-                      _selected.removeWhere((s) => s.article == p.article)),
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: Color(0xFF93C5FD)),
-                  padding: EdgeInsets.zero,
-                )).toList(),
+          // Количество (из мануала)
+          SizedBox(
+            width: 50,
+            child: Text(
+              '× ${part['qty'] ?? 1}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF3B82F6),
               ),
             ),
+          ),
 
-          // Grid
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
-                            const SizedBox(height: 16),
-                            Text(
-                              _parts.isEmpty
-                                  ? 'Запчасти для этой модели\nне найдены в каталоге'
-                                  : 'Ничего не найдено',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.72,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 14,
-                        ),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, i) {
-                          final part = filtered[i];
-                          final selected = _isSelected(part);
-                          final qty = _selectedQty(part);
-                          final images = part['images'] as List?;
-
-                          return GestureDetector(
-                            onTap: () => _onTap(part),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: selected
-                                    ? Border.all(color: const Color(0xFF3B82F6), width: 2)
-                                    : null,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Image
-                                  Expanded(
-                                    flex: 3,
-                                    child: Stack(
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: const BorderRadius.vertical(
-                                              top: Radius.circular(14)),
-                                          child: images != null && images.isNotEmpty
-                                              ? Image.network(
-                                                  images.first,
-                                                  width: double.infinity,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (_, __, ___) =>
-                                                      _partPlaceholder(),
-                                                )
-                                              : _partPlaceholder(),
-                                        ),
-                                        if (selected)
-                                          Positioned(
-                                            top: 8, right: 8,
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 4),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFF3B82F6),
-                                                borderRadius: BorderRadius.circular(20),
-                                              ),
-                                              child: Text(
-                                                '×$qty',
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Info
-                                  Expanded(
-                                    flex: 2,
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(10),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            part['name'] ?? '',
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
-                                          ),
-                                          Text(
-                                            'Арт: ${part['article'] ?? ''}',
-                                            style: TextStyle(
-                                                color: Colors.grey[600], fontSize: 11),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              if (part['price'] != null)
-                                                Text(
-                                                  '${part['price']} ₽',
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF2563EB),
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13,
-                                                  ),
-                                                )
-                                              else
-                                                const SizedBox(),
-                                              Container(
-                                                padding: const EdgeInsets.all(6),
-                                                decoration: BoxDecoration(
-                                                  color: selected
-                                                      ? const Color(0xFF3B82F6)
-                                                      : const Color(0xFFEFF6FF),
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                child: Icon(
-                                                  selected
-                                                      ? Icons.check
-                                                      : Icons.add,
-                                                  color: selected
-                                                      ? Colors.white
-                                                      : const Color(0xFF3B82F6),
-                                                  size: 16,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+          // Кнопка "+"
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => _onAdd(part),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF1F2937),
+                shape: BoxShape.circle,
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Text(
+                        '×$selectedQty',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold),
                       ),
+                    )
+                  : const Icon(Icons.add, color: Colors.white, size: 22),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _partPlaceholder() => Container(
-    width: double.infinity,
-    color: const Color(0xFFEFF6FF),
-    child: const Center(
-      child: Icon(Icons.build_circle, size: 48, color: Color(0xFF3B82F6)),
-    ),
-  );
+  Widget _placeholderDiagram(int figureNum, String name) {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFEFF6FF),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.image_outlined, size: 48, color: Color(0xFF3B82F6)),
+            const SizedBox(height: 8),
+            Text('Fig. $figureNum', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(name, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            const SizedBox(height: 4),
+            const Text('PDF мануал не задан', style: TextStyle(color: Colors.grey, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPagination() {
+    if (_groups.length <= 1) return const SizedBox.shrink();
+    // Показываем максимум 6 номеров вокруг текущего
+    const maxButtons = 6;
+    int start = (_currentGroupIndex - maxButtons ~/ 2).clamp(0, _groups.length - maxButtons).clamp(0, _groups.length);
+    int end = (start + maxButtons).clamp(0, _groups.length);
+    if (end - start < maxButtons && start > 0) {
+      start = (end - maxButtons).clamp(0, _groups.length);
+    }
+    final visible = List.generate(end - start, (i) => start + i);
+
+    return SafeArea(
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _navBtn(Icons.chevron_left, _currentGroupIndex > 0,
+                () => _goToGroup(_currentGroupIndex - 1)),
+            ...visible.map((i) => _pageBtn(i)),
+            _navBtn(Icons.chevron_right, _currentGroupIndex < _groups.length - 1,
+                () => _goToGroup(_currentGroupIndex + 1)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navBtn(IconData icon, bool enabled, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: GestureDetector(
+        onTap: enabled ? onTap : null,
+        child: Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            color: enabled ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: enabled ? Colors.black87 : Colors.grey[400], size: 20),
+        ),
+      ),
+    );
+  }
+
+  Widget _pageBtn(int index) {
+    final isCurrent = index == _currentGroupIndex;
+    final fig = _groups[index]['figure_number'] as int;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: GestureDetector(
+        onTap: () => _goToGroup(index),
+        child: Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            color: isCurrent ? const Color(0xFF1F2937) : Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isCurrent ? const Color(0xFF1F2937) : Colors.grey.shade300,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              '$fig',
+              style: TextStyle(
+                color: isCurrent ? Colors.white : Colors.black87,
+                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSearchDialog() async {
+    final controller = TextEditingController(text: _search);
+    final res = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Поиск в текущей группе'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Артикул или название...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ''),
+            child: const Text('Сбросить'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('Искать'),
+          ),
+        ],
+      ),
+    );
+    if (res != null) setState(() => _search = res);
+  }
+}
+
+/// PDF viewer для конкретной страницы Google Drive PDF
+class _PdfPageView extends StatefulWidget {
+  final String pdfUrl;
+  final int page;
+
+  const _PdfPageView({super.key, required this.pdfUrl, required this.page});
+
+  @override
+  State<_PdfPageView> createState() => _PdfPageViewState();
+}
+
+class _PdfPageViewState extends State<_PdfPageView> {
+  late String _viewType;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewType = 'pdf-page-${widget.pdfUrl.hashCode}-${widget.page}-${DateTime.now().millisecondsSinceEpoch}';
+    final iframe = html.IFrameElement()
+      ..src = _buildUrl()
+      ..style.border = 'none'
+      ..style.height = '100%'
+      ..style.width = '100%';
+    ui_web.platformViewRegistry.registerViewFactory(_viewType, (_) => iframe);
+  }
+
+  String _buildUrl() {
+    final base = widget.pdfUrl.endsWith('/preview')
+        ? widget.pdfUrl
+        : '${widget.pdfUrl}/preview';
+    return '$base#page=${widget.page}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      child: HtmlElementView(viewType: _viewType),
+    );
+  }
 }

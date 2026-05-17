@@ -1795,6 +1795,40 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(response);
   }
 
+  /// Группы запчастей для модели (Fig. 1, Fig. 2, ...)
+  static Future<List<Map<String, dynamic>>> getPartGroups(String equipmentModel) async {
+    final response = await _client
+        .from('equipment_part_groups')
+        .select('*')
+        .eq('equipment_model', equipmentModel)
+        .order('sort_order');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// Позиции внутри одной группы (упорядочены по номеру позиции)
+  static Future<List<Map<String, dynamic>>> getPartsByGroup(String groupId) async {
+    final response = await _client
+        .from('equipment_parts')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('position_number');
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// URL PDF мануала, прописанный для модели в equipment_models
+  static Future<String?> getManualPdfUrl(String equipmentModel) async {
+    try {
+      final response = await _client
+          .from('equipment_models')
+          .select('manual_pdf_url')
+          .eq('model', equipmentModel)
+          .maybeSingle();
+      return response?['manual_pdf_url'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Приемка работ клиентом
   static Future<void> acceptServiceWork(String requestId, {required bool isAccepted, String? comment, int? rating}) async {
     final Map<String, dynamic> updateData = {
