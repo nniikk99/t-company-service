@@ -19,11 +19,20 @@ class EquipmentPartsSheet extends StatefulWidget {
 }
 
 class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
-  List<EquipmentPart> _parts = [];
+  List<Map<String, dynamic>> _parts = [];
   List<RecommendedPart> _selected = [];
   String _search = '';
+  String _selectedCategory = 'Все';
   bool _loading = true;
-  String? _error;
+
+  final List<String> _categories = [
+    'Все',
+    'Расходные материалы',
+    'Основные узлы',
+    'Части корпуса',
+    'Аксессуары',
+    'Другое',
+  ];
 
   @override
   void initState() {
@@ -34,98 +43,128 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
 
   Future<void> _loadParts() async {
     try {
-      final data = await SupabaseService.getEquipmentParts(widget.equipmentModel);
+      final data = await SupabaseService.getSpareParts(
+        modelFilter: widget.equipmentModel,
+      );
       setState(() {
-        _parts = data.map((e) => EquipmentPart.fromJson(e)).toList();
+        _parts = List<Map<String, dynamic>>.from(data);
         _loading = false;
       });
     } catch (e) {
-      setState(() {
-        _error = 'Не удалось загрузить каталог';
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
-  List<EquipmentPart> get _filtered {
-    if (_search.isEmpty) return _parts;
-    final q = _search.toLowerCase();
-    return _parts.where((p) =>
-      p.name.toLowerCase().contains(q) ||
-      p.article.toLowerCase().contains(q) ||
-      p.positionNumber.toString().contains(q),
-    ).toList();
+  List<Map<String, dynamic>> get _filtered {
+    return _parts.where((p) {
+      final name = (p['name'] ?? '').toString().toLowerCase();
+      final article = (p['article'] ?? '').toString().toLowerCase();
+      final q = _search.toLowerCase();
+      final matchesSearch = q.isEmpty || name.contains(q) || article.contains(q);
+      final matchesCat = _selectedCategory == 'Все' || p['category'] == _selectedCategory;
+      return matchesSearch && matchesCat;
+    }).toList();
   }
 
-  bool _isSelected(EquipmentPart part) =>
-      _selected.any((s) => s.article == part.article);
+  bool _isSelected(Map<String, dynamic> part) =>
+      _selected.any((s) => s.article == (part['article'] ?? ''));
 
-  int _selectedQty(EquipmentPart part) =>
-      _selected.firstWhere((s) => s.article == part.article,
-          orElse: () => RecommendedPart(position: 0, article: '', name: '', qty: 0)).qty;
+  int _selectedQty(Map<String, dynamic> part) {
+    try {
+      return _selected.firstWhere((s) => s.article == (part['article'] ?? '')).qty;
+    } catch (_) {
+      return 0;
+    }
+  }
 
-  Future<void> _onAdd(EquipmentPart part) async {
-    final qty = await _showQtyDialog(part);
-    if (qty == null || qty <= 0) return;
+  Future<void> _onTap(Map<String, dynamic> part) async {
+    final article = part['article'] ?? '';
+    final currentQty = _selectedQty(part).clamp(1, 99);
+    final qty = await _showQtyDialog(part, currentQty == 0 ? 1 : currentQty);
+    if (qty == null) return;
+    if (qty <= 0) {
+      setState(() => _selected.removeWhere((s) => s.article == article));
+      return;
+    }
     setState(() {
-      _selected.removeWhere((s) => s.article == part.article);
+      _selected.removeWhere((s) => s.article == article);
       _selected.add(RecommendedPart(
-        position: part.positionNumber,
-        article: part.article,
-        name: part.name,
+        position: 0,
+        article: article,
+        name: part['name'] ?? '',
         qty: qty,
       ));
     });
   }
 
-  void _onRemove(RecommendedPart part) {
-    setState(() => _selected.removeWhere((s) => s.article == part.article));
-  }
+  Future<int?> _showQtyDialog(Map<String, dynamic> part, int initialQty) async {
+    int qty = initialQty;
+    final isAlreadySelected = _isSelected(part);
 
-  Future<int?> _showQtyDialog(EquipmentPart part) async {
-    int qty = _selectedQty(part).clamp(1, 99);
-    if (qty == 0) qty = 1;
     return showDialog<int>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: Text('Позиция ${part.positionNumber}', style: const TextStyle(fontSize: 16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            part['name'] ?? '',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(part.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-              Text('Арт: ${part.article}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              const SizedBox(height: 16),
+              Text(
+                'Арт: ${part['article'] ?? ''}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              ),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
                     onPressed: qty > 1 ? () => setS(() => qty--) : null,
-                    icon: const Icon(Icons.remove_circle_outline),
-                    color: Colors.blue,
+                    icon: const Icon(Icons.remove_circle_outline, size: 28),
+                    color: const Color(0xFF3B82F6),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    width: 64,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.blue),
-                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF3B82F6)),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text('$qty', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      '$qty',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
                   ),
                   IconButton(
                     onPressed: qty < 99 ? () => setS(() => qty++) : null,
-                    icon: const Icon(Icons.add_circle_outline),
-                    color: Colors.blue,
+                    icon: const Icon(Icons.add_circle_outline, size: 28),
+                    color: const Color(0xFF3B82F6),
                   ),
                 ],
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+            if (isAlreadySelected)
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, 0),
+                child: const Text('Убрать', style: TextStyle(color: Colors.red)),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Отмена'),
+            ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, qty),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
               child: const Text('Добавить'),
             ),
           ],
@@ -136,170 +175,290 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (context, scroll) => Column(
-        children: [
-          // Хэндл
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 10),
-            width: 40, height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+    final filtered = _filtered;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Запчасти для ${widget.equipmentManufacturer != null ? '${widget.equipmentManufacturer} ' : ''}${widget.equipmentModel}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: Colors.grey.withOpacity(0.2), height: 1),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () => Navigator.pop(context, _selected),
+            icon: const Icon(Icons.check, color: Color(0xFF3B82F6)),
+            label: Text(
+              'Готово${_selected.isNotEmpty ? ' (${_selected.length})' : ''}',
+              style: const TextStyle(
+                color: Color(0xFF3B82F6),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-
-          // Заголовок
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
+        ],
+      ),
+      body: Column(
+        children: [
+          // Search + categories
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Column(
               children: [
-                const Icon(Icons.build_circle_outlined, color: Colors.blue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Каталог запчастей',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text(
-                        '${widget.equipmentManufacturer ?? ''} ${widget.equipmentModel}'.trim(),
-                        style: const TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
-                    ],
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Поиск по артикулу или названию...',
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    filled: true,
+                    fillColor: const Color(0xFFF1F5F9),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   ),
+                  onChanged: (v) => setState(() => _search = v),
                 ),
-                TextButton.icon(
-                  onPressed: () => Navigator.pop(context, _selected),
-                  icon: const Icon(Icons.check),
-                  label: Text('Готово (${_selected.length})'),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: _categories.map((cat) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(cat),
+                        selected: _selectedCategory == cat,
+                        onSelected: (v) { if (v) setState(() => _selectedCategory = cat); },
+                        selectedColor: const Color(0xFF3B82F6).withOpacity(0.15),
+                        labelStyle: TextStyle(
+                          color: _selectedCategory == cat ? const Color(0xFF3B82F6) : Colors.black87,
+                          fontWeight: _selectedCategory == cat ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 13,
+                        ),
+                      ),
+                    )).toList(),
+                  ),
                 ),
               ],
             ),
           ),
 
-          // Выбранные позиции
-          if (_selected.isNotEmpty) ...[
+          // Selected chips summary
+          if (_selected.isNotEmpty)
             Container(
-              margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.blue.shade100),
-              ),
+              width: double.infinity,
+              color: const Color(0xFFEFF6FF),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Wrap(
                 spacing: 6,
                 runSpacing: 4,
                 children: _selected.map((p) => Chip(
-                  label: Text('${p.position}. ${p.name} ×${p.qty}',
-                      style: const TextStyle(fontSize: 12)),
+                  label: Text('${p.name} ×${p.qty}',
+                      style: const TextStyle(fontSize: 11)),
                   deleteIcon: const Icon(Icons.close, size: 14),
-                  onDeleted: () => _onRemove(p),
+                  onDeleted: () => setState(() =>
+                      _selected.removeWhere((s) => s.article == p.article)),
                   backgroundColor: Colors.white,
-                  side: BorderSide(color: Colors.blue.shade200),
+                  side: const BorderSide(color: Color(0xFF93C5FD)),
+                  padding: EdgeInsets.zero,
                 )).toList(),
               ),
             ),
-          ],
 
-          // Поиск
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Поиск по номеру, названию или артикулу...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-              ),
-              onChanged: (v) => setState(() => _search = v),
-            ),
-          ),
-
-          // Список
+          // Grid
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
-                    : _filtered.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[400]),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _parts.isEmpty
-                                      ? 'Каталог для этой модели пуст'
-                                      : 'Ничего не найдено',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                ),
-                              ],
+                : filtered.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[400]),
+                            const SizedBox(height: 16),
+                            Text(
+                              _parts.isEmpty
+                                  ? 'Запчасти для этой модели\nне найдены в каталоге'
+                                  : 'Ничего не найдено',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          )
-                        : ListView.separated(
-                            controller: scroll,
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-                            itemCount: _filtered.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
-                            itemBuilder: (context, i) {
-                              final part = _filtered[i];
-                              final selected = _isSelected(part);
-                              final qty = _selectedQty(part);
-                              return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                leading: Container(
-                                  width: 36, height: 36,
-                                  decoration: BoxDecoration(
-                                    color: selected ? Colors.blue : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(8),
+                          ],
+                        ),
+                      )
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.72,
+                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 14,
+                        ),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, i) {
+                          final part = filtered[i];
+                          final selected = _isSelected(part);
+                          final qty = _selectedQty(part);
+                          final images = part['images'] as List?;
+
+                          return GestureDetector(
+                            onTap: () => _onTap(part),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: selected
+                                    ? Border.all(color: const Color(0xFF3B82F6), width: 2)
+                                    : null,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      '${part.positionNumber}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: selected ? Colors.white : Colors.black87,
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Image
+                                  Expanded(
+                                    flex: 3,
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: const BorderRadius.vertical(
+                                              top: Radius.circular(14)),
+                                          child: images != null && images.isNotEmpty
+                                              ? Image.network(
+                                                  images.first,
+                                                  width: double.infinity,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      _partPlaceholder(),
+                                                )
+                                              : _partPlaceholder(),
+                                        ),
+                                        if (selected)
+                                          Positioned(
+                                            top: 8, right: 8,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF3B82F6),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                '×$qty',
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 12),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Info
+                                  Expanded(
+                                    flex: 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(10),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            part['name'] ?? '',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12),
+                                          ),
+                                          Text(
+                                            'Арт: ${part['article'] ?? ''}',
+                                            style: TextStyle(
+                                                color: Colors.grey[600], fontSize: 11),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              if (part['price'] != null)
+                                                Text(
+                                                  '${part['price']} ₽',
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF2563EB),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                  ),
+                                                )
+                                              else
+                                                const SizedBox(),
+                                              Container(
+                                                padding: const EdgeInsets.all(6),
+                                                decoration: BoxDecoration(
+                                                  color: selected
+                                                      ? const Color(0xFF3B82F6)
+                                                      : const Color(0xFFEFF6FF),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                child: Icon(
+                                                  selected
+                                                      ? Icons.check
+                                                      : Icons.add,
+                                                  color: selected
+                                                      ? Colors.white
+                                                      : const Color(0xFF3B82F6),
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
-                                ),
-                                title: Text(part.name,
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                                subtitle: Text('Арт: ${part.article}',
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                                trailing: selected
-                                    ? GestureDetector(
-                                        onTap: () => _onAdd(part),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue,
-                                            borderRadius: BorderRadius.circular(16),
-                                          ),
-                                          child: Text('×$qty',
-                                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                                        ),
-                                      )
-                                    : IconButton(
-                                        icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                                        onPressed: () => _onAdd(part),
-                                      ),
-                              );
-                            },
-                          ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
+
+  Widget _partPlaceholder() => Container(
+    width: double.infinity,
+    color: const Color(0xFFEFF6FF),
+    child: const Center(
+      child: Icon(Icons.build_circle, size: 48, color: Color(0xFF3B82F6)),
+    ),
+  );
 }

@@ -2615,14 +2615,14 @@ class _RecommendationsDialogState extends State<_RecommendationsDialog> {
   }
 
   Future<void> _openPartsSheet() async {
-    final result = await showModalBottomSheet<List<RecommendedPart>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => EquipmentPartsSheet(
-        equipmentModel: widget.equipmentModel,
-        equipmentManufacturer: widget.equipmentManufacturer,
-        initialSelected: _parts,
+    final result = await Navigator.push<List<RecommendedPart>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EquipmentPartsSheet(
+          equipmentModel: widget.equipmentModel,
+          equipmentManufacturer: widget.equipmentManufacturer,
+          initialSelected: _parts,
+        ),
       ),
     );
     if (result != null) {
