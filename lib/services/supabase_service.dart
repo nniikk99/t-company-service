@@ -1855,6 +1855,131 @@ class SupabaseService {
     return rows;
   }
 
+  /// Модели, у которых заполнен каталог по схеме мануала
+  /// (есть хотя бы одна группа в equipment_part_groups).
+  /// Возвращает [{model, manufacturer, cover_image_url, default_supplier_id, groups_count, parts_count}, ...]
+  static Future<List<Map<String, dynamic>>> getModelsWithCatalog() async {
+    // 1. Берём список моделей с их метаданными
+    final modelsRaw = await _client
+        .from('equipment_models')
+        .select('id, model, manufacturer, cover_image_url, default_supplier_id');
+    final models = List<Map<String, dynamic>>.from(modelsRaw);
+
+    // 2. Берём агрегаты по группам и позициям
+    final groupsRaw = await _client
+        .from('equipment_part_groups')
+        .select('equipment_model, id');
+    final partsRaw = await _client
+        .from('equipment_parts')
+        .select('equipment_model');
+
+    final groupsByModel = <String, int>{};
+    final firstGroupIdByModel = <String, String>{};
+    for (final g in groupsRaw) {
+      final m = (g['equipment_model'] ?? '').toString();
+      groupsByModel[m] = (groupsByModel[m] ?? 0) + 1;
+      firstGroupIdByModel.putIfAbsent(m, () => g['id'] as String);
+    }
+    final partsByModel = <String, int>{};
+    for (final p in partsRaw) {
+      final m = (p['equipment_model'] ?? '').toString();
+      partsByModel[m] = (partsByModel[m] ?? 0) + 1;
+    }
+
+    // 3. Собираем результат — только модели с >0 групп
+    final result = <Map<String, dynamic>>[];
+    for (final m in models) {
+      final modelName = (m['model'] ?? '').toString();
+      final count = groupsByModel[modelName] ?? 0;
+      if (count == 0) continue;
+      result.add({
+        ...m,
+        'groups_count': count,
+        'parts_count': partsByModel[modelName] ?? 0,
+      });
+    }
+    // Если модель есть в equipment_part_groups, но её нет в equipment_models — тоже добавим
+    for (final entry in groupsByModel.entries) {
+      final exists = result.any((r) => (r['model'] ?? '').toString() == entry.key);
+      if (!exists) {
+        result.add({
+          'model': entry.key,
+          'manufacturer': '',
+          'cover_image_url': null,
+          'default_supplier_id': null,
+          'groups_count': entry.value,
+          'parts_count': partsByModel[entry.key] ?? 0,
+        });
+      }
+    }
+    result.sort((a, b) => (a['model'] ?? '').toString().compareTo((b['model'] ?? '').toString()));
+    return result;
+  }
+
+  /// Добавить позицию из мануала в корзину клиента.
+  /// Пробует найти артикул в spare_parts — если найден, ставит реальную цену
+  /// и привязывает к поставщику товара. Иначе — позиция "по запросу"
+  /// (без цены, поставщик из equipment_models.default_supplier_id).
+  static Future<void> addEquipmentPartToCart({
+    required String userId,
+    required Map<String, dynamic> equipmentPart,
+    required int quantity,
+  }) async {
+    final article = (equipmentPart['article'] ?? '').toString();
+    final equipmentPartId = equipmentPart['id'] as String;
+    final equipmentModel = (equipmentPart['equipment_model'] ?? '').toString();
+
+    // Ищем соответствие в spare_parts по артикулу
+    final spareMatch = await _client
+        .from('spare_parts')
+        .select('id, price, supplier_id')
+        .eq('article', article)
+        .maybeSingle();
+
+    // Поставщик по умолчанию для модели (если не нашли в spare_parts)
+    String? supplierHint;
+    double? unitPrice;
+    if (spareMatch != null) {
+      supplierHint = spareMatch['supplier_id'] as String?;
+      unitPrice = (spareMatch['price'] as num?)?.toDouble();
+    } else {
+      final modelRow = await _client
+          .from('equipment_models')
+          .select('default_supplier_id')
+          .eq('model', equipmentModel)
+          .maybeSingle();
+      supplierHint = modelRow?['default_supplier_id'] as String?;
+    }
+
+    // Если уже есть в корзине — прибавляем количество
+    final existing = await _client
+        .from('cart_items')
+        .select('id, quantity')
+        .eq('user_id', userId)
+        .eq('equipment_part_id', equipmentPartId)
+        .maybeSingle();
+
+    if (existing != null) {
+      await _client
+          .from('cart_items')
+          .update({'quantity': (existing['quantity'] as int) + quantity})
+          .eq('id', existing['id']);
+    } else {
+      await _client.from('cart_items').insert({
+        'user_id': userId,
+        'equipment_part_id': equipmentPartId,
+        'part_id': spareMatch?['id'],
+        'quantity': quantity,
+        'article': article,
+        'name': (equipmentPart['name'] ?? '').toString(),
+        'equipment_model': equipmentModel,
+        'unit_price': unitPrice,
+        'is_by_request': unitPrice == null,
+        'supplier_id_hint': supplierHint,
+      });
+    }
+  }
+
   /// URL PDF мануала, прописанный для модели в equipment_models
   static Future<String?> getManualPdfUrl(String equipmentModel) async {
     try {
@@ -2873,7 +2998,7 @@ class SupabaseService {
   static Future<List<dynamic>> getCartItems(String userId) async {
     final response = await _client
         .from('cart_items')
-        .select('*, spare_parts(id, name, article, price, images, supplier_id, category)')
+        .select('*, spare_parts(id, name, article, price, images, supplier_id, category), equipment_parts(id, article, name, equipment_model, position_number, group_id)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
     return response as List;

@@ -2,18 +2,27 @@ import 'package:flutter/material.dart';
 import '../../models/equipment_part.dart';
 import '../../services/supabase_service.dart';
 
+/// Режим работы каталога:
+/// - recommendation: позиции собираются локально, "Готово" возвращает список в диалог
+/// - cart: "+" сразу пишет в cart_items текущего пользователя
+enum PartsCatalogMode { recommendation, cart }
+
 /// Полноэкранный каталог запчастей по группам мануала.
-/// Сверху — PDF-схема группы, снизу — список позиций с кнопкой "+".
+/// Сверху — статичная схема группы, снизу — список позиций с кнопкой "+".
 class EquipmentPartsSheet extends StatefulWidget {
   final String equipmentModel;
   final String? equipmentManufacturer;
   final List<RecommendedPart> initialSelected;
+  final PartsCatalogMode mode;
+  final String? cartUserId; // нужен в режиме cart
 
   const EquipmentPartsSheet({
     super.key,
     required this.equipmentModel,
     this.equipmentManufacturer,
     this.initialSelected = const [],
+    this.mode = PartsCatalogMode.recommendation,
+    this.cartUserId,
   });
 
   @override
@@ -112,6 +121,48 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     final currentQty = _selectedQty(article);
     final qty = await _showQtyDialog(part, currentQty == 0 ? 1 : currentQty);
     if (qty == null) return;
+
+    if (widget.mode == PartsCatalogMode.cart) {
+      // Режим маркета — пишем напрямую в корзину
+      if (widget.cartUserId == null) return;
+      try {
+        await SupabaseService.addEquipmentPartToCart(
+          userId: widget.cartUserId!,
+          equipmentPart: part,
+          quantity: qty,
+        );
+        if (mounted) {
+          setState(() {
+            _selected.removeWhere((s) => s.article == article);
+            if (qty > 0) {
+              _selected.add(RecommendedPart(
+                position: (part['position_number'] as int?) ?? 0,
+                article: article,
+                name: (part['name'] ?? '').toString(),
+                qty: qty,
+              ));
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Добавлено в корзину: ${part['name']}'),
+              backgroundColor: const Color(0xFF3B82F6),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+      return;
+    }
+
+    // Режим рекомендаций — локальный список
     setState(() {
       _selected.removeWhere((s) => s.article == article);
       if (qty > 0) {

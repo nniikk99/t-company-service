@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/supabase_service.dart';
+import '../widgets/market/catalogs_tab.dart';
 import 'client_spare_parts_screen.dart';
 
 class MarketScreen extends StatefulWidget {
@@ -17,7 +18,7 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -40,12 +41,15 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
               ),
               child: TabBar(
                 controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 labelColor: const Color(0xFF3B82F6),
                 unselectedLabelColor: Colors.grey[500],
                 indicatorColor: const Color(0xFF3B82F6),
                 indicatorWeight: 3,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 tabs: const [
+                  Tab(icon: Icon(Icons.menu_book_outlined, size: 20), text: 'Каталоги'),
                   Tab(icon: Icon(Icons.shopping_cart_outlined, size: 20), text: 'Корзина'),
                   Tab(icon: Icon(Icons.favorite_border, size: 20), text: 'Избранное'),
                   Tab(icon: Icon(Icons.search, size: 20), text: 'Поиск'),
@@ -56,6 +60,10 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
               child: TabBarView(
                 controller: _tabController,
                 children: [
+                  CatalogsTab(
+                    user: widget.user,
+                    onCartUpdated: () => setState(() {}),
+                  ),
                   _CartTab(user: widget.user),
                   _FavoritesTab(user: widget.user),
                   _SearchTab(user: widget.user),
