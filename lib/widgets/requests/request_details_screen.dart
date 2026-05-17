@@ -16,6 +16,8 @@ import '../../services/image_service.dart';
 import 'chat_screen.dart';
 import '../assign_engineer_dialog.dart';
 import '../equipment_specifications_widget.dart';
+import '../../models/equipment_part.dart';
+import 'equipment_parts_sheet.dart';
 import '../equipment_maintenance_widget.dart';
 import '../../theme/app_theme.dart';
 import '../../services/act_generator_service.dart';
@@ -810,43 +812,127 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 
   Widget _buildRecommendationsCard() {
+    final parts = _currentRequest.recommendedParts;
     return _buildCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildCardHeader(Icons.lightbulb_outline_rounded, 'Рекомендации инженера'),
           const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED), // Light orange/yellow
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFEEDD3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Рекомендовано:',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFC2410C),
+
+          // Текстовые рекомендации
+          if ((_currentRequest.recommendations ?? '').isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFEEDD3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Рекомендовано:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFC2410C),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _currentRequest.recommendations ?? '',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF9A3412),
-                    height: 1.4,
+                  const SizedBox(height: 8),
+                  Text(
+                    _currentRequest.recommendations ?? '',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF9A3412),
+                      height: 1.4,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+
+          // Рекомендуемые запчасти
+          if (parts.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.build_circle_outlined, size: 16, color: Colors.blue.shade700),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Рекомендуемые запчасти (${parts.length}):',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...parts.map((p) {
+                    final pos = p['position'] ?? 0;
+                    final name = p['name'] ?? '';
+                    final article = p['article'] ?? '';
+                    final qty = p['qty'] ?? 1;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 28, height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Center(
+                              child: Text('$pos',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade800,
+                                  )),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(name,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                          ),
+                          Text('$article',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text('×$qty',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1909,9 +1995,8 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
 
   Future<void> _completeWork() async {
     String comment = '';
-    String recommendations = '';
-    
-    // Сначала окно выполненных работ
+
+    // Шаг 1: Выполненные работы
     final bool? workDone = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1928,48 +2013,44 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Далее')),
         ],
-      )
+      ),
     );
 
     if (workDone != true || !mounted) return;
 
-    // Затем окно рекомендаций
-    final bool? recDone = await showDialog<bool>(
+    // Шаг 2: Рекомендации + запчасти
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Рекомендации'),
-        content: TextField(
-          decoration: const InputDecoration(
-            hintText: 'Напишите рекомендации по дальнейшему обслуживанию...',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 5,
-          onChanged: (v) => recommendations = v,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Завершить')),
-        ],
-      )
+      barrierDismissible: false,
+      builder: (ctx) => _RecommendationsDialog(
+        equipmentModel: _currentRequest.equipmentModel ?? '',
+        equipmentManufacturer: _currentRequest.equipmentManufacturer,
+        manualUrl: _equipment?.specifications?['_manual_url'] as String?,
+      ),
     );
 
-    if (recDone != true || !mounted) return;
+    if (result == null || !mounted) return;
 
     setState(() => _isLoading = true);
     try {
       await SupabaseService.submitEngineerReport(
-        _currentRequest.id, 
-        comment, 
-        recommendations
+        _currentRequest.id,
+        comment,
+        result['recommendations'] as String,
+        recommendedParts: result['parts'] as List<Map<String, dynamic>>,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Отчет успешно отправлен!'), backgroundColor: Colors.green,));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Отчет успешно отправлен!'), backgroundColor: Colors.green),
+        );
         _refreshRequest();
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red,));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -2508,3 +2589,208 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
   }
 }
 
+class _RecommendationsDialog extends StatefulWidget {
+  final String equipmentModel;
+  final String? equipmentManufacturer;
+  final String? manualUrl;
+
+  const _RecommendationsDialog({
+    required this.equipmentModel,
+    this.equipmentManufacturer,
+    this.manualUrl,
+  });
+
+  @override
+  State<_RecommendationsDialog> createState() => _RecommendationsDialogState();
+}
+
+class _RecommendationsDialogState extends State<_RecommendationsDialog> {
+  final _recController = TextEditingController();
+  List<RecommendedPart> _parts = [];
+
+  @override
+  void dispose() {
+    _recController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openPartsSheet() async {
+    final result = await showModalBottomSheet<List<RecommendedPart>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => EquipmentPartsSheet(
+        equipmentModel: widget.equipmentModel,
+        equipmentManufacturer: widget.equipmentManufacturer,
+        initialSelected: _parts,
+      ),
+    );
+    if (result != null) {
+      setState(() => _parts = result);
+    }
+  }
+
+  void _removePart(RecommendedPart part) {
+    setState(() => _parts.removeWhere((p) => p.article == part.article));
+  }
+
+  void _confirm() {
+    Navigator.pop(context, {
+      'recommendations': _recController.text.trim(),
+      'parts': _parts.map((p) => p.toJson()).toList(),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.recommend_outlined, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text('Рекомендации',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Text recommendations
+                    TextField(
+                      controller: _recController,
+                      decoration: const InputDecoration(
+                        labelText: 'Рекомендации по дальнейшему обслуживанию',
+                        hintText: 'Опишите рекомендации...',
+                        border: OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 4,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Add parts button
+                    OutlinedButton.icon(
+                      onPressed: _openPartsSheet,
+                      icon: const Icon(Icons.build_outlined, size: 18),
+                      label: Text(
+                        _parts.isEmpty
+                            ? 'Добавить запчасти из каталога'
+                            : 'Изменить запчасти (${_parts.length})',
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                        side: const BorderSide(color: Colors.blue),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+
+                    // Selected parts list
+                    if (_parts.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue.shade100),
+                        ),
+                        child: Column(
+                          children: _parts.map((p) => ListTile(
+                            dense: true,
+                            leading: Container(
+                              width: 30, height: 30,
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Center(
+                                child: Text('${p.position}',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12)),
+                              ),
+                            ),
+                            title: Text(p.name,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                            subtitle: Text('Арт: ${p.article}  ×${p.qty}',
+                                style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                              onPressed: () => _removePart(p),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          )).toList(),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            ),
+
+            // Actions
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Отмена'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: _confirm,
+                      icon: const Icon(Icons.check, size: 18),
+                      label: const Text('Завершить'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -108,6 +108,9 @@ class ServiceRequest {
   final double? engineerCallOutRate;
   final double? engineerHourlyRate;
 
+  // Рекомендуемые запчасти (список позиций из каталога)
+  final List<Map<String, dynamic>> recommendedParts;
+
   ServiceRequest({
     required this.id,
     this.requestNumber,
@@ -168,6 +171,7 @@ class ServiceRequest {
     this.paymentType = PaymentType.platform,
     this.engineerCallOutRate,
     this.engineerHourlyRate,
+    this.recommendedParts = const [],
   });
   // Расчет итоговой суммы (с учетом минимальной ставки 5000)
   double get calculatedTotalAmount {
@@ -410,6 +414,9 @@ class ServiceRequest {
       paymentType: _parsePaymentType(json['payment_type']),
       engineerCallOutRate: json['engineer_call_out_rate'] != null ? (json['engineer_call_out_rate'] as num).toDouble() : null,
       engineerHourlyRate: json['engineer_hourly_rate'] != null ? (json['engineer_hourly_rate'] as num).toDouble() : null,
+      recommendedParts: json['recommended_parts'] != null
+          ? List<Map<String, dynamic>>.from(json['recommended_parts'])
+          : [],
     );
   }
 
@@ -458,6 +465,7 @@ class ServiceRequest {
       'payment_type': paymentType.toString().split('.').last,
       'engineer_call_out_rate': engineerCallOutRate,
       'engineer_hourly_rate': engineerHourlyRate,
+      'recommended_parts': recommendedParts,
     };
   }
 

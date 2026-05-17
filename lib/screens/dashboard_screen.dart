@@ -54,8 +54,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     switch (user.role) {
-      case UserRole.admin:
-      case UserRole.superAdmin:
       case UserRole.administrator:
         _navigationItems = [
           NavigationItem('Главная', Icons.dashboard, _buildAdminDashboard),

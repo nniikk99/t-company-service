@@ -1765,19 +1765,34 @@ class SupabaseService {
   }
 
   /// Сдача отчета инженером (перевод в "Ждет приемки")
-  static Future<void> submitEngineerReport(String requestId, String comment, String recommendations) async {
+  static Future<void> submitEngineerReport(
+    String requestId,
+    String comment,
+    String recommendations, {
+    List<Map<String, dynamic>> recommendedParts = const [],
+  }) async {
     await _client
         .from('service_requests')
         .update({
           'status': 'waitingForAcceptance',
           'engineer_comment': comment,
           'recommendations': recommendations,
+          'recommended_parts': recommendedParts,
           'engineer_completed_at': DateTime.now().toIso8601String(),
           'updated_at': DateTime.now().toIso8601String(),
         })
         .eq('id', requestId);
 
     _notifyParties(requestId, 'Отчет готов', 'Инженер подготовил отчет о выполнении. Пожалуйста, проверьте и примите работы.');
+  }
+
+  static Future<List<Map<String, dynamic>>> getEquipmentParts(String equipmentModel) async {
+    final response = await _client
+        .from('equipment_parts')
+        .select('*')
+        .eq('equipment_model', equipmentModel)
+        .order('position_number');
+    return List<Map<String, dynamic>>.from(response);
   }
 
   /// Приемка работ клиентом

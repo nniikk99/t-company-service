@@ -36,7 +36,7 @@ class _RequestsScreenState extends State<RequestsScreen> {
         filteredRequests = allRequests;
       } else if (widget.user?.role == UserRole.contactPerson) {
         filteredRequests = allRequests
-            .where((r) => r.userId == widget.user!.id)
+            .where((r) => r.userId == widget.user?.id)
             .toList();
       } else {
         filteredRequests = allRequests
@@ -147,14 +147,26 @@ class _RequestsScreenState extends State<RequestsScreen> {
 
   Widget _getStatusIcon(RequestStatus status) {
     switch (status) {
+      case RequestStatus.draft:
+        return const Icon(Icons.edit_note, color: Colors.grey);
       case RequestStatus.pending:
         return const Icon(Icons.schedule, color: Colors.orange);
       case RequestStatus.approved:
         return const Icon(Icons.check_circle, color: Colors.green);
       case RequestStatus.rejected:
         return const Icon(Icons.cancel, color: Colors.red);
-      default:
-        return const Icon(Icons.assignment, color: Colors.blue);
+      case RequestStatus.inProgress:
+        return const Icon(Icons.build, color: Colors.blue);
+      case RequestStatus.waitingForAcceptance:
+        return const Icon(Icons.how_to_reg, color: Colors.purple);
+      case RequestStatus.waitingForInvoice:
+        return const Icon(Icons.receipt_long, color: Colors.amber);
+      case RequestStatus.waitingForPayment:
+        return const Icon(Icons.payment, color: Colors.deepOrange);
+      case RequestStatus.completed:
+        return const Icon(Icons.task_alt, color: Colors.teal);
+      case RequestStatus.cancelled:
+        return const Icon(Icons.block, color: Colors.red);
     }
   }
 

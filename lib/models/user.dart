@@ -101,8 +101,6 @@ class User {
         return 'Ответственное лицо';
       case UserRole.contactPerson:
         return 'Контактное лицо';
-      case UserRole.administrator:
-        return 'Администратор';
       case UserRole.companyResponsible:
         return 'Ответственное лицо компании';
       case UserRole.supplier:
@@ -280,9 +278,9 @@ class User {
       case UserRole.clientManager:
         return 'clientManager';
       case UserRole.clientResponsible:
-        return 'companyResponsible';
+        return 'clientResponsible';
       case UserRole.contactPerson:
-        return 'siteManager';
+        return 'contactPerson';
     }
   }
 
@@ -303,6 +301,7 @@ class User {
     List<String>? equipmentIds,
     bool? canManageRequestsIndependently,
     List<String>? assignedSiteIds,
+    String? supplierId,
     String? createdBy,
     String? passwordHash,
     double? callOutRate,
@@ -332,6 +331,7 @@ class User {
       equipmentIds: equipmentIds ?? this.equipmentIds,
       canManageRequestsIndependently: canManageRequestsIndependently ?? this.canManageRequestsIndependently,
       assignedSiteIds: assignedSiteIds ?? this.assignedSiteIds,
+      supplierId: supplierId ?? this.supplierId,
       createdBy: createdBy ?? this.createdBy,
       passwordHash: passwordHash ?? this.passwordHash,
       callOutRate: callOutRate ?? this.callOutRate,

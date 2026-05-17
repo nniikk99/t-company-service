@@ -112,6 +112,10 @@ class AppRouter {
       case UserRole.siteManager:
       case UserRole.operatorPM:
         return [dashboard, equipment, requests, profile, notifications];
+      case UserRole.engineer:
+        return [dashboard, requests, profile, notifications];
+      case UserRole.supplier:
+        return [dashboard, equipment, requests, profile, notifications];
       case UserRole.pendingApproval:
       default:
         return [auth];
