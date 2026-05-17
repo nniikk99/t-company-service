@@ -1804,17 +1804,21 @@ class SupabaseService {
           .from('equipment_part_groups')
           .select('*')
           .eq('equipment_model', candidate)
-          .order('sort_order');
+          .order('figure_number', ascending: true);
       final rows = List<Map<String, dynamic>>.from(response);
-      if (rows.isNotEmpty) return rows;
+      if (rows.isNotEmpty) {
+        rows.sort((a, b) => (a['figure_number'] as int).compareTo(b['figure_number'] as int));
+        return rows;
+      }
     }
-    // Последняя попытка — ilike
     final fallback = await _client
         .from('equipment_part_groups')
         .select('*')
         .ilike('equipment_model', '%${candidates.last}%')
-        .order('sort_order');
-    return List<Map<String, dynamic>>.from(fallback);
+        .order('figure_number', ascending: true);
+    final rows = List<Map<String, dynamic>>.from(fallback);
+    rows.sort((a, b) => (a['figure_number'] as int).compareTo(b['figure_number'] as int));
+    return rows;
   }
 
   /// Генерирует варианты названия модели для поиска.
@@ -1832,14 +1836,23 @@ class SupabaseService {
     return results.where((s) => s.isNotEmpty).toList();
   }
 
-  /// Позиции внутри одной группы (упорядочены по номеру позиции)
+  /// Позиции внутри одной группы (упорядочены по номеру позиции, затем по артикулу)
   static Future<List<Map<String, dynamic>>> getPartsByGroup(String groupId) async {
     final response = await _client
         .from('equipment_parts')
         .select('*')
         .eq('group_id', groupId)
-        .order('position_number');
-    return List<Map<String, dynamic>>.from(response);
+        .order('position_number', ascending: true)
+        .order('article', ascending: true);
+    final rows = List<Map<String, dynamic>>.from(response);
+    // Дополнительная гарантия на клиенте — отсортируем по position_number ASC
+    rows.sort((a, b) {
+      final p1 = (a['position_number'] as int?) ?? 0;
+      final p2 = (b['position_number'] as int?) ?? 0;
+      if (p1 != p2) return p1.compareTo(p2);
+      return (a['article'] ?? '').toString().compareTo((b['article'] ?? '').toString());
+    });
+    return rows;
   }
 
   /// URL PDF мануала, прописанный для модели в equipment_models

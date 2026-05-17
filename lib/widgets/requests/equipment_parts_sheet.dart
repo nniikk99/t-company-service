@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:html' as html;
-import 'dart:ui_web' as ui_web;
 import '../../models/equipment_part.dart';
 import '../../services/supabase_service.dart';
 
@@ -26,7 +24,6 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
   List<Map<String, dynamic>> _groups = [];
   Map<String, List<Map<String, dynamic>>> _partsByGroup = {};
   List<RecommendedPart> _selected = [];
-  String? _manualPdfUrl;
   int _currentGroupIndex = 0;
   bool _loading = true;
   String? _error;
@@ -42,10 +39,8 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
   Future<void> _load() async {
     try {
       final groups = await SupabaseService.getPartGroups(widget.equipmentModel);
-      final pdfUrl = await SupabaseService.getManualPdfUrl(widget.equipmentModel);
       setState(() {
         _groups = groups;
-        _manualPdfUrl = pdfUrl;
         _loading = false;
       });
       if (groups.isNotEmpty) {
@@ -306,20 +301,33 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     final group = _currentGroup!;
     final figureNum = group['figure_number'] as int;
     final groupName = group['group_name'] as String;
-    final pdfPage = group['pdf_page'] as int?;
     final parts = _currentParts;
+
+    final diagramUrl = group['diagram_image_url'] as String?;
 
     return Column(
       children: [
-        // PDF view сверху (35% высоты)
+        // Схема сверху (статичная картинка, ~35% высоты)
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.32,
-          child: _manualPdfUrl == null || _manualPdfUrl!.isEmpty
+          child: (diagramUrl == null || diagramUrl.isEmpty)
               ? _placeholderDiagram(figureNum, groupName)
-              : _PdfPageView(
-                  key: ValueKey('pdf-$figureNum'),
-                  pdfUrl: _manualPdfUrl!,
-                  page: pdfPage ?? 1,
+              : Container(
+                  color: Colors.white,
+                  width: double.infinity,
+                  child: InteractiveViewer(
+                    minScale: 1.0,
+                    maxScale: 4.0,
+                    child: Image.network(
+                      diagramUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (_, child, progress) {
+                        if (progress == null) return child;
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                      errorBuilder: (_, __, ___) => _placeholderDiagram(figureNum, groupName),
+                    ),
+                  ),
                 ),
         ),
 
@@ -623,44 +631,3 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
   }
 }
 
-/// PDF viewer для конкретной страницы Google Drive PDF
-class _PdfPageView extends StatefulWidget {
-  final String pdfUrl;
-  final int page;
-
-  const _PdfPageView({super.key, required this.pdfUrl, required this.page});
-
-  @override
-  State<_PdfPageView> createState() => _PdfPageViewState();
-}
-
-class _PdfPageViewState extends State<_PdfPageView> {
-  late String _viewType;
-
-  @override
-  void initState() {
-    super.initState();
-    _viewType = 'pdf-page-${widget.pdfUrl.hashCode}-${widget.page}-${DateTime.now().millisecondsSinceEpoch}';
-    final iframe = html.IFrameElement()
-      ..src = _buildUrl()
-      ..style.border = 'none'
-      ..style.height = '100%'
-      ..style.width = '100%';
-    ui_web.platformViewRegistry.registerViewFactory(_viewType, (_) => iframe);
-  }
-
-  String _buildUrl() {
-    final base = widget.pdfUrl.endsWith('/preview')
-        ? widget.pdfUrl
-        : '${widget.pdfUrl}/preview';
-    return '$base#page=${widget.page}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.white,
-      child: HtmlElementView(viewType: _viewType),
-    );
-  }
-}
