@@ -3004,6 +3004,16 @@ class SupabaseService {
     return response as List;
   }
 
+  /// Получить supplier_id по названию модели оборудования (через default_supplier_id)
+  static Future<String?> getSupplierIdByModel(String equipmentModel) async {
+    final response = await _client
+        .from('equipment_models')
+        .select('default_supplier_id')
+        .eq('model', equipmentModel)
+        .maybeSingle();
+    return response?['default_supplier_id'] as String?;
+  }
+
   static Future<void> addToCart(String userId, String partId, int quantity) async {
     // Если товар уже в корзине — увеличиваем количество
     final existing = await _client

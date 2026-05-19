@@ -149,13 +149,27 @@ class _CartTabState extends State<_CartTab> {
   Future<void> _checkout() async {
     if (_cartItems.isEmpty) return;
 
-    // Группируем товары по поставщикам
-    // Берём supplier_id из spare_parts или из equipment_models через equipment_part
+    // Группируем товары по поставщикам.
+    // Приоритет: spare_parts.supplier_id → equipment_models.default_supplier_id
     final Map<String, List<dynamic>> bySupplier = {};
+    final Map<String, String> modelToSupplier = {}; // кэш модель → supplier_id
+
     for (final item in _cartItems) {
       final spPart = item['spare_parts'] as Map<String, dynamic>? ?? {};
-      final supplierId = (spPart['supplier_id'] as String?) ?? 'unknown';
-      bySupplier.putIfAbsent(supplierId, () => []).add(item);
+      String? supplierId = spPart['supplier_id'] as String?;
+
+      if (supplierId == null || supplierId.isEmpty) {
+        // Ищем через equipment_parts → equipment_model → default_supplier_id
+        final equipPart = item['equipment_parts'] as Map<String, dynamic>?;
+        final modelName = equipPart?['equipment_model'] as String? ?? '';
+        if (modelName.isNotEmpty) {
+          supplierId = modelToSupplier[modelName] ??
+              await SupabaseService.getSupplierIdByModel(modelName);
+          if (supplierId != null) modelToSupplier[modelName] = supplierId;
+        }
+      }
+
+      bySupplier.putIfAbsent(supplierId ?? 'unknown', () => []).add(item);
     }
 
     // Открываем пошаговую шторку доставки
