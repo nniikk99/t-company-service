@@ -2998,7 +2998,7 @@ class SupabaseService {
   static Future<List<dynamic>> getCartItems(String userId) async {
     final response = await _client
         .from('cart_items')
-        .select('*, spare_parts(id, name, article, price, images, supplier_id, category), equipment_parts(id, article, name, equipment_model, position_number, group_id)')
+        .select('*, spare_parts(id, name, article, price, images, supplier_id, category), equipment_parts(id, article, name, equipment_model, position_number, group_id, image_url)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
     return response as List;

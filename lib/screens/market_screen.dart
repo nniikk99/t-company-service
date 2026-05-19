@@ -254,6 +254,98 @@ class _CartTabState extends State<_CartTab> {
     }
   }
 
+  void _showPartDetail(
+    BuildContext context, {
+    required String name,
+    required String article,
+    required String imageUrl,
+    required String equipModel,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Ручка
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Фото
+            if (imageUrl.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  imageUrl,
+                  height: 200,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 200,
+                    color: const Color(0xFFEFF6FF),
+                    child: const Center(
+                      child: Icon(Icons.build_outlined,
+                          size: 64, color: Color(0xFF3B82F6)),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Center(
+                  child: Icon(Icons.build_outlined,
+                      size: 64, color: Color(0xFF3B82F6)),
+                ),
+              ),
+            const SizedBox(height: 20),
+            // Название
+            Text(name,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            // Артикул
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text('Арт: $article',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+            ),
+            if (equipModel.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text('Модель: $equipModel',
+                  style: const TextStyle(
+                      color: Color(0xFF3B82F6),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
   double get _total => _cartItems.fold(
     0,
     (sum, item) => sum + (item['spare_parts']?['price'] as num? ?? 0) * (item['quantity'] as int),
@@ -292,79 +384,109 @@ class _CartTabState extends State<_CartTab> {
               final qty = item['quantity'] as int;
               final price = (part['price'] as num?)?.toDouble() ?? 0.0;
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+              // Берём фото: сначала из spare_parts.images, иначе из equipment_parts.image_url
+              final spareImages = part['images'] as List?;
+              final equipPart = item['equipment_parts'] as Map<String, dynamic>?;
+              final imageUrl = (spareImages != null && spareImages.isNotEmpty)
+                  ? spareImages.first as String
+                  : (equipPart?['image_url'] as String? ?? '');
+              final partName = part['name'] as String? ??
+                  equipPart?['name'] as String? ?? '';
+              final article = part['article'] as String? ??
+                  equipPart?['article'] as String? ?? '';
+              final equipModel = equipPart?['equipment_model'] as String? ?? '';
+
+              return GestureDetector(
+                onTap: () => _showPartDetail(
+                  context,
+                  name: partName,
+                  article: article,
+                  imageUrl: imageUrl,
+                  equipModel: equipModel,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      // Image / icon
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: part['images'] != null &&
-                                (part['images'] as List).isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.network(
-                                  (part['images'] as List).first,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      const Icon(Icons.build_circle, color: Color(0xFF3B82F6), size: 28),
-                                ),
-                              )
-                            : const Icon(Icons.build_circle, color: Color(0xFF3B82F6), size: 28),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(part['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            Text('Арт: ${part['article'] ?? ''}',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                            const SizedBox(height: 4),
-                            Text('${(price * qty).toStringAsFixed(0)} ₽',
-                                style: const TextStyle(
-                                    color: Color(0xFF3B82F6), fontWeight: FontWeight.bold, fontSize: 15)),
-                          ],
-                        ),
-                      ),
-                      // Qty controls
-                      Row(
-                        children: [
-                          _QtyButton(
-                            icon: Icons.remove,
-                            onTap: () => _updateQuantity(item['id'], qty - 1),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Text('$qty',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          ),
-                          _QtyButton(
-                            icon: Icons.add,
-                            onTap: () => _updateQuantity(item['id'], qty + 1),
-                          ),
-                        ],
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
                     ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Фото запчасти
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 64,
+                            height: 64,
+                            color: const Color(0xFFEFF6FF),
+                            child: imageUrl.isNotEmpty
+                                ? Image.network(
+                                    imageUrl,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.build_circle,
+                                        color: Color(0xFF3B82F6),
+                                        size: 28),
+                                  )
+                                : const Icon(Icons.build_circle,
+                                    color: Color(0xFF3B82F6), size: 28),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(partName,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 2),
+                              Text('Арт: $article',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                              if (equipModel.isNotEmpty)
+                                Text(equipModel,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Color(0xFF3B82F6))),
+                              const SizedBox(height: 4),
+                              Text('${(price * qty).toStringAsFixed(0)} ₽',
+                                  style: const TextStyle(
+                                      color: Color(0xFF3B82F6),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15)),
+                            ],
+                          ),
+                        ),
+                        // Qty controls
+                        Row(
+                          children: [
+                            _QtyButton(
+                              icon: Icons.remove,
+                              onTap: () => _updateQuantity(item['id'], qty - 1),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Text('$qty',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                            _QtyButton(
+                              icon: Icons.add,
+                              onTap: () => _updateQuantity(item['id'], qty + 1),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );

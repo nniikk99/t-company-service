@@ -180,6 +180,8 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     int qty = initialQty;
     final isAlreadySelected = _selectedQty((part['article'] ?? '').toString()) > 0;
 
+    final imageUrl = (part['image_url'] as String?) ?? '';
+
     return showDialog<int>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -193,6 +195,13 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (imageUrl.isNotEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _partThumbnail(imageUrl, size: 120),
+                  ),
+                ),
               Text(part['name'] ?? '',
                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
@@ -497,10 +506,11 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     final article = (part['article'] ?? '').toString();
     final selectedQty = _selectedQty(article);
     final isSelected = selectedQty > 0;
+    final imageUrl = (part['image_url'] as String?) ?? '';
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -510,13 +520,17 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
             child: Text(
               '${part['position_number']}',
               style: const TextStyle(
-                fontSize: 22,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF3B82F6),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
+
+          // Миниатюра фото запчасти
+          _partThumbnail(imageUrl, size: 56),
+          const SizedBox(width: 10),
 
           // Артикул + название
           Expanded(
@@ -539,7 +553,7 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
 
           // Количество (из мануала)
           SizedBox(
-            width: 50,
+            width: 44,
             child: Text(
               '× ${part['qty'] ?? 1}',
               textAlign: TextAlign.center,
@@ -551,7 +565,7 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
           ),
 
           // Кнопка "+"
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           GestureDetector(
             onTap: () => _onAdd(part),
             child: Container(
@@ -575,6 +589,54 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _partThumbnail(String? imageUrl, {double size = 56}) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(Icons.build_outlined, size: size * 0.45, color: const Color(0xFFCBD5E1)),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        imageUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(Icons.broken_image_outlined,
+              size: size * 0.45, color: const Color(0xFFCBD5E1)),
+        ),
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: SizedBox(
+                  width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          );
+        },
       ),
     );
   }
