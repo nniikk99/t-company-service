@@ -3102,6 +3102,81 @@ class SupabaseService {
     await _client.from('part_order_items').insert(orderItems);
   }
 
+  /// Создать заказ с данными доставки и контактом
+  static Future<void> createPartOrderWithDelivery({
+    required String clientId,
+    required String supplierId,
+    required double totalAmount,
+    required List<Map<String, dynamic>> items,
+    required String deliveryType,
+    required String deliveryAddress,
+    required String contactName,
+    required String contactPhone,
+    String? notes,
+  }) async {
+    final order = await _client.from('part_orders').insert({
+      'client_id': clientId,
+      'supplier_id': supplierId,
+      'total_amount': totalAmount,
+      'status': 'pending',
+      'delivery_type': deliveryType,
+      'delivery_address': deliveryAddress,
+      'contact_name': contactName,
+      'contact_phone': contactPhone,
+      'notes': notes,
+    }).select().single();
+
+    final orderItems = items.map((item) => {
+      'order_id': order['id'],
+      'part_id': item['part_id'],
+      'equipment_part_id': item['equipment_part_id'],
+      'quantity': item['quantity'],
+      'price_at_order': item['price_at_order'] ?? 0,
+      'article': item['article'] ?? '',
+      'name': item['name'] ?? '',
+    }).toList();
+
+    await _client.from('part_order_items').insert(orderItems);
+  }
+
+  /// Получить данные поставщика по ID
+  static Future<Map<String, dynamic>?> getSupplierById(String supplierId) async {
+    final response = await _client
+        .from('suppliers')
+        .select('id, company_name, contact_phone, support_phone, contact_email, warehouse_addresses, notify_email, notify_telegram, telegram_chat_id')
+        .eq('id', supplierId)
+        .maybeSingle();
+    return response as Map<String, dynamic>?;
+  }
+
+  /// Получить сохранённые предпочтения доставки пользователя
+  static Future<Map<String, dynamic>?> getUserDeliveryPrefs(String userId) async {
+    final response = await _client
+        .from('user_delivery_prefs')
+        .select()
+        .eq('user_id', userId)
+        .maybeSingle();
+    return response as Map<String, dynamic>?;
+  }
+
+  /// Сохранить предпочтения доставки пользователя
+  static Future<void> saveUserDeliveryPrefs({
+    required String userId,
+    required String deliveryType,
+    required String deliveryAddress,
+    required String contactName,
+    required String contactPhone,
+  }) async {
+    await _client.from('user_delivery_prefs').upsert({
+      'user_id': userId,
+      'delivery_type': deliveryType,
+      'delivery_address': deliveryAddress,
+      'contact_name': contactName,
+      'contact_phone': contactPhone,
+      'updated_at': DateTime.now().toIso8601String(),
+    });
+  }
+
   static Future<List<dynamic>> getSupplierPartOrders(String supplierId) async {
     final response = await _client
         .from('part_orders')

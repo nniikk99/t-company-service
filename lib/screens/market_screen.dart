@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/supabase_service.dart';
 import '../widgets/market/catalogs_tab.dart';
+import '../widgets/market/delivery_checkout_sheet.dart';
 import 'client_spare_parts_screen.dart';
 
 class MarketScreen extends StatefulWidget {
@@ -149,22 +150,28 @@ class _CartTabState extends State<_CartTab> {
     if (_cartItems.isEmpty) return;
 
     // Группируем товары по поставщикам
+    // Берём supplier_id из spare_parts или из equipment_models через equipment_part
     final Map<String, List<dynamic>> bySupplier = {};
     for (final item in _cartItems) {
-      final supplierId = item['spare_parts']['supplier_id'] as String;
+      final spPart = item['spare_parts'] as Map<String, dynamic>? ?? {};
+      final supplierId = (spPart['supplier_id'] as String?) ?? 'unknown';
       bySupplier.putIfAbsent(supplierId, () => []).add(item);
     }
 
-    // Диалог подтверждения
+    // Открываем пошаговую шторку доставки
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => _CheckoutSheet(
-        cartItems: _cartItems,
-        bySupplier: bySupplier,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (_, controller) => DeliveryCheckoutSheet(
+          cartItems: _cartItems,
+          bySupplier: bySupplier,
+          user: widget.user,
+        ),
       ),
     );
 
@@ -172,29 +179,7 @@ class _CartTabState extends State<_CartTab> {
 
     setState(() => _isLoading = true);
     try {
-      // Создаём заказ на каждого поставщика отдельно
-      for (final entry in bySupplier.entries) {
-        final supplierId = entry.key;
-        final items = entry.value;
-        final total = items.fold<double>(
-          0,
-          (sum, item) => sum + (item['spare_parts']['price'] as num) * (item['quantity'] as int),
-        );
-
-        final orderItems = items.map((item) => {
-          'part_id': item['part_id'],
-          'quantity': item['quantity'],
-          'price_at_order': item['spare_parts']['price'],
-        }).toList();
-
-        await SupabaseService.createPartOrder(
-          clientId: widget.user.id,
-          supplierId: supplierId,
-          totalAmount: total,
-          items: orderItems,
-        );
-      }
-
+      // Заказ уже создан внутри DeliveryCheckoutSheet
       // Очищаем корзину
       await SupabaseService.clearCart(widget.user.id);
       await _loadCart();
