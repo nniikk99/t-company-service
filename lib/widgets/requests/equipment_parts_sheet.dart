@@ -87,7 +87,14 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
       if (mounted) {
         setState(() => _partsByGroup[groupId] = parts);
       }
-    } catch (_) {}
+    } catch (e) {
+      // ignore: avoid_print
+      print('[EquipmentPartsSheet] getPartsByGroup error for $groupId: $e');
+      if (mounted) {
+        // Записываем пустой список чтобы не зависнуть в "Загрузка..."
+        setState(() => _partsByGroup[groupId] = []);
+      }
+    }
   }
 
   Map<String, dynamic>? get _currentGroup =>
@@ -483,20 +490,57 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
 
         // Список позиций
         Expanded(
-          child: parts.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('Загрузка позиций...',
-                        style: TextStyle(color: Colors.grey)),
-                  ),
-                )
-              : ListView.separated(
-                  itemCount: parts.length,
-                  separatorBuilder: (_, __) =>
-                      Divider(height: 1, color: Colors.grey[200]),
-                  itemBuilder: (context, i) => _buildPartRow(parts[i]),
+          child: Builder(builder: (context) {
+            final groupId = _currentGroup!['id'] as String;
+            final isLoaded = _partsByGroup.containsKey(groupId);
+
+            if (!isLoaded) {
+              // Реальная загрузка с сервера
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(strokeWidth: 2),
+                    SizedBox(height: 12),
+                    Text('Загрузка позиций...',
+                        style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  ],
                 ),
+              );
+            }
+
+            if (parts.isEmpty) {
+              // Загрузили, но группа пуста в БД
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[300]),
+                      const SizedBox(height: 12),
+                      const Text('Позиции не найдены',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      Text('Данные по этой группе ещё не загружены в базу',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              itemCount: parts.length,
+              separatorBuilder: (_, __) =>
+                  Divider(height: 1, color: Colors.grey[200]),
+              itemBuilder: (context, i) => _buildPartRow(parts[i]),
+            );
+          }),
         ),
       ],
     );
