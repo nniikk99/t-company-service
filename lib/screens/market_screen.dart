@@ -458,11 +458,24 @@ class _CartTabState extends State<_CartTab> {
                                     style: const TextStyle(
                                         fontSize: 11, color: Color(0xFF3B82F6))),
                               const SizedBox(height: 4),
-                              Text('${(price * qty).toStringAsFixed(0)} ₽',
-                                  style: const TextStyle(
-                                      color: Color(0xFF3B82F6),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15)),
+                              price > 0
+                                  ? Text('${(price * qty).toStringAsFixed(0)} ₽',
+                                      style: const TextStyle(
+                                          color: Color(0xFF3B82F6),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15))
+                                  : Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF7ED),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Text('По запросу',
+                                          style: TextStyle(
+                                              color: Color(0xFFF97316),
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12)),
+                                    ),
                             ],
                           ),
                         ),
@@ -510,9 +523,13 @@ class _CartTabState extends State<_CartTab> {
                   children: [
                     Text('Итого (${_cartItems.length} товаров):',
                         style: TextStyle(color: Colors.grey[600])),
-                    Text('${_total.toStringAsFixed(0)} ₽',
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
+                    _total > 0
+                        ? Text('${_total.toStringAsFixed(0)} ₽',
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87))
+                        : const Text('По запросу',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF97316))),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -595,7 +612,7 @@ class _CheckoutSheet extends StatelessWidget {
             ...cartItems.map((item) {
               final part = item['spare_parts'] as Map<String, dynamic>;
               final qty = item['quantity'] as int;
-              final price = (part['price'] as num).toDouble();
+              final price = (part['price'] as num?)?.toDouble() ?? 0.0;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -605,8 +622,14 @@ class _CheckoutSheet extends StatelessWidget {
                       child: Text('${part['name']} × $qty',
                           style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis),
                     ),
-                    Text('${(price * qty).toStringAsFixed(0)} ₽',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    price > 0
+                        ? Text('${(price * qty).toStringAsFixed(0)} ₽',
+                            style: const TextStyle(fontWeight: FontWeight.bold))
+                        : const Text('По запросу',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFF97316),
+                                fontSize: 13)),
                   ],
                 ),
               );
@@ -616,9 +639,13 @@ class _CheckoutSheet extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Итого:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text('${total.toStringAsFixed(0)} ₽',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF3B82F6))),
+                total > 0
+                    ? Text('${total.toStringAsFixed(0)} ₽',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF3B82F6)))
+                    : const Text('По запросу',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFF97316))),
               ],
             ),
             const SizedBox(height: 8),
