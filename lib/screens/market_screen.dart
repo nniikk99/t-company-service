@@ -269,7 +269,7 @@ class _CartTabState extends State<_CartTab> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -283,36 +283,31 @@ class _CartTabState extends State<_CartTab> {
               ),
             ),
             const SizedBox(height: 20),
-            // Фото
-            if (imageUrl.isNotEmpty)
-              ClipRRect(
+            // Фото — единый контейнер во всю ширину
+            Container(
+              width: double.infinity,
+              height: 220,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  imageUrl,
-                  height: 200,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: 200,
-                    color: const Color(0xFFEFF6FF),
-                    child: const Center(
-                      child: Icon(Icons.build_outlined,
-                          size: 64, color: Color(0xFF3B82F6)),
-                    ),
-                  ),
-                ),
-              )
-            else
-              Container(
-                height: 160,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Center(
-                  child: Icon(Icons.build_outlined,
-                      size: 64, color: Color(0xFF3B82F6)),
-                ),
               ),
+              child: imageUrl.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(Icons.build_outlined,
+                              size: 72, color: Color(0xFF3B82F6)),
+                        ),
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.build_outlined,
+                          size: 72, color: Color(0xFF3B82F6)),
+                    ),
+            ),
             const SizedBox(height: 20),
             // Название
             Text(name,
@@ -338,7 +333,7 @@ class _CartTabState extends State<_CartTab> {
                       fontSize: 13,
                       fontWeight: FontWeight.w600)),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
           ],
         ),
       ),
