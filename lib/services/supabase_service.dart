@@ -391,7 +391,37 @@ class SupabaseService {
         .eq('company_inn', inn)
         .order('created_at', ascending: false);
 
-    return List<Map<String, dynamic>>.from(response);
+    final merged = List<Map<String, dynamic>>.from(response);
+
+    // part_orders по ИНН: находим всех пользователей этой компании, потом их заказы
+    try {
+      final usersOfCompany = await _client
+          .from('user_profiles')
+          .select('id')
+          .eq('company_inn', inn);
+      final userIds = (usersOfCompany as List)
+          .map((u) => (u as Map<String, dynamic>)['id'] as String)
+          .toList();
+      if (userIds.isNotEmpty) {
+        final orders = await _client
+            .from('part_orders')
+            .select(_partOrdersSelect)
+            .inFilter('client_id', userIds)
+            .order('created_at', ascending: false);
+        merged.addAll(
+          (orders as List).map((o) => _partOrderRowToRequestJson(o as Map<String, dynamic>)),
+        );
+      }
+    } catch (e) {
+      print('❌ Ошибка загрузки part_orders по ИНН $inn: $e');
+    }
+
+    merged.sort((a, b) {
+      final ad = DateTime.tryParse('${a['created_at']}') ?? DateTime(1970);
+      final bd = DateTime.tryParse('${b['created_at']}') ?? DateTime(1970);
+      return bd.compareTo(ad);
+    });
+    return merged;
   }
 
   static Future<List<Map<String, dynamic>>> getUserServiceRequests(String userId) async {
@@ -413,7 +443,15 @@ class SupabaseService {
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
-    return List<Map<String, dynamic>>.from(response);
+    final merged = List<Map<String, dynamic>>.from(response);
+    // Добавляем заказы запчастей этого клиента из новой таблицы
+    merged.addAll(await _getPartOrdersAsRequestJsonByClient(userId));
+    merged.sort((a, b) {
+      final ad = DateTime.tryParse('${a['created_at']}') ?? DateTime(1970);
+      final bd = DateTime.tryParse('${b['created_at']}') ?? DateTime(1970);
+      return bd.compareTo(ad);
+    });
+    return merged;
   }
 
   static Future<void> updateServiceRequest(String requestId, Map<String, dynamic> updates) async {
@@ -1448,6 +1486,9 @@ class SupabaseService {
 
   /// Получение заявок для поставщика
   static Future<List<ServiceRequest>> getSupplierRequests(String supplierUserId) async {
+    final List<ServiceRequest> result = [];
+
+    // 1. Сервисные заявки (service_requests) — ремонт, обслуживание и т.п.
     try {
       final response = await _client
           .from('service_requests')
@@ -1468,11 +1509,133 @@ class SupabaseService {
           .neq('status', 'cancelled')
           .order('created_at', ascending: false);
 
-      return (response as List)
-          .map((json) => ServiceRequest.fromJson(json))
+      result.addAll(
+        (response as List).map((json) => ServiceRequest.fromJson(json)),
+      );
+    } catch (e) {
+      print('❌ Ошибка загрузки service_requests поставщика: $e');
+    }
+
+    // 2. Заказы запчастей (part_orders) — конвертируем в ServiceRequest
+    final partOrderJsonList = await _getPartOrdersAsRequestJsonBySupplier(supplierUserId);
+    for (final j in partOrderJsonList) {
+      try {
+        result.add(ServiceRequest.fromJson(j));
+      } catch (e) {
+        print('❌ Не удалось распарсить part_order как ServiceRequest: $e');
+      }
+    }
+
+    // Сортируем по дате создания (новые сверху)
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return result;
+  }
+
+  /// Конвертирует строку part_orders + part_order_items в JSON, совместимый с ServiceRequest.fromJson.
+  /// Используется для отображения заказов запчастей в общем списке заявок.
+  static Map<String, dynamic> _partOrderRowToRequestJson(Map<String, dynamic> order) {
+    final items = (order['part_order_items'] as List?) ?? const [];
+    final client = order['client'] as Map<String, dynamic>?;
+    final total = (order['total_amount'] as num?)?.toDouble() ?? 0;
+
+    final itemsSummary = items.map((i) {
+      final m = i as Map<String, dynamic>;
+      final art = (m['article'] ?? '').toString();
+      final nm = (m['name'] ?? '').toString();
+      final qty = m['quantity'] ?? 1;
+      return '$art × $qty — $nm';
+    }).join('\n');
+
+    final deliveryType = (order['delivery_type'] ?? '').toString();
+    final notesRaw = order['notes'];
+    final notesText = (notesRaw is String && notesRaw.isNotEmpty) ? notesRaw : null;
+
+    final descr = 'Заказ запчастей (${items.length} поз.)'
+        '${total > 0 ? ' на сумму ${total.toStringAsFixed(0)} ₽' : ''}\n\n'
+        'Доставка: ${deliveryType == 'pickup' ? 'самовывоз' : (deliveryType == 'delivery' ? 'доставка' : '—')}\n'
+        'Адрес: ${order['delivery_address'] ?? '—'}\n'
+        'Контакт: ${order['contact_name'] ?? '—'}, ${order['contact_phone'] ?? '—'}'
+        '${notesText != null ? '\n\nКомментарий: $notesText' : ''}'
+        '${itemsSummary.isNotEmpty ? '\n\nСостав:\n$itemsSummary' : ''}';
+
+    return <String, dynamic>{
+      'id': order['id'],
+      'request_number': null,
+      'user_id': order['client_id'],
+      'supplier_id': order['supplier_id'],
+      'company_id': null,
+      'client_id': order['client_id'],
+      'type': 'partsOrder',
+      'title': 'Заказ запчастей',
+      'description': descr,
+      'status': order['status'] ?? 'pending',
+      'priority': 'normal',
+      'equipment_id': null,
+      'parts_order_details': {
+        'part_order_id': order['id'],
+        'total_amount': total,
+        'delivery_type': deliveryType,
+        'delivery_address': order['delivery_address'],
+        'contact_name': order['contact_name'],
+        'contact_phone': order['contact_phone'],
+        'notes': order['notes'],
+        'items': items,
+      },
+      'created_at': order['created_at'],
+      'completed_at': null,
+      'scheduled_at': null,
+      'attachments': null,
+      'approved_by': null,
+      'approved_by_user_id': null,
+      'approved_at': null,
+      'rejection_reason': null,
+      'author': client,
+    };
+  }
+
+  static const String _partOrdersSelect = '''
+    *,
+    client:user_profiles!part_orders_client_id_fkey(first_name, last_name, phone, role, company_name),
+    part_order_items(
+      id, quantity, price_at_order, article, name,
+      part_id, equipment_part_id
+    )
+  ''';
+
+  /// Загрузить заказы запчастей (part_orders) по поставщику и вернуть как JSON-список,
+  /// совместимый с ServiceRequest.fromJson.
+  static Future<List<Map<String, dynamic>>> _getPartOrdersAsRequestJsonBySupplier(
+      String supplierUserId) async {
+    try {
+      final orders = await _client
+          .from('part_orders')
+          .select(_partOrdersSelect)
+          .eq('supplier_id', supplierUserId)
+          .neq('status', 'cancelled')
+          .order('created_at', ascending: false);
+      return (orders as List)
+          .map((o) => _partOrderRowToRequestJson(o as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      print('❌ Ошибка загрузки заявок поставщика: $e');
+      print('❌ Ошибка загрузки part_orders (supplier=$supplierUserId): $e');
+      return [];
+    }
+  }
+
+  /// То же, но по клиенту (user_profiles.id заказчика).
+  static Future<List<Map<String, dynamic>>> _getPartOrdersAsRequestJsonByClient(
+      String clientUserId) async {
+    try {
+      final orders = await _client
+          .from('part_orders')
+          .select(_partOrdersSelect)
+          .eq('client_id', clientUserId)
+          .order('created_at', ascending: false);
+      return (orders as List)
+          .map((o) => _partOrderRowToRequestJson(o as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('❌ Ошибка загрузки part_orders (client=$clientUserId): $e');
       return [];
     }
   }
@@ -1495,10 +1658,12 @@ class SupabaseService {
             .neq('type', 'partsOrder');
         requestsCount = (reqRes as List).length;
 
-        final orderRes = await _client.from('service_requests')
+        // Заказы запчастей — из новой таблицы part_orders + старых service_requests
+        final orderResLegacy = await _client.from('service_requests')
             .select('id')
             .eq('type', 'partsOrder');
-        ordersCount = (orderRes as List).length;
+        final orderResNew = await _client.from('part_orders').select('id');
+        ordersCount = (orderResLegacy as List).length + (orderResNew as List).length;
       } else if (role == AppUserModel.UserRole.supplier) {
         // Поставщик видит по своему ID (бренду)
         final equipRes = await _client.from('equipment')
@@ -1512,11 +1677,14 @@ class SupabaseService {
             .neq('type', 'partsOrder');
         requestsCount = (reqRes as List).length;
 
-        final orderRes = await _client.from('service_requests')
+        final orderResLegacy = await _client.from('service_requests')
             .select('id')
             .eq('supplier_id', user.id)
             .eq('type', 'partsOrder');
-        ordersCount = (orderRes as List).length;
+        final orderResNew = await _client.from('part_orders')
+            .select('id')
+            .eq('supplier_id', user.id);
+        ordersCount = (orderResLegacy as List).length + (orderResNew as List).length;
       } else {
         // Для Клиентов - по ИНН компании, если есть, иначе по ID компании
         final profile = await getUserProfile(user.id);
@@ -3198,49 +3366,6 @@ class SupabaseService {
     }).toList();
 
     await _client.from('part_order_items').insert(orderItems);
-
-    // Параллельно создаём запись в service_requests с type='partsOrder',
-    // чтобы поставщик увидел её в стандартном списке заявок (UI читает оттуда).
-    // part_orders остаётся источником данных по items.
-    try {
-      final itemsSummary = items.map((i) {
-        final art = (i['article'] ?? '').toString();
-        final nm = (i['name'] ?? '').toString();
-        final qty = i['quantity'] ?? 1;
-        return '$art × $qty — $nm';
-      }).join('\n');
-
-      final descr = 'Заказ запчастей (${items.length} поз.) на сумму '
-          '${totalAmount.toStringAsFixed(0)} ₽\n\n'
-          'Доставка: ${deliveryType == 'pickup' ? 'самовывоз' : 'доставка'}\n'
-          'Адрес: $deliveryAddress\n'
-          'Контакт: $contactName, $contactPhone'
-          '${notes != null && notes.isNotEmpty ? '\n\nКомментарий: $notes' : ''}\n\n'
-          'Состав:\n$itemsSummary';
-
-      await _client.from('service_requests').insert({
-        'user_id': clientId,
-        'supplier_id': supplierUserId,
-        'title': 'Заказ запчастей',
-        'description': descr,
-        'message': descr,
-        'type': 'partsOrder',
-        'status': 'pending',
-        'priority': 'normal',
-        'parts_order_details': {
-          'part_order_id': order['id'],
-          'total_amount': totalAmount,
-          'delivery_type': deliveryType,
-          'delivery_address': deliveryAddress,
-          'contact_name': contactName,
-          'contact_phone': contactPhone,
-          'items': items,
-        },
-      });
-    } catch (e) {
-      // Не блокируем заказ если зеркальная запись не создалась
-      print('⚠️ Не удалось продублировать в service_requests: $e');
-    }
   }
 
   /// Получить данные поставщика по ID
