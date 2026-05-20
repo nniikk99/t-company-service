@@ -169,20 +169,19 @@ class _CartTabState extends State<_CartTab> {
         }
       }
 
-      // Проверяем, что supplier_id реально существует в user_profiles.
-      // Если нет (висячая ссылка) — кладём в группу 'unknown', обрабатываем отдельно.
+      // Проверяем, что supplier_id реально существует (suppliers.id или user_profiles.id).
+      // Если нет — пытаемся резолвить как user_profiles.id и обратно. Висячие → 'unknown'.
       if (supplierId != null && supplierId.isNotEmpty) {
-        final profileExists = await SupabaseService.supplierProfileExists(supplierId);
-        if (!profileExists) supplierId = null;
+        final resolved = await SupabaseService.resolveSupplierToUserId(supplierId);
+        if (resolved == null) supplierId = null;
       }
 
       bySupplier.putIfAbsent(supplierId ?? 'unknown', () => []).add(item);
     }
 
-    // Если все товары ушли в 'unknown' — показываем понятную ошибку
+    // Если все товары ушли в 'unknown' — понятная ошибка
     final knownSuppliers = bySupplier.keys.where((k) => k != 'unknown').toList();
-    final unknownItems = bySupplier['unknown'] ?? [];
-    if (knownSuppliers.isEmpty && unknownItems.isNotEmpty) {
+    if (knownSuppliers.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -198,7 +197,6 @@ class _CartTabState extends State<_CartTab> {
       return;
     }
 
-    // Товары без поставщика — убираем из bySupplier чтобы не крашить FK
     bySupplier.remove('unknown');
 
     // Открываем пошаговую шторку доставки

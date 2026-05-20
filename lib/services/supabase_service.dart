@@ -1936,15 +1936,33 @@ class SupabaseService {
         .eq('article', article)
         .maybeSingle();
 
-    // Поставщик по умолчанию для модели (если не нашли в spare_parts)
+    // Поставщик по умолчанию для модели.
+    // cart_items.supplier_id_hint FK → suppliers.id, поэтому здесь нужен suppliers.id (не user_profiles.id).
+    // Конвертация в user_profiles.id для part_orders происходит позже, при оформлении заказа.
     String? supplierHint;
     double? unitPrice;
     if (spareMatch != null) {
-      supplierHint = spareMatch['supplier_id'] as String?;
+      // spare_parts.supplier_id FK → user_profiles.id (схема несогласована),
+      // поэтому из spare_parts нельзя напрямую брать как supplier_id_hint.
+      // Резолвим через suppliers.user_id → suppliers.id
+      final spUserId = spareMatch['supplier_id'] as String?;
       unitPrice = (spareMatch['price'] as num?)?.toDouble();
+      if (spUserId != null) {
+        final supRow = await _client
+            .from('suppliers')
+            .select('id')
+            .eq('user_id', spUserId)
+            .maybeSingle();
+        supplierHint = supRow?['id'] as String?;
+      }
     } else {
-      // Через equipment_models → suppliers.user_id (нужен именно user_profiles.id)
-      supplierHint = await getSupplierIdByModel(equipmentModel);
+      // equipment_models.default_supplier_id уже типа suppliers.id — берём как есть
+      final modelRow = await _client
+          .from('equipment_models')
+          .select('default_supplier_id')
+          .eq('model', equipmentModel)
+          .maybeSingle();
+      supplierHint = modelRow?['default_supplier_id'] as String?;
     }
 
     // Если уже есть в корзине — прибавляем количество
@@ -3000,46 +3018,43 @@ class SupabaseService {
     return response as List;
   }
 
-  /// Получить user_profiles.id поставщика по названию модели оборудования.
-  /// Цепочка: equipment_models.default_supplier_id → suppliers.id → suppliers.user_id.
-  /// Возвращает user_profiles.id (его ждёт part_orders.supplier_id FK).
+  /// Получить suppliers.id по названию модели оборудования.
+  /// Это значение подходит для cart_items.supplier_id_hint и для getSupplierById().
+  /// Для FK part_orders.supplier_id нужно сначала прогнать через resolveSupplierToUserId().
   static Future<String?> getSupplierIdByModel(String equipmentModel) async {
     final response = await _client
         .from('equipment_models')
-        .select('default_supplier_id, suppliers!equipment_models_default_supplier_id_fkey(user_id)')
+        .select('default_supplier_id')
         .eq('model', equipmentModel)
         .maybeSingle();
-    if (response == null) return null;
-    // Сначала пробуем достать user_id через JOIN
-    final supplier = response['suppliers'];
-    if (supplier is Map && supplier['user_id'] != null) {
-      return supplier['user_id'] as String;
-    }
-    // Фолбэк: если JOIN не сработал, делаем второй запрос
-    final supplierId = response['default_supplier_id'] as String?;
-    if (supplierId == null) return null;
-    final supplierRow = await _client
-        .from('suppliers')
-        .select('user_id')
-        .eq('id', supplierId)
-        .maybeSingle();
-    return supplierRow?['user_id'] as String?;
+    return response?['default_supplier_id'] as String?;
   }
 
-  /// Проверить, существует ли профиль поставщика в user_profiles.
-  /// Защита от FK-ошибки при создании part_orders с несуществующим supplier_id.
-  static Future<bool> supplierProfileExists(String supplierId) async {
-    try {
-      final response = await _client
-          .from('user_profiles')
-          .select('id')
-          .eq('id', supplierId)
-          .maybeSingle();
-      return response != null;
-    } catch (_) {
-      return false;
+  /// Конвертирует suppliers.id → user_profiles.id (через suppliers.user_id).
+  /// Если на входе уже user_profiles.id (например, из spare_parts.supplier_id),
+  /// возвращает его как есть.
+  static Future<String?> resolveSupplierToUserId(String supplierIdOrUserId) async {
+    // Сначала пробуем как suppliers.id
+    final supRow = await _client
+        .from('suppliers')
+        .select('user_id')
+        .eq('id', supplierIdOrUserId)
+        .maybeSingle();
+    if (supRow?['user_id'] != null) {
+      return supRow!['user_id'] as String;
     }
+    // Не нашли — может это уже user_profiles.id?
+    final profileRow = await _client
+        .from('user_profiles')
+        .select('id')
+        .eq('id', supplierIdOrUserId)
+        .maybeSingle();
+    if (profileRow != null) return supplierIdOrUserId;
+    return null;
   }
+
+  // (supplierProfileExists удалён — заменён на resolveSupplierToUserId,
+  //  который не только проверяет, но и нормализует ID к user_profiles.id)
 
   static Future<void> addToCart(String userId, String partId, int quantity) async {
     // Если товар уже в корзине — увеличиваем количество
@@ -3139,7 +3154,8 @@ class SupabaseService {
     await _client.from('part_order_items').insert(orderItems);
   }
 
-  /// Создать заказ с данными доставки и контактом
+  /// Создать заказ с данными доставки и контактом.
+  /// На входе supplierId может быть suppliers.id или user_profiles.id — резолвим к user_profiles.id.
   static Future<void> createPartOrderWithDelivery({
     required String clientId,
     required String supplierId,
@@ -3151,9 +3167,15 @@ class SupabaseService {
     required String contactPhone,
     String? notes,
   }) async {
+    // part_orders.supplier_id FK → user_profiles.id
+    final supplierUserId = await resolveSupplierToUserId(supplierId);
+    if (supplierUserId == null) {
+      throw Exception('Не удалось определить поставщика для заказа');
+    }
+
     final order = await _client.from('part_orders').insert({
       'client_id': clientId,
-      'supplier_id': supplierId,
+      'supplier_id': supplierUserId,
       'total_amount': totalAmount,
       'status': 'pending',
       'delivery_type': deliveryType,
@@ -3163,6 +3185,8 @@ class SupabaseService {
       'notes': notes,
     }).select().single();
 
+    // part_order_items: part_id (FK → spare_parts) и equipment_part_id (FK → equipment_parts)
+    // Хотя бы одно из них должно быть заполнено (см. миграцию 12).
     final orderItems = items.map((item) => {
       'order_id': order['id'],
       'part_id': item['part_id'],
