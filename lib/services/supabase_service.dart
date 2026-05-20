@@ -1943,12 +1943,8 @@ class SupabaseService {
       supplierHint = spareMatch['supplier_id'] as String?;
       unitPrice = (spareMatch['price'] as num?)?.toDouble();
     } else {
-      final modelRow = await _client
-          .from('equipment_models')
-          .select('default_supplier_id')
-          .eq('model', equipmentModel)
-          .maybeSingle();
-      supplierHint = modelRow?['default_supplier_id'] as String?;
+      // Через equipment_models → suppliers.user_id (нужен именно user_profiles.id)
+      supplierHint = await getSupplierIdByModel(equipmentModel);
     }
 
     // Если уже есть в корзине — прибавляем количество
@@ -3004,14 +3000,30 @@ class SupabaseService {
     return response as List;
   }
 
-  /// Получить supplier_id по названию модели оборудования (через default_supplier_id)
+  /// Получить user_profiles.id поставщика по названию модели оборудования.
+  /// Цепочка: equipment_models.default_supplier_id → suppliers.id → suppliers.user_id.
+  /// Возвращает user_profiles.id (его ждёт part_orders.supplier_id FK).
   static Future<String?> getSupplierIdByModel(String equipmentModel) async {
     final response = await _client
         .from('equipment_models')
-        .select('default_supplier_id')
+        .select('default_supplier_id, suppliers!equipment_models_default_supplier_id_fkey(user_id)')
         .eq('model', equipmentModel)
         .maybeSingle();
-    return response?['default_supplier_id'] as String?;
+    if (response == null) return null;
+    // Сначала пробуем достать user_id через JOIN
+    final supplier = response['suppliers'];
+    if (supplier is Map && supplier['user_id'] != null) {
+      return supplier['user_id'] as String;
+    }
+    // Фолбэк: если JOIN не сработал, делаем второй запрос
+    final supplierId = response['default_supplier_id'] as String?;
+    if (supplierId == null) return null;
+    final supplierRow = await _client
+        .from('suppliers')
+        .select('user_id')
+        .eq('id', supplierId)
+        .maybeSingle();
+    return supplierRow?['user_id'] as String?;
   }
 
   /// Проверить, существует ли профиль поставщика в user_profiles.
