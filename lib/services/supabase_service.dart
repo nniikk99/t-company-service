@@ -3198,6 +3198,49 @@ class SupabaseService {
     }).toList();
 
     await _client.from('part_order_items').insert(orderItems);
+
+    // Параллельно создаём запись в service_requests с type='partsOrder',
+    // чтобы поставщик увидел её в стандартном списке заявок (UI читает оттуда).
+    // part_orders остаётся источником данных по items.
+    try {
+      final itemsSummary = items.map((i) {
+        final art = (i['article'] ?? '').toString();
+        final nm = (i['name'] ?? '').toString();
+        final qty = i['quantity'] ?? 1;
+        return '$art × $qty — $nm';
+      }).join('\n');
+
+      final descr = 'Заказ запчастей (${items.length} поз.) на сумму '
+          '${totalAmount.toStringAsFixed(0)} ₽\n\n'
+          'Доставка: ${deliveryType == 'pickup' ? 'самовывоз' : 'доставка'}\n'
+          'Адрес: $deliveryAddress\n'
+          'Контакт: $contactName, $contactPhone'
+          '${notes != null && notes.isNotEmpty ? '\n\nКомментарий: $notes' : ''}\n\n'
+          'Состав:\n$itemsSummary';
+
+      await _client.from('service_requests').insert({
+        'user_id': clientId,
+        'supplier_id': supplierUserId,
+        'title': 'Заказ запчастей',
+        'description': descr,
+        'message': descr,
+        'type': 'partsOrder',
+        'status': 'pending',
+        'priority': 'normal',
+        'parts_order_details': {
+          'part_order_id': order['id'],
+          'total_amount': totalAmount,
+          'delivery_type': deliveryType,
+          'delivery_address': deliveryAddress,
+          'contact_name': contactName,
+          'contact_phone': contactPhone,
+          'items': items,
+        },
+      });
+    } catch (e) {
+      // Не блокируем заказ если зеркальная запись не создалась
+      print('⚠️ Не удалось продублировать в service_requests: $e');
+    }
   }
 
   /// Получить данные поставщика по ID
