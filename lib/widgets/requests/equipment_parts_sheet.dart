@@ -546,13 +546,160 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     );
   }
 
+  void _showPartDetail(Map<String, dynamic> part) {
+    final article  = (part['article'] ?? '').toString();
+    final name     = (part['name'] ?? '').toString();
+    final imageUrl = (part['image_url'] as String?) ?? '';
+    final pos      = part['position_number'];
+    final qty      = part['qty'] ?? 1;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Ручка
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Номер позиции
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('Позиция $pos',
+                    style: const TextStyle(
+                        color: Color(0xFF3B82F6),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13)),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Фото — зумируемое, во всю ширину
+            Container(
+              width: double.infinity,
+              height: 240,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: imageUrl.isNotEmpty
+                    ? InteractiveViewer(
+                        minScale: 1.0,
+                        maxScale: 5.0,
+                        child: Image.network(
+                          imageUrl,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.build_outlined,
+                                size: 72, color: Color(0xFF3B82F6)),
+                          ),
+                        ),
+                      )
+                    : const Center(
+                        child: Icon(Icons.build_outlined,
+                            size: 72, color: Color(0xFF3B82F6)),
+                      ),
+              ),
+            ),
+            if (imageUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('Щипните для увеличения',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 11)),
+              ),
+            const SizedBox(height: 16),
+
+            // Название
+            Text(name,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+
+            // Артикул + кол-во из мануала
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('Арт: $article',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('× $qty на машину',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Кнопка добавить
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _onAdd(part);
+                },
+                icon: const Icon(Icons.add_shopping_cart_outlined),
+                label: const Text('Добавить в заказ',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1F2937),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPartRow(Map<String, dynamic> part) {
     final article = (part['article'] ?? '').toString();
     final selectedQty = _selectedQty(article);
     final isSelected = selectedQty > 0;
     final imageUrl = (part['image_url'] as String?) ?? '';
 
-    return Container(
+    return GestureDetector(
+      onTap: () => _showPartDetail(part),
+      child: Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -634,7 +781,8 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _partThumbnail(String? imageUrl, {double size = 56}) {
