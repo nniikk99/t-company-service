@@ -3014,6 +3014,21 @@ class SupabaseService {
     return response?['default_supplier_id'] as String?;
   }
 
+  /// Проверить, существует ли профиль поставщика в user_profiles.
+  /// Защита от FK-ошибки при создании part_orders с несуществующим supplier_id.
+  static Future<bool> supplierProfileExists(String supplierId) async {
+    try {
+      final response = await _client
+          .from('user_profiles')
+          .select('id')
+          .eq('id', supplierId)
+          .maybeSingle();
+      return response != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> addToCart(String userId, String partId, int quantity) async {
     // Если товар уже в корзине — увеличиваем количество
     final existing = await _client

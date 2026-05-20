@@ -169,8 +169,37 @@ class _CartTabState extends State<_CartTab> {
         }
       }
 
+      // Проверяем, что supplier_id реально существует в user_profiles.
+      // Если нет (висячая ссылка) — кладём в группу 'unknown', обрабатываем отдельно.
+      if (supplierId != null && supplierId.isNotEmpty) {
+        final profileExists = await SupabaseService.supplierProfileExists(supplierId);
+        if (!profileExists) supplierId = null;
+      }
+
       bySupplier.putIfAbsent(supplierId ?? 'unknown', () => []).add(item);
     }
+
+    // Если все товары ушли в 'unknown' — показываем понятную ошибку
+    final knownSuppliers = bySupplier.keys.where((k) => k != 'unknown').toList();
+    final unknownItems = bySupplier['unknown'] ?? [];
+    if (knownSuppliers.isEmpty && unknownItems.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Не удалось определить поставщика для товаров в корзине. '
+              'Обратитесь в поддержку.',
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Товары без поставщика — убираем из bySupplier чтобы не крашить FK
+    bySupplier.remove('unknown');
 
     // Открываем пошаговую шторку доставки
     final confirmed = await showModalBottomSheet<bool>(
