@@ -1586,6 +1586,11 @@ class SupabaseService {
         'invoice_uploaded_at': order['invoice_uploaded_at'],
         'payment_due_days': order['payment_due_days'],
         'payment_received_at': order['payment_received_at'],
+        // Отгрузка / отслеживание
+        'tracking_url': order['tracking_url'],
+        'tracking_carrier': order['tracking_carrier'],
+        'shipped_at': order['shipped_at'],
+        'pickup_ready_at': order['pickup_ready_at'],
       },
       'created_at': order['created_at'],
       'completed_at': null,
@@ -3555,6 +3560,44 @@ class SupabaseService {
     await _client.from('part_orders').update({
       'payment_received_at':
           paid ? DateTime.now().toIso8601String() : null,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+  }
+
+  // ─── ОТГРУЗКА / ОТСЛЕЖИВАНИЕ ─────────────────────────────────────────────
+
+  /// Задаёт трек-номер/ссылку и название ТК для заказа с доставкой,
+  /// фиксирует момент отправки. Используется при переходе в waitingForAcceptance.
+  static Future<void> setOrderTracking({
+    required String orderId,
+    required String trackingUrl,
+    String? carrier,
+  }) async {
+    await _client.from('part_orders').update({
+      'tracking_url': trackingUrl,
+      'tracking_carrier': carrier,
+      'shipped_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+  }
+
+  /// Снять трек-номер (например, если ошиблись при вводе).
+  static Future<void> clearOrderTracking(String orderId) async {
+    await _client.from('part_orders').update({
+      'tracking_url': null,
+      'tracking_carrier': null,
+      'shipped_at': null,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+  }
+
+  /// Отметить заказ готовым к выдаче на складе (самовывоз).
+  /// Используется при переходе pickup-заказа в waitingForAcceptance.
+  /// ready=false снимает отметку.
+  static Future<void> markOrderPickupReady(String orderId, bool ready) async {
+    await _client.from('part_orders').update({
+      'pickup_ready_at':
+          ready ? DateTime.now().toIso8601String() : null,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', orderId);
   }

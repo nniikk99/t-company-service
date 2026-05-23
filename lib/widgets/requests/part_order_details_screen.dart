@@ -141,14 +141,18 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
               }
             }
 
-            // 2. Синхронизируем поля счёта/оплаты в _details
-            //    (чтобы блок «Оплата» обновился у клиента сразу)
+            // 2. Синхронизируем поля счёта/оплаты/отгрузки в _details
+            //    (чтобы блок «Оплата» и «Отгрузка» обновились у клиента сразу)
             setState(() {
               _details['invoice_pdf_url'] = newRow['invoice_pdf_url'];
               _details['invoice_file_name'] = newRow['invoice_file_name'];
               _details['invoice_uploaded_at'] = newRow['invoice_uploaded_at'];
               _details['payment_due_days'] = newRow['payment_due_days'];
               _details['payment_received_at'] = newRow['payment_received_at'];
+              _details['tracking_url'] = newRow['tracking_url'];
+              _details['tracking_carrier'] = newRow['tracking_carrier'];
+              _details['shipped_at'] = newRow['shipped_at'];
+              _details['pickup_ready_at'] = newRow['pickup_ready_at'];
             });
           },
         )
@@ -361,6 +365,8 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
           _itemsBlock(),
           const SizedBox(height: 12),
           _deliveryBlock(),
+          const SizedBox(height: 12),
+          _shipmentBlock(),
           if (_notes.isNotEmpty) ...[
             const SizedBox(height: 12),
             _notesBlock(),
@@ -708,6 +714,699 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
           Text(
             _notes,
             style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Отгрузка ──────────────────────────────────────────────────────────
+
+  String? get _trackingUrl {
+    final v = _details['tracking_url'];
+    return v is String && v.isNotEmpty ? v : null;
+  }
+
+  String? get _trackingCarrier {
+    final v = _details['tracking_carrier'];
+    return v is String && v.isNotEmpty ? v : null;
+  }
+
+  DateTime? get _shippedAt {
+    final raw = _details['shipped_at'];
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
+  DateTime? get _pickupReadyAt {
+    final raw = _details['pickup_ready_at'];
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
+  bool get _isShipped => _trackingUrl != null || _shippedAt != null;
+  bool get _isPickupReady => _pickupReadyAt != null;
+
+  Widget _shipmentBlock() {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isPickup
+                    ? Icons.inventory_2_outlined
+                    : Icons.local_shipping_outlined,
+                size: 18,
+                color: const Color(0xFF94A3B8),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _isPickup ? 'Готовность к выдаче' : 'Отслеживание',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const Spacer(),
+              _shipmentStatusBadge(),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_isPickup) _pickupView() else _deliveryTrackingView(),
+        ],
+      ),
+    );
+  }
+
+  Widget _shipmentStatusBadge() {
+    if (_isPickup) {
+      if (_isPickupReady) {
+        return _pillBadge('Готов', const Color(0xFF16A34A));
+      }
+      return _pillBadge('Готовится', const Color(0xFF94A3B8));
+    } else {
+      if (_isShipped) {
+        return _pillBadge('Отправлен', const Color(0xFF16A34A));
+      }
+      return _pillBadge('Не отправлен', const Color(0xFF94A3B8));
+    }
+  }
+
+  Widget _pillBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  // ─── Самовывоз ──────────────────────────────────────────────────────────
+
+  Widget _pickupView() {
+    if (_isPickupReady) {
+      final readyAt = _pickupReadyAt!;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFFEF1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFA7F3D0)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.check_circle_rounded,
+                      color: Color(0xFF16A34A), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Можно забирать',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF16A34A)),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Реализация проведена ${DateFormat('dd.MM.yyyy в HH:mm').format(readyAt)}',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF065F46)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          // Адрес склада крупно
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.location_on_rounded,
+                    color: Color(0xFF2563EB), size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _deliveryAddress.isNotEmpty
+                        ? _deliveryAddress
+                        : 'Адрес уточните у поставщика',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_isSupplier) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isUpdating ? null : _undoPickupReady,
+                icon: const Icon(Icons.undo, size: 18),
+                label: const Text('Снять отметку готовности',
+                    style: TextStyle(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF94A3B8),
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ],
+      );
+    }
+
+    // Не готов
+    if (_isSupplier) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline,
+                    color: Color(0xFF94A3B8), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Когда в 1С проведёте реализацию — нажмите «Готов к выдаче». Клиент увидит, что заказ можно забирать на складе.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                        height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating ? null : _markPickupReady,
+              icon: const Icon(Icons.check_circle_outline),
+              label: const Text('Готов к выдаче',
+                  style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    // Клиент видит ожидание
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.hourglass_top_rounded,
+              size: 18, color: Color(0xFF94A3B8)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Поставщик готовит ваш заказ. Когда товар можно будет забрать со склада — вы увидите подтверждение здесь.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _markPickupReady() async {
+    final ok = await _confirmDialog(
+        'Отметить заказ готовым к выдаче? Клиент увидит, что можно забирать товар на складе.');
+    if (ok != true) return;
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.markOrderPickupReady(_request.id, true);
+      // Также переводим статус в waitingForAcceptance чтобы синхронизировать
+      if (_request.status != RequestStatus.waitingForAcceptance) {
+        await SupabaseService.updatePartOrderStatus(
+            _request.id, 'waitingForAcceptance');
+      }
+      _details['pickup_ready_at'] = DateTime.now().toIso8601String();
+      if (mounted) {
+        setState(() {
+          _request = _request.copyWith(
+            status: RequestStatus.waitingForAcceptance,
+          );
+        });
+        widget.onStatusChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _undoPickupReady() async {
+    final ok = await _confirmDialog(
+        'Снять отметку готовности? Клиент снова увидит, что заказ готовится.');
+    if (ok != true) return;
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.markOrderPickupReady(_request.id, false);
+      // Возвращаем статус в inProgress
+      await SupabaseService.updatePartOrderStatus(_request.id, 'inProgress');
+      _details['pickup_ready_at'] = null;
+      if (mounted) {
+        setState(() {
+          _request = _request.copyWith(status: RequestStatus.inProgress);
+        });
+        widget.onStatusChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  // ─── Доставка: трекинг ──────────────────────────────────────────────────
+
+  Widget _deliveryTrackingView() {
+    if (_isShipped) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_trackingUrl != null)
+            InkWell(
+              onTap: _openTracking,
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.local_shipping_rounded,
+                          color: Color(0xFF2563EB), size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _trackingCarrier ?? 'Отслеживание',
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E293B)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _trackingUrl!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFF2563EB)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.open_in_new_rounded,
+                        size: 18, color: Color(0xFF2563EB)),
+                  ],
+                ),
+              ),
+            ),
+          if (_shippedAt != null) ...[
+            const SizedBox(height: 8),
+            _infoRow(
+              Icons.event_available_rounded,
+              'Отправлен',
+              DateFormat('dd.MM.yyyy в HH:mm').format(_shippedAt!),
+              color: const Color(0xFF16A34A),
+            ),
+          ],
+          if (_isSupplier) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isUpdating ? null : _editTracking,
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Изменить',
+                        style: TextStyle(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      foregroundColor: const Color(0xFF3B82F6),
+                      side: const BorderSide(color: Color(0xFFBFDBFE)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isUpdating ? null : _clearTracking,
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('Удалить',
+                        style: TextStyle(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(color: Color(0xFFFCA5A5)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
+    }
+
+    // Не отправлен
+    if (_isSupplier) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline,
+                    color: Color(0xFF94A3B8), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Когда передадите заказ в ТК — укажите трек-номер или ссылку для отслеживания. Клиент сможет следить за доставкой.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                        height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating ? null : _editTracking,
+              icon: const Icon(Icons.add_link),
+              label: const Text('Добавить трек-номер',
+                  style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F2937),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    // Клиент — ожидание отправки
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.hourglass_top_rounded,
+              size: 18, color: Color(0xFF94A3B8)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Поставщик готовит отправку. Когда заказ будет передан транспортной компании — здесь появится ссылка для отслеживания.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openTracking() async {
+    final url = _trackingUrl;
+    if (url == null) return;
+    // Дополняем http:// если нет схемы
+    final fixedUrl = url.startsWith(RegExp(r'https?://')) ? url : 'https://$url';
+    final uri = Uri.tryParse(fixedUrl);
+    if (uri == null) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось открыть ссылку'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _editTracking() async {
+    final result = await _showTrackingDialog(
+      initialCarrier: _trackingCarrier ?? '',
+      initialUrl: _trackingUrl ?? '',
+    );
+    if (result == null) return;
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.setOrderTracking(
+        orderId: _request.id,
+        trackingUrl: result.url,
+        carrier: result.carrier.isNotEmpty ? result.carrier : null,
+      );
+      // Также переводим статус в waitingForAcceptance если ещё не там
+      if (_request.status != RequestStatus.waitingForAcceptance) {
+        await SupabaseService.updatePartOrderStatus(
+            _request.id, 'waitingForAcceptance');
+      }
+      _details['tracking_url'] = result.url;
+      _details['tracking_carrier'] =
+          result.carrier.isNotEmpty ? result.carrier : null;
+      _details['shipped_at'] = DateTime.now().toIso8601String();
+      if (mounted) {
+        setState(() {
+          _request = _request.copyWith(
+              status: RequestStatus.waitingForAcceptance);
+        });
+        widget.onStatusChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _clearTracking() async {
+    final ok = await _confirmDialog(
+        'Удалить трек-номер? Клиент перестанет видеть ссылку отслеживания.');
+    if (ok != true) return;
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.clearOrderTracking(_request.id);
+      // Возвращаем статус
+      if (_request.status == RequestStatus.waitingForAcceptance) {
+        await SupabaseService.updatePartOrderStatus(_request.id, 'inProgress');
+      }
+      _details['tracking_url'] = null;
+      _details['tracking_carrier'] = null;
+      _details['shipped_at'] = null;
+      if (mounted) {
+        setState(() {
+          if (_request.status == RequestStatus.waitingForAcceptance) {
+            _request = _request.copyWith(status: RequestStatus.inProgress);
+          }
+        });
+        widget.onStatusChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<_TrackingInput?> _showTrackingDialog({
+    required String initialCarrier,
+    required String initialUrl,
+  }) async {
+    final carrierCtrl = TextEditingController(text: initialCarrier);
+    final urlCtrl = TextEditingController(text: initialUrl);
+    return showDialog<_TrackingInput>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Трек-номер отслеживания'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Транспортная компания',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: carrierCtrl,
+                decoration: InputDecoration(
+                  hintText: 'СДЭК, Деловые линии, Почта России...',
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Ссылка для отслеживания',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: urlCtrl,
+                maxLines: 2,
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(
+                  hintText: 'https://...',
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Можно указать полную ссылку с сайта ТК или сам трек-номер',
+                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final url = urlCtrl.text.trim();
+              if (url.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text('Укажите ссылку или трек-номер'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(
+                ctx,
+                _TrackingInput(
+                  carrier: carrierCtrl.text.trim(),
+                  url: url,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1F2937),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Сохранить'),
           ),
         ],
       ),
@@ -1326,22 +2025,16 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     final s = _request.status;
     final List<Widget> buttons = [];
 
-    // Действия поставщика
+    // Действия поставщика.
+    // Переход inProgress → waitingForAcceptance делается через блок «Отгрузка»
+    // (там одновременно вводится трек-номер для delivery или ставится отметка
+    // готовности для pickup), поэтому в общем actions-блоке он не дублируется.
     if (_isSupplier) {
       if (s == RequestStatus.pending) {
         buttons.add(_primaryButton(
           'Принять в работу',
           Icons.check_circle_outline,
           () => _updateStatus('inProgress'),
-        ));
-      } else if (s == RequestStatus.inProgress) {
-        // В сборке → готов / отправлен (зависит от типа)
-        buttons.add(_primaryButton(
-          _isPickup ? 'Готов к выдаче' : 'Отправить',
-          _isPickup
-              ? Icons.storefront_rounded
-              : Icons.local_shipping_rounded,
-          () => _updateStatus('waitingForAcceptance'),
         ));
       } else if (s == RequestStatus.waitingForAcceptance) {
         // Готов / отправлен → выполнен
@@ -1563,6 +2256,13 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
       },
     );
   }
+}
+
+/// Введённые поставщиком данные для трека: ТК и ссылка/номер.
+class _TrackingInput {
+  final String carrier;
+  final String url;
+  const _TrackingInput({required this.carrier, required this.url});
 }
 
 /// Состояние оплаты заказа — вычисляется из полей invoice_* и payment_*.
