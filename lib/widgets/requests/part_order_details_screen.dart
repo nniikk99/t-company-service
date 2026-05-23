@@ -1,6 +1,8 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/service_request.dart';
 import '../../models/user.dart' as AppUserModel;
 import '../../services/supabase_service.dart';
@@ -123,17 +125,31 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
           ),
           callback: (payload) {
             final newRow = payload.newRecord;
+            if (!mounted) return;
+
+            // 1. Обновляем статус если изменился
             final newStatus = newRow['status'] as String?;
-            if (newStatus == null) return;
-            final mapped = RequestStatus.values.firstWhere(
-              (e) => e.toString() == 'RequestStatus.$newStatus',
-              orElse: () => _request.status,
-            );
-            if (mounted && mapped != _request.status) {
-              setState(() {
-                _request = _request.copyWith(status: mapped);
-              });
+            if (newStatus != null) {
+              final mapped = RequestStatus.values.firstWhere(
+                (e) => e.toString() == 'RequestStatus.$newStatus',
+                orElse: () => _request.status,
+              );
+              if (mapped != _request.status) {
+                setState(() {
+                  _request = _request.copyWith(status: mapped);
+                });
+              }
             }
+
+            // 2. Синхронизируем поля счёта/оплаты в _details
+            //    (чтобы блок «Оплата» обновился у клиента сразу)
+            setState(() {
+              _details['invoice_pdf_url'] = newRow['invoice_pdf_url'];
+              _details['invoice_file_name'] = newRow['invoice_file_name'];
+              _details['invoice_uploaded_at'] = newRow['invoice_uploaded_at'];
+              _details['payment_due_days'] = newRow['payment_due_days'];
+              _details['payment_received_at'] = newRow['payment_received_at'];
+            });
           },
         )
         .subscribe();
@@ -142,8 +158,15 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
 
   // ── Геттеры ─────────────────────────────────────────────────────────────
 
-  Map<String, dynamic> get _details =>
-      _request.partsOrderDetails ?? const <String, dynamic>{};
+  /// Локальная мутабельная копия деталей заказа.
+  /// Инициализируется лениво из widget.request.partsOrderDetails и переписывается
+  /// при загрузке счёта / смене оплаты / приходе realtime-апдейта.
+  Map<String, dynamic>? _detailsCache;
+  Map<String, dynamic> get _details {
+    _detailsCache ??=
+        Map<String, dynamic>.from(_request.partsOrderDetails ?? const {});
+    return _detailsCache!;
+  }
 
   List<Map<String, dynamic>> get _items {
     final raw = _details['items'];
@@ -342,6 +365,8 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
             const SizedBox(height: 12),
             _notesBlock(),
           ],
+          const SizedBox(height: 12),
+          _paymentBlock(),
           const SizedBox(height: 16),
           _actionsBlock(),
         ],
@@ -689,6 +714,612 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     );
   }
 
+  // ── Оплата ────────────────────────────────────────────────────────────
+
+  String? get _invoiceUrl => _details['invoice_pdf_url'] as String?;
+  String? get _invoiceFileName => _details['invoice_file_name'] as String?;
+  DateTime? get _invoiceUploadedAt {
+    final raw = _details['invoice_uploaded_at'];
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
+  int? get _paymentDueDays => (_details['payment_due_days'] as num?)?.toInt();
+
+  DateTime? get _paymentReceivedAt {
+    final raw = _details['payment_received_at'];
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
+  DateTime? get _paymentDueDate {
+    final uploaded = _invoiceUploadedAt;
+    final days = _paymentDueDays;
+    if (uploaded == null || days == null) return null;
+    return uploaded.add(Duration(days: days));
+  }
+
+  /// Статус оплаты для отображения и логики
+  _PaymentState get _paymentState {
+    if (_invoiceUrl == null || _invoiceUrl!.isEmpty) {
+      return _PaymentState.notInvoiced;
+    }
+    if (_paymentReceivedAt != null) {
+      return _PaymentState.paid;
+    }
+    final due = _paymentDueDate;
+    if (due != null && DateTime.now().isAfter(due)) {
+      return _PaymentState.overdue;
+    }
+    return _PaymentState.awaitingPayment;
+  }
+
+  Widget _paymentBlock() {
+    final state = _paymentState;
+
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_outlined,
+                  size: 18, color: Color(0xFF94A3B8)),
+              const SizedBox(width: 8),
+              const Text(
+                'Оплата',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const Spacer(),
+              _paymentStatusBadge(state),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (state == _PaymentState.notInvoiced)
+            _paymentEmptyView()
+          else
+            _paymentInvoiceView(state),
+        ],
+      ),
+    );
+  }
+
+  Widget _paymentStatusBadge(_PaymentState s) {
+    final (label, color) = switch (s) {
+      _PaymentState.notInvoiced =>
+        ('Счёт не выставлен', const Color(0xFF94A3B8)),
+      _PaymentState.awaitingPayment =>
+        ('Ожидает оплаты', const Color(0xFFEA580C)),
+      _PaymentState.overdue => ('Просрочен', const Color(0xFFEF4444)),
+      _PaymentState.paid => ('Оплачен', const Color(0xFF16A34A)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(label,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _paymentEmptyView() {
+    if (_isSupplier) {
+      // Поставщик может выставить счёт
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: const Color(0xFFE2E8F0),
+                  style: BorderStyle.solid,
+                  width: 1),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.cloud_upload_outlined,
+                    size: 28, color: Color(0xFF3B82F6)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Сформируйте счёт в 1С и загрузите PDF — клиент сможет его открыть и оплатить.',
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey[600], height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isUpdating ? null : _uploadInvoice,
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Выставить счёт',
+                  style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F2937),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+    // Клиент: ждёт счёт
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.hourglass_top_rounded,
+              size: 18, color: Color(0xFF94A3B8)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Поставщик подготовит счёт. Появится здесь — вы получите уведомление.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paymentInvoiceView(_PaymentState state) {
+    final uploaded = _invoiceUploadedAt;
+    final due = _paymentDueDate;
+    final paid = _paymentReceivedAt;
+    final fileName = _invoiceFileName ?? 'Счёт.pdf';
+
+    final daysLeft = due != null
+        ? due.difference(DateTime.now()).inDays
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Карточка PDF
+        InkWell(
+          onTap: _openInvoice,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.picture_as_pdf_rounded,
+                      color: Color(0xFFDC2626), size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        fileName,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (uploaded != null)
+                        Text(
+                          'Выставлен ${DateFormat('dd.MM.yyyy').format(uploaded)}',
+                          style: const TextStyle(
+                              fontSize: 11, color: Color(0xFF94A3B8)),
+                        ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.open_in_new_rounded,
+                    size: 18, color: Color(0xFF2563EB)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Срок оплаты / дата оплаты
+        if (state == _PaymentState.paid && paid != null)
+          _infoRow(
+            Icons.check_circle_rounded,
+            'Оплачен',
+            DateFormat('dd.MM.yyyy в HH:mm').format(paid),
+            color: const Color(0xFF16A34A),
+          )
+        else if (due != null) ...[
+          _infoRow(
+            Icons.calendar_today_rounded,
+            'Срок оплаты',
+            '${DateFormat('dd.MM.yyyy').format(due)} '
+                '(${_paymentDueDays ?? 0} ${_daysWord(_paymentDueDays ?? 0)})',
+          ),
+          const SizedBox(height: 4),
+          _infoRow(
+            state == _PaymentState.overdue
+                ? Icons.error_outline_rounded
+                : Icons.access_time_rounded,
+            'Осталось',
+            state == _PaymentState.overdue
+                ? 'Просрочен на ${-(daysLeft ?? 0)} '
+                    '${_daysWord(-(daysLeft ?? 0))}'
+                : daysLeft != null && daysLeft >= 0
+                    ? '$daysLeft ${_daysWord(daysLeft)}'
+                    : '—',
+            color: state == _PaymentState.overdue
+                ? const Color(0xFFEF4444)
+                : null,
+          ),
+        ] else
+          _infoRow(
+            Icons.info_outline_rounded,
+            'Срок оплаты',
+            'не задан',
+            color: const Color(0xFF94A3B8),
+          ),
+
+        // Действия поставщика по оплате
+        if (_isSupplier) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isUpdating ? null : _selectPaymentDueDays,
+                  icon: const Icon(Icons.schedule, size: 18),
+                  label: Text(
+                    _paymentDueDays == null
+                        ? 'Указать отсрочку'
+                        : 'Изменить срок',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    foregroundColor: const Color(0xFF3B82F6),
+                    side: const BorderSide(color: Color(0xFFBFDBFE)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: state == _PaymentState.paid
+                    ? OutlinedButton.icon(
+                        onPressed:
+                            _isUpdating ? null : () => _setPaymentPaid(false),
+                        icon: const Icon(Icons.undo, size: 18),
+                        label: const Text('Отменить оплату',
+                            style: TextStyle(fontSize: 13)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          foregroundColor: const Color(0xFFEF4444),
+                          side: const BorderSide(color: Color(0xFFFCA5A5)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed:
+                            _isUpdating ? null : () => _setPaymentPaid(true),
+                        icon: const Icon(Icons.check_rounded, size: 18),
+                        label: const Text('Оплачен',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: TextButton.icon(
+              onPressed: _isUpdating ? null : _confirmRemoveInvoice,
+              icon: const Icon(Icons.delete_outline, size: 16),
+              label: const Text('Заменить / удалить файл',
+                  style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF94A3B8),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value, {Color? color}) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color ?? const Color(0xFF94A3B8)),
+        const SizedBox(width: 8),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color ?? const Color(0xFF1E293B),
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _daysWord(int n) {
+    final v = n.abs();
+    if (v % 10 == 1 && v % 100 != 11) return 'день';
+    if (v % 10 >= 2 && v % 10 <= 4 && (v % 100 < 10 || v % 100 >= 20)) {
+      return 'дня';
+    }
+    return 'дней';
+  }
+
+  Future<void> _openInvoice() async {
+    final url = _invoiceUrl;
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось открыть PDF'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uploadInvoice() async {
+    try {
+      final res = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf'],
+        withData: true,
+      );
+      if (res == null || res.files.isEmpty) return;
+      final f = res.files.first;
+      final bytes = f.bytes;
+      if (bytes == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Не удалось прочитать файл'),
+                backgroundColor: Colors.red),
+          );
+        }
+        return;
+      }
+
+      setState(() => _isUpdating = true);
+      final publicUrl = await SupabaseService.uploadOrderInvoice(
+        orderId: _request.id,
+        bytes: bytes,
+        fileName: f.name,
+      );
+
+      // Обновляем локально, чтобы UI отрисовал без перезагрузки
+      _details['invoice_pdf_url'] = publicUrl;
+      _details['invoice_file_name'] = f.name;
+      _details['invoice_uploaded_at'] = DateTime.now().toIso8601String();
+
+      // Если отсрочка ещё не задана — спрашиваем сразу
+      if (_paymentDueDays == null) {
+        await _selectPaymentDueDays();
+      }
+
+      if (mounted) {
+        setState(() {});
+        widget.onStatusChanged?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Счёт загружен'),
+            backgroundColor: Color(0xFF16A34A),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Ошибка загрузки: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _confirmRemoveInvoice() async {
+    final ok = await _confirmDialog(
+        'Удалить выставленный счёт? Его нужно будет загрузить заново.');
+    if (ok != true) return;
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.removeOrderInvoice(_request.id);
+      _details['invoice_pdf_url'] = null;
+      _details['invoice_file_name'] = null;
+      _details['invoice_uploaded_at'] = null;
+      if (mounted) {
+        setState(() {});
+        widget.onStatusChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _selectPaymentDueDays() async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 4),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Отсрочка платежа',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Сколько дней с момента выставления счёта даётся на оплату',
+                    style:
+                        TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                ),
+              ),
+              for (final d in const [3, 5, 7, 10, 14, 30, 60])
+                ListTile(
+                  title: Text('$d ${_daysWord(d)}'),
+                  trailing: _paymentDueDays == d
+                      ? const Icon(Icons.check_rounded,
+                          color: Color(0xFF3B82F6))
+                      : null,
+                  onTap: () => Navigator.pop(ctx, d),
+                ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, -1),
+                child: const Text('Без срока',
+                    style: TextStyle(color: Color(0xFF94A3B8))),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked == null) return;
+    final days = picked == -1 ? null : picked;
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.setOrderPaymentDueDays(_request.id, days);
+      _details['payment_due_days'] = days;
+      if (mounted) {
+        setState(() {});
+        widget.onStatusChanged?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
+  Future<void> _setPaymentPaid(bool paid) async {
+    if (!paid) {
+      final ok = await _confirmDialog(
+          'Снять отметку об оплате? Заказ снова станет «ожидает оплаты».');
+      if (ok != true) return;
+    }
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.markOrderPaymentReceived(_request.id, paid);
+      _details['payment_received_at'] =
+          paid ? DateTime.now().toIso8601String() : null;
+      if (mounted) {
+        setState(() {});
+        widget.onStatusChanged?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(paid
+                ? 'Отмечено: оплата получена'
+                : 'Отметка об оплате снята'),
+            backgroundColor: paid
+                ? const Color(0xFF16A34A)
+                : const Color(0xFF94A3B8),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
+  }
+
   // ── Действия ──────────────────────────────────────────────────────────
 
   Widget _actionsBlock() {
@@ -933,3 +1564,19 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     );
   }
 }
+
+/// Состояние оплаты заказа — вычисляется из полей invoice_* и payment_*.
+enum _PaymentState {
+  /// Поставщик ещё не выставил счёт.
+  notInvoiced,
+
+  /// Счёт выставлен, оплата не получена, срок не вышел (или не задан).
+  awaitingPayment,
+
+  /// Счёт выставлен, срок оплаты прошёл, оплата не получена.
+  overdue,
+
+  /// Оплата подтверждена поставщиком.
+  paid,
+}
+

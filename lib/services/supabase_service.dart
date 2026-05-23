@@ -1580,6 +1580,12 @@ class SupabaseService {
         'contact_phone': order['contact_phone'],
         'notes': order['notes'],
         'items': items,
+        // Оплата
+        'invoice_pdf_url': order['invoice_pdf_url'],
+        'invoice_file_name': order['invoice_file_name'],
+        'invoice_uploaded_at': order['invoice_uploaded_at'],
+        'payment_due_days': order['payment_due_days'],
+        'payment_received_at': order['payment_received_at'],
       },
       'created_at': order['created_at'],
       'completed_at': null,
@@ -3461,6 +3467,99 @@ class SupabaseService {
         .order('created_at', ascending: false);
     return response as List;
   }
+
+  // ─── СЧЁТ НА ОПЛАТУ ──────────────────────────────────────────────────────
+
+  static const String _invoiceBucket = 'order-invoices';
+
+  /// Загружает PDF счёта в Supabase Storage и обновляет соответствующие колонки
+  /// в part_orders. Возвращает публичный URL загруженного файла.
+  static Future<String> uploadOrderInvoice({
+    required String orderId,
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    // Путь в бакете: orders/<orderId>/<timestamp>_<fileName>
+    final safeName = fileName.replaceAll(RegExp(r'[^\w\-. ]'), '_');
+    final path =
+        'orders/$orderId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+
+    await _client.storage.from(_invoiceBucket).uploadBinary(
+          path,
+          bytes,
+          fileOptions: const FileOptions(
+            contentType: 'application/pdf',
+            upsert: true,
+          ),
+        );
+
+    final publicUrl =
+        _client.storage.from(_invoiceBucket).getPublicUrl(path);
+
+    await _client.from('part_orders').update({
+      'invoice_pdf_url': publicUrl,
+      'invoice_file_name': fileName,
+      'invoice_uploaded_at': DateTime.now().toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+
+    return publicUrl;
+  }
+
+  /// Удаляет счёт из Storage и обнуляет соответствующие поля.
+  /// Полезно если поставщик прикрепил не тот файл.
+  static Future<void> removeOrderInvoice(String orderId) async {
+    // Получаем текущий путь чтобы удалить файл из Storage
+    final row = await _client
+        .from('part_orders')
+        .select('invoice_pdf_url')
+        .eq('id', orderId)
+        .maybeSingle();
+    final url = row?['invoice_pdf_url'] as String?;
+    if (url != null && url.isNotEmpty) {
+      // Из URL вида .../object/public/order-invoices/orders/<id>/<file> вытаскиваем путь
+      final marker = '/$_invoiceBucket/';
+      final idx = url.indexOf(marker);
+      if (idx >= 0) {
+        final path = url.substring(idx + marker.length);
+        try {
+          await _client.storage.from(_invoiceBucket).remove([path]);
+        } catch (_) {
+          // если файла уже нет — игнорируем
+        }
+      }
+    }
+
+    await _client.from('part_orders').update({
+      'invoice_pdf_url': null,
+      'invoice_file_name': null,
+      'invoice_uploaded_at': null,
+      // оставляем payment_due_days и payment_received_at — поставщик может
+      // переприкрепить файл к тому же заказу, отсрочка остаётся
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+  }
+
+  /// Устанавливает отсрочку платежа (в днях). null = убрать срок.
+  static Future<void> setOrderPaymentDueDays(
+      String orderId, int? days) async {
+    await _client.from('part_orders').update({
+      'payment_due_days': days,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+  }
+
+  /// Отмечает оплату полученной (или снимает отметку если paid=false).
+  static Future<void> markOrderPaymentReceived(
+      String orderId, bool paid) async {
+    await _client.from('part_orders').update({
+      'payment_received_at':
+          paid ? DateTime.now().toIso8601String() : null,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   static Future<void> updatePartOrderStatus(String orderId, String status) async {
     await _client
