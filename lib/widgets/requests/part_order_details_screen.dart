@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../models/service_request.dart';
 import '../../models/user.dart' as AppUserModel;
 import '../../services/supabase_service.dart';
@@ -7,6 +8,13 @@ import 'chat_screen.dart';
 
 /// Экран детализации заказа запчастей.
 /// Открывается из общего списка заявок при type=partsOrder.
+///
+/// Особенности:
+/// - подгружает реальные фото товаров из equipment_parts / spare_parts;
+/// - кнопки действий зависят от роли пользователя и текущего статуса
+///   (клиент может отменить свой pending-заказ, поставщик ведёт через этапы);
+/// - подписан на realtime-изменения part_orders — статус обновляется мгновенно;
+/// - чат-обсуждение открывается во всю шторку.
 class PartOrderDetailsScreen extends StatefulWidget {
   final ServiceRequest request;
   final AppUserModel.User currentUser;
@@ -27,11 +35,112 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
   late ServiceRequest _request;
   bool _isUpdating = false;
 
+  // Кеш фото товаров: ключ — equipment_part_id или part_id
+  final Map<String, String> _imageCache = {};
+  bool _imagesLoading = true;
+
+  RealtimeChannel? _subscription;
+
   @override
   void initState() {
     super.initState();
     _request = widget.request;
+    _loadItemImages();
+    _setupRealtime();
   }
+
+  @override
+  void dispose() {
+    _subscription?.unsubscribe();
+    super.dispose();
+  }
+
+  // ── Загрузка фото товаров ───────────────────────────────────────────────
+
+  Future<void> _loadItemImages() async {
+    final equipIds = <String>{};
+    final partIds = <String>{};
+    for (final item in _items) {
+      final eId = item['equipment_part_id'] as String?;
+      final pId = item['part_id'] as String?;
+      if (eId != null && eId.isNotEmpty) equipIds.add(eId);
+      if (pId != null && pId.isNotEmpty) partIds.add(pId);
+    }
+
+    try {
+      if (equipIds.isNotEmpty) {
+        final rows = await Supabase.instance.client
+            .from('equipment_parts')
+            .select('id, image_url')
+            .inFilter('id', equipIds.toList());
+        for (final r in (rows as List)) {
+          final m = r as Map<String, dynamic>;
+          final url = (m['image_url'] as String?) ?? '';
+          if (url.isNotEmpty) _imageCache[m['id'] as String] = url;
+        }
+      }
+      if (partIds.isNotEmpty) {
+        final rows = await Supabase.instance.client
+            .from('spare_parts')
+            .select('id, images')
+            .inFilter('id', partIds.toList());
+        for (final r in (rows as List)) {
+          final m = r as Map<String, dynamic>;
+          final imgs = m['images'];
+          if (imgs is List && imgs.isNotEmpty) {
+            _imageCache[m['id'] as String] = imgs.first.toString();
+          }
+        }
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('Не удалось загрузить фото товаров: $e');
+    }
+    if (mounted) setState(() => _imagesLoading = false);
+  }
+
+  String? _imageFor(Map<String, dynamic> item) {
+    final eId = item['equipment_part_id'] as String?;
+    final pId = item['part_id'] as String?;
+    if (eId != null && _imageCache[eId] != null) return _imageCache[eId];
+    if (pId != null && _imageCache[pId] != null) return _imageCache[pId];
+    return null;
+  }
+
+  // ── Realtime подписка на статус ──────────────────────────────────────────
+
+  void _setupRealtime() {
+    final ch = Supabase.instance.client
+        .channel('part_order_${_request.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'part_orders',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: _request.id,
+          ),
+          callback: (payload) {
+            final newRow = payload.newRecord;
+            final newStatus = newRow['status'] as String?;
+            if (newStatus == null) return;
+            final mapped = RequestStatus.values.firstWhere(
+              (e) => e.toString() == 'RequestStatus.$newStatus',
+              orElse: () => _request.status,
+            );
+            if (mounted && mapped != _request.status) {
+              setState(() {
+                _request = _request.copyWith(status: mapped);
+              });
+            }
+          },
+        )
+        .subscribe();
+    _subscription = ch;
+  }
+
+  // ── Геттеры ─────────────────────────────────────────────────────────────
 
   Map<String, dynamic> get _details =>
       _request.partsOrderDetails ?? const <String, dynamic>{};
@@ -53,9 +162,13 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
       widget.currentUser.role == AppUserModel.UserRole.supplier ||
       widget.currentUser.role == AppUserModel.UserRole.administrator;
 
-  // ────────────────────────────────────────────────────────────────────────
-  // Статусы и цвета
-  // ────────────────────────────────────────────────────────────────────────
+  bool get _isClient =>
+      widget.currentUser.id == _request.userId ||
+      widget.currentUser.id == _request.clientId;
+
+  bool get _isPickup => _deliveryType == 'pickup';
+
+  // ── Статусы ────────────────────────────────────────────────────────────
 
   Color _statusColor(RequestStatus s) {
     switch (s) {
@@ -64,8 +177,9 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
         return const Color(0xFF3B82F6);
       case RequestStatus.approved:
       case RequestStatus.inProgress:
-      case RequestStatus.waitingForAcceptance:
         return const Color(0xFFEA580C);
+      case RequestStatus.waitingForAcceptance:
+        return const Color(0xFF8B5CF6);
       case RequestStatus.waitingForInvoice:
       case RequestStatus.waitingForPayment:
         return const Color(0xFF8B5CF6);
@@ -77,6 +191,7 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     }
   }
 
+  /// Подпись статуса. Учитываем тип доставки для waitingForAcceptance.
   String _statusLabel(RequestStatus s) {
     switch (s) {
       case RequestStatus.pending:
@@ -86,9 +201,9 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
       case RequestStatus.inProgress:
         return 'В сборке';
       case RequestStatus.waitingForAcceptance:
-        return 'Готов к выдаче';
+        return _isPickup ? 'Готов к выдаче' : 'Отправлен';
       case RequestStatus.completed:
-        return 'Выполнен';
+        return _isPickup ? 'Выдан' : 'Доставлен';
       case RequestStatus.cancelled:
         return 'Отменён';
       case RequestStatus.rejected:
@@ -98,12 +213,36 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     }
   }
 
-  Future<void> _updateStatus(String newDbStatus) async {
+  IconData _statusIcon(RequestStatus s) {
+    switch (s) {
+      case RequestStatus.pending:
+        return Icons.hourglass_top_rounded;
+      case RequestStatus.approved:
+      case RequestStatus.inProgress:
+        return Icons.inventory_2_outlined;
+      case RequestStatus.waitingForAcceptance:
+        return _isPickup
+            ? Icons.storefront_rounded
+            : Icons.local_shipping_rounded;
+      case RequestStatus.completed:
+        return Icons.done_all_rounded;
+      case RequestStatus.cancelled:
+      case RequestStatus.rejected:
+        return Icons.cancel_outlined;
+      default:
+        return Icons.receipt_long_rounded;
+    }
+  }
+
+  Future<void> _updateStatus(String newDbStatus, {String? confirmText}) async {
+    if (confirmText != null) {
+      final ok = await _confirmDialog(confirmText);
+      if (ok != true) return;
+    }
     setState(() => _isUpdating = true);
     try {
       await SupabaseService.updatePartOrderStatus(_request.id, newDbStatus);
       if (!mounted) return;
-      // Перезагружаем актуальный статус — простое обновление локально
       setState(() {
         _request = _request.copyWith(
           status: RequestStatus.values.firstWhere(
@@ -129,7 +268,32 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     }
   }
 
-  // ────────────────────────────────────────────────────────────────────────
+  Future<bool?> _confirmDialog(String text) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Подтвердите действие'),
+        content: Text(text),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Нет'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1F2937),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Да'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -178,16 +342,14 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
             const SizedBox(height: 12),
             _notesBlock(),
           ],
-          if (_isSupplier) ...[
-            const SizedBox(height: 16),
-            _actionsBlock(),
-          ],
+          const SizedBox(height: 16),
+          _actionsBlock(),
         ],
       ),
     );
   }
 
-  // ─── Блоки UI ──────────────────────────────────────────────────────────
+  // ── Блоки UI ───────────────────────────────────────────────────────────
 
   Widget _card({required Widget child, EdgeInsets? padding}) {
     return Container(
@@ -244,26 +406,6 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     );
   }
 
-  IconData _statusIcon(RequestStatus s) {
-    switch (s) {
-      case RequestStatus.pending:
-        return Icons.hourglass_top_rounded;
-      case RequestStatus.approved:
-        return Icons.check_circle_outline_rounded;
-      case RequestStatus.inProgress:
-        return Icons.inventory_2_outlined;
-      case RequestStatus.waitingForAcceptance:
-        return Icons.storefront_outlined;
-      case RequestStatus.completed:
-        return Icons.done_all_rounded;
-      case RequestStatus.cancelled:
-      case RequestStatus.rejected:
-        return Icons.cancel_outlined;
-      default:
-        return Icons.receipt_long_rounded;
-    }
-  }
-
   Widget _summaryBlock() {
     final qtyTotal = _items.fold<int>(
       0,
@@ -294,7 +436,9 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: _total > 0 ? const Color(0xFF1E293B) : const Color(0xFFEA580C),
+                  color: _total > 0
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFEA580C),
                 ),
               ),
               const SizedBox(width: 12),
@@ -347,20 +491,38 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     final qty = (item['quantity'] as num?)?.toInt() ?? 1;
     final price = (item['price_at_order'] as num?)?.toDouble() ?? 0;
     final sum = price * qty;
+    final imageUrl = _imageFor(item);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Иконка/плейсхолдер фото
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
+        // Фото или плейсхолдер
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            width: 56,
+            height: 56,
             color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(10),
+            child: _imagesLoading
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : (imageUrl != null && imageUrl.isNotEmpty)
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                            Icons.build_outlined,
+                            size: 22,
+                            color: Color(0xFFCBD5E1)),
+                      )
+                    : const Icon(Icons.build_outlined,
+                        size: 22, color: Color(0xFFCBD5E1)),
           ),
-          child: const Icon(Icons.build_outlined,
-              size: 22, color: Color(0xFFCBD5E1)),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -415,7 +577,6 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
   }
 
   Widget _deliveryBlock() {
-    final isPickup = _deliveryType == 'pickup';
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,7 +591,9 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  isPickup ? Icons.store_outlined : Icons.local_shipping_outlined,
+                  _isPickup
+                      ? Icons.store_outlined
+                      : Icons.local_shipping_outlined,
                   color: const Color(0xFF2563EB),
                   size: 20,
                 ),
@@ -441,7 +604,7 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isPickup ? 'Самовывоз' : 'Доставка',
+                      _isPickup ? 'Самовывоз' : 'Доставка',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -466,7 +629,8 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
           const SizedBox(height: 12),
           _contactRow(Icons.person_outline_rounded, 'Получатель', _contactName),
           const SizedBox(height: 8),
-          _contactRow(Icons.phone_outlined, 'Телефон', _contactPhone, isPhone: true),
+          _contactRow(Icons.phone_outlined, 'Телефон', _contactPhone,
+              isPhone: true),
         ],
       ),
     );
@@ -525,35 +689,75 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     );
   }
 
+  // ── Действия ──────────────────────────────────────────────────────────
+
   Widget _actionsBlock() {
     final s = _request.status;
     final List<Widget> buttons = [];
 
-    if (s == RequestStatus.pending) {
-      buttons.add(_primaryButton(
-        'Принять в работу',
-        Icons.check_circle_outline,
-        () => _updateStatus('inProgress'),
-      ));
-    } else if (s == RequestStatus.inProgress) {
-      buttons.add(_primaryButton(
-        'Заказ выполнен',
-        Icons.done_all_rounded,
-        () => _updateStatus('completed'),
-      ));
+    // Действия поставщика
+    if (_isSupplier) {
+      if (s == RequestStatus.pending) {
+        buttons.add(_primaryButton(
+          'Принять в работу',
+          Icons.check_circle_outline,
+          () => _updateStatus('inProgress'),
+        ));
+      } else if (s == RequestStatus.inProgress) {
+        // В сборке → готов / отправлен (зависит от типа)
+        buttons.add(_primaryButton(
+          _isPickup ? 'Готов к выдаче' : 'Отправить',
+          _isPickup
+              ? Icons.storefront_rounded
+              : Icons.local_shipping_rounded,
+          () => _updateStatus('waitingForAcceptance'),
+        ));
+      } else if (s == RequestStatus.waitingForAcceptance) {
+        // Готов / отправлен → выполнен
+        buttons.add(_primaryButton(
+          _isPickup ? 'Отметить как выданный' : 'Отметить как доставленный',
+          Icons.done_all_rounded,
+          () => _updateStatus('completed'),
+        ));
+      }
+
+      if (s != RequestStatus.completed &&
+          s != RequestStatus.cancelled &&
+          s != RequestStatus.rejected) {
+        buttons.add(_secondaryButton(
+          'Отменить заказ',
+          Icons.cancel_outlined,
+          () => _updateStatus('cancelled',
+              confirmText: 'Отменить этот заказ? Действие нельзя отменить.'),
+        ));
+      }
     }
 
-    if (s != RequestStatus.completed &&
-        s != RequestStatus.cancelled &&
-        s != RequestStatus.rejected) {
-      buttons.add(_secondaryButton(
-        'Отменить заказ',
-        Icons.cancel_outlined,
-        () => _updateStatus('cancelled'),
-      ));
+    // Действия клиента — можно отменить только пока pending
+    if (_isClient && !_isSupplier) {
+      if (s == RequestStatus.pending) {
+        buttons.add(_secondaryButton(
+          'Отменить заказ',
+          Icons.cancel_outlined,
+          () => _updateStatus('cancelled',
+              confirmText:
+                  'Вы уверены, что хотите отменить заказ? Восстановить его будет нельзя.'),
+        ));
+      }
+      // Подтверждение получения для клиента, когда поставщик отметил готовность
+      if (s == RequestStatus.waitingForAcceptance) {
+        buttons.add(_primaryButton(
+          _isPickup ? 'Я забрал заказ' : 'Я получил заказ',
+          Icons.done_all_rounded,
+          () => _updateStatus('completed'),
+        ));
+      }
     }
 
-    if (buttons.isEmpty) return const SizedBox.shrink();
+    if (buttons.isEmpty) {
+      // Если действий нет — показываем подсказку статуса
+      return _statusHintBlock();
+    }
 
     return Column(
       children: [
@@ -562,6 +766,56 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
           if (b != buttons.last) const SizedBox(height: 8),
         ]
       ],
+    );
+  }
+
+  Widget _statusHintBlock() {
+    String hint;
+    switch (_request.status) {
+      case RequestStatus.completed:
+        hint = 'Заказ закрыт. Спасибо!';
+        break;
+      case RequestStatus.cancelled:
+        hint = 'Заказ был отменён.';
+        break;
+      case RequestStatus.rejected:
+        hint = 'Заказ был отклонён поставщиком.';
+        break;
+      case RequestStatus.waitingForAcceptance:
+        hint = _isPickup
+            ? 'Заказ ожидает вас на складе поставщика.'
+            : 'Заказ отправлен и едет к вам.';
+        break;
+      case RequestStatus.inProgress:
+        hint = 'Поставщик собирает ваш заказ.';
+        break;
+      case RequestStatus.pending:
+        hint = 'Заказ передан поставщику, ожидайте подтверждения.';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline,
+              color: Color(0xFF2563EB), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              hint,
+              style: const TextStyle(
+                  fontSize: 13, color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -606,7 +860,7 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     );
   }
 
-  // ─── Чат ───────────────────────────────────────────────────────────────
+  // ── Чат ───────────────────────────────────────────────────────────────
 
   void _openChat() {
     showModalBottomSheet(
@@ -647,7 +901,8 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.forum_outlined, size: 20, color: Color(0xFF64748B)),
+                  const Icon(Icons.forum_outlined,
+                      size: 20, color: Color(0xFF64748B)),
                   const SizedBox(width: 8),
                   const Text(
                     'Обсуждение заказа',

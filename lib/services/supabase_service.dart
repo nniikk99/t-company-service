@@ -1622,6 +1622,44 @@ class SupabaseService {
     }
   }
 
+  /// Получить последний созданный part_order клиента в виде ServiceRequest.
+  /// Используется для перехода в детали заказа сразу после оформления.
+  static Future<ServiceRequest?> getLatestPartOrderAsServiceRequest(
+      String clientUserId) async {
+    try {
+      final rows = await _client
+          .from('part_orders')
+          .select(_partOrdersSelect)
+          .eq('client_id', clientUserId)
+          .order('created_at', ascending: false)
+          .limit(1);
+      final list = rows as List;
+      if (list.isEmpty) return null;
+      final json = _partOrderRowToRequestJson(list.first as Map<String, dynamic>);
+      return ServiceRequest.fromJson(json);
+    } catch (e) {
+      print('❌ Ошибка получения последнего part_order: $e');
+      return null;
+    }
+  }
+
+  /// Получить конкретный part_order по id в виде ServiceRequest.
+  static Future<ServiceRequest?> getPartOrderAsServiceRequest(
+      String orderId) async {
+    try {
+      final row = await _client
+          .from('part_orders')
+          .select(_partOrdersSelect)
+          .eq('id', orderId)
+          .maybeSingle();
+      if (row == null) return null;
+      return ServiceRequest.fromJson(_partOrderRowToRequestJson(row));
+    } catch (e) {
+      print('❌ Ошибка получения part_order $orderId: $e');
+      return null;
+    }
+  }
+
   /// То же, но по клиенту (user_profiles.id заказчика).
   static Future<List<Map<String, dynamic>>> _getPartOrdersAsRequestJsonByClient(
       String clientUserId) async {

@@ -3,7 +3,7 @@ import '../models/user.dart';
 import '../services/supabase_service.dart';
 import '../widgets/market/catalogs_tab.dart';
 import '../widgets/market/delivery_checkout_sheet.dart';
-import 'client_spare_parts_screen.dart';
+import '../widgets/requests/part_order_details_screen.dart';
 
 class MarketScreen extends StatefulWidget {
   final User user;
@@ -65,7 +65,10 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
                     user: widget.user,
                     onCartUpdated: () => setState(() {}),
                   ),
-                  _CartTab(user: widget.user),
+                  _CartTab(
+                    user: widget.user,
+                    onGoToCatalog: () => _tabController.animateTo(0),
+                  ),
                   _FavoritesTab(user: widget.user),
                   _SearchTab(user: widget.user),
                 ],
@@ -84,7 +87,8 @@ class _MarketScreenState extends State<MarketScreen> with SingleTickerProviderSt
 
 class _CartTab extends StatefulWidget {
   final User user;
-  const _CartTab({required this.user});
+  final VoidCallback? onGoToCatalog;
+  const _CartTab({required this.user, this.onGoToCatalog});
 
   @override
   State<_CartTab> createState() => _CartTabState();
@@ -93,6 +97,9 @@ class _CartTab extends StatefulWidget {
 class _CartTabState extends State<_CartTab> {
   bool _isLoading = true;
   List<dynamic> _cartItems = [];
+
+  /// Имена поставщиков по suppliers.id (для группировки корзины)
+  final Map<String, String> _supplierNames = {};
 
   @override
   void initState() {
@@ -104,7 +111,8 @@ class _CartTabState extends State<_CartTab> {
     setState(() => _isLoading = true);
     try {
       final items = await SupabaseService.getCartItems(widget.user.id);
-      setState(() => _cartItems = items);
+      _cartItems = items;
+      await _loadSupplierNames();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,6 +122,37 @@ class _CartTabState extends State<_CartTab> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Подгружает названия компаний поставщиков из таблицы suppliers.
+  Future<void> _loadSupplierNames() async {
+    final ids = <String>{};
+    for (final item in _cartItems) {
+      final id = item['supplier_id_hint'] as String?;
+      if (id != null && id.isNotEmpty) ids.add(id);
+    }
+    if (ids.isEmpty) return;
+    for (final id in ids) {
+      if (_supplierNames.containsKey(id)) continue;
+      try {
+        final row = await SupabaseService.getSupplierById(id);
+        _supplierNames[id] = (row?['company_name'] as String?)?.trim().isNotEmpty == true
+            ? row!['company_name'] as String
+            : 'Поставщик';
+      } catch (_) {
+        _supplierNames[id] = 'Поставщик';
+      }
+    }
+  }
+
+  /// Группировка позиций корзины по supplier_id_hint.
+  Map<String, List<dynamic>> get _groupedCart {
+    final map = <String, List<dynamic>>{};
+    for (final item in _cartItems) {
+      final key = (item['supplier_id_hint'] as String?) ?? 'unknown';
+      map.putIfAbsent(key, () => []).add(item);
+    }
+    return map;
   }
 
   Future<void> _updateQuantity(String cartItemId, int newQty) async {
@@ -226,49 +265,7 @@ class _CartTabState extends State<_CartTab> {
       await _loadCart();
 
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check_circle, color: Colors.green, size: 40),
-                ),
-                const SizedBox(height: 16),
-                const Text('Заказ оформлен!',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text(
-                  'Ваш заказ передан поставщику. Вы можете отследить его статус в разделе "Заявки".',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
-            ),
-            actions: [
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Отлично!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        );
+        _showSuccessDialog();
       }
     } catch (e) {
       if (mounted) {
@@ -278,6 +275,114 @@ class _CartTabState extends State<_CartTab> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Модалка успешного оформления с кнопками
+  /// «Открыть заказ» (push на PartOrderDetailsScreen) и «Закрыть».
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: Color(0xFF16A34A), size: 44),
+            ),
+            const SizedBox(height: 18),
+            const Text('Заказ оформлен!',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(
+              'Поставщик получил ваш заказ и скоро его подтвердит. Отслеживайте статус в разделе «Заявки».',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.grey[600], fontSize: 14, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(dialogCtx);
+                    await _openLatestOrder();
+                  },
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: const Text('Открыть заказ',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1F2937),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    foregroundColor: const Color(0xFF64748B),
+                  ),
+                  child: const Text('Продолжить покупки',
+                      style: TextStyle(fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Открыть только что созданный заказ в детальном экране.
+  Future<void> _openLatestOrder() async {
+    final order = await SupabaseService.getLatestPartOrderAsServiceRequest(
+      widget.user.id,
+    );
+    if (!mounted) return;
+    if (order == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не удалось открыть заказ. Зайдите в раздел «Заявки».'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    // Конвертируем User → AppUserModel-совместимого пользователя.
+    // PartOrderDetailsScreen ожидает AppUserModel.User, а у нас тот же тип
+    // (импортируется как User здесь). Подходит.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PartOrderDetailsScreen(
+          request: order,
+          currentUser: widget.user,
+          onStatusChanged: () {},
+        ),
+      ),
+    );
   }
 
   void _showPartDetail(
@@ -378,29 +483,143 @@ class _CartTabState extends State<_CartTab> {
 
     if (_cartItems.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.shopping_cart_outlined, size: 72, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text('Корзина пуста',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[600])),
-            const SizedBox(height: 8),
-            Text('Найдите запчасти во вкладке «Поиск»',
-                style: TextStyle(color: Colors.grey[400])),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(48),
+                ),
+                child: const Icon(Icons.shopping_cart_outlined,
+                    size: 44, color: Color(0xFF3B82F6)),
+              ),
+              const SizedBox(height: 20),
+              Text('Корзина пуста',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700])),
+              const SizedBox(height: 8),
+              Text(
+                'Найдите запчасти в каталоге — выберите\nмодель техники и нужные позиции',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[500], fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              if (widget.onGoToCatalog != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: widget.onGoToCatalog,
+                    icon: const Icon(Icons.menu_book_outlined),
+                    label: const Text('Перейти в каталог',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       );
     }
 
+    // Сборка списка с заголовками-поставщиками
+    final grouped = _groupedCart;
+    final List<Widget> listChildren = [];
+    grouped.forEach((supplierId, items) {
+      final supplierName = _supplierNames[supplierId] ?? 'Поставщик';
+      // Подсчёт суммы группы
+      final groupTotal = items.fold<double>(0, (s, i) {
+        final p = i['spare_parts'] as Map<String, dynamic>? ?? {};
+        return s + ((p['price'] as num?)?.toDouble() ?? 0) * (i['quantity'] as int);
+      });
+
+      // Заголовок группы
+      listChildren.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.storefront_rounded,
+                    color: Color(0xFF2563EB), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      supplierName,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B)),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${items.length} ${_partsWord(items.length)}'
+                      '${groupTotal > 0 ? ' · ${groupTotal.toStringAsFixed(0)} ₽' : ''}',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF94A3B8)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Карточки товаров группы
+      for (final item in items) {
+        listChildren.add(_buildCartItemCard(item));
+      }
+      listChildren.add(const SizedBox(height: 8));
+    });
+
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
+          child: ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: _cartItems.length,
-            itemBuilder: (context, index) {
-              final item = _cartItems[index];
+            children: listChildren,
+          ),
+        ),
+        // Итого + Оформить (вынесено в отдельный метод чтобы build был чище)
+        _buildCheckoutBar(),
+      ],
+    );
+  }
+
+  String _partsWord(int n) {
+    if (n % 10 == 1 && n % 100 != 11) return 'позиция';
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) {
+      return 'позиции';
+    }
+    return 'позиций';
+  }
+
+  Widget _buildCartItemCard(dynamic item) {
               final part = item['spare_parts'] as Map<String, dynamic>? ?? {};
               final qty = item['quantity'] as int;
               final price = (part['price'] as num?)?.toDouble() ?? 0.0;
@@ -524,56 +743,61 @@ class _CartTabState extends State<_CartTab> {
                   ),
                 ),
               );
-            },
-          ),
-        ),
-        // Итого + Оформить
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, -4))
-            ],
-          ),
-          child: SafeArea(
-            child: Column(
+  }
+
+  Widget _buildCheckoutBar() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, -4))
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Итого (${_cartItems.length} товаров):',
-                        style: TextStyle(color: Colors.grey[600])),
-                    _total > 0
-                        ? Text('${_total.toStringAsFixed(0)} ₽',
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87))
-                        : const Text('По запросу',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF97316))),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _checkout,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Оформить заказ',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ),
+                Text('Итого (${_cartItems.length} ${_partsWord(_cartItems.length)}):',
+                    style: TextStyle(color: Colors.grey[600])),
+                _total > 0
+                    ? Text('${_total.toStringAsFixed(0)} ₽',
+                        style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87))
+                    : const Text('По запросу',
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFF97316))),
               ],
             ),
-          ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _checkout,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                child: const Text('Оформить заказ',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
