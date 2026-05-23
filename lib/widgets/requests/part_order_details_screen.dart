@@ -866,66 +866,70 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      // useSafeArea + isScrollControlled — корректная работа с клавиатурой:
+      // sheet поднимается над клавиатурой целиком.
+      useSafeArea: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.85,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (_, controller) => Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              decoration: const BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFFF1F5F9)),
+      builder: (sheetCtx) {
+        // Высота шторки: всё доступное пространство, поднимается над клавиатурой
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom,
+          ),
+          child: FractionallySizedBox(
+            heightFactor: 0.92,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ручка
+                Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 4),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
+                // Шапка
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.forum_outlined,
+                          size: 20, color: Color(0xFF64748B)),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Обсуждение заказа',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetCtx),
+                        icon: const Icon(Icons.close,
+                            color: Color(0xFF94A3B8)),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.forum_outlined,
-                      size: 20, color: Color(0xFF64748B)),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Обсуждение заказа',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                Expanded(
+                  child: ChatWidget(
+                    requestId: _request.id,
+                    requestTitle: 'Заказ ${_request.displayId}',
+                    currentUser: widget.currentUser,
                   ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
-              child: ChatWidget(
-                requestId: _request.id,
-                requestTitle: 'Заказ ${_request.displayId}',
-                currentUser: widget.currentUser,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
