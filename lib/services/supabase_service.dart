@@ -3564,6 +3564,16 @@ class SupabaseService {
     }).eq('id', orderId);
   }
 
+  /// Установить/обновить общую стоимость заказа (поставщик после получения заказа
+  /// заполняет реальную сумму для статистики и счёта).
+  static Future<void> updatePartOrderTotal(
+      String orderId, double total) async {
+    await _client.from('part_orders').update({
+      'total_amount': total,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', orderId);
+  }
+
   // ─── ОТГРУЗКА / ОТСЛЕЖИВАНИЕ ─────────────────────────────────────────────
 
   /// Задаёт трек-номер/ссылку и название ТК для заказа с доставкой,

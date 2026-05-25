@@ -141,9 +141,13 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
               }
             }
 
-            // 2. Синхронизируем поля счёта/оплаты/отгрузки в _details
-            //    (чтобы блок «Оплата» и «Отгрузка» обновились у клиента сразу)
+            // 2. Синхронизируем поля счёта/оплаты/отгрузки/суммы в _details
+            //    (чтобы блоки «Итого», «Оплата» и «Отгрузка» обновились у клиента сразу)
             setState(() {
+              if (newRow['total_amount'] != null) {
+                _details['total_amount'] =
+                    (newRow['total_amount'] as num).toDouble();
+              }
               _details['invoice_pdf_url'] = newRow['invoice_pdf_url'];
               _details['invoice_file_name'] = newRow['invoice_file_name'];
               _details['invoice_uploaded_at'] = newRow['invoice_uploaded_at'];
@@ -442,32 +446,60 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
       0,
       (s, i) => s + ((i['quantity'] as num?)?.toInt() ?? 0),
     );
+    final hasTotal = _total > 0;
 
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Итого',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF94A3B8),
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Итого',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const Spacer(),
+              // Кнопка редактирования для поставщика
+              if (_isSupplier && hasTotal)
+                InkWell(
+                  onTap: _isUpdating ? null : _editTotalAmount,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.edit_outlined,
+                            size: 14, color: Color(0xFF3B82F6)),
+                        SizedBox(width: 4),
+                        Text('Изменить',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF3B82F6),
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                _total > 0
-                    ? '${_total.toStringAsFixed(0)} ₽'
-                    : 'По запросу',
+                hasTotal ? '${_total.toStringAsFixed(0)} ₽' : 'По запросу',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: _total > 0
+                  color: hasTotal
                       ? const Color(0xFF1E293B)
                       : const Color(0xFFEA580C),
                 ),
@@ -485,9 +517,137 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
               ),
             ],
           ),
+          // Для поставщика когда суммы ещё нет — кнопка-CTA
+          if (_isSupplier && !hasTotal) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isUpdating ? null : _editTotalAmount,
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: const Text('Внести стоимость заказа',
+                    style: TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF3B82F6),
+                  side: const BorderSide(color: Color(0xFFBFDBFE)),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Заполните для статистики и счёта',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 11, color: Colors.grey[500]),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  /// Диалог ввода/редактирования суммы заказа поставщиком.
+  Future<void> _editTotalAmount() async {
+    final ctrl = TextEditingController(
+      text: _total > 0 ? _total.toStringAsFixed(0) : '',
+    );
+    final result = await showDialog<double?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Стоимость заказа'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Укажите финальную сумму заказа в рублях. Клиент сразу увидит её в карточке заказа.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Например, 12500',
+                prefixIcon: const Icon(Icons.currency_ruble_rounded,
+                    color: Color(0xFF94A3B8)),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          if (_total > 0)
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 0.0),
+              child: const Text('Сбросить',
+                  style: TextStyle(color: Color(0xFFEF4444))),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final raw = ctrl.text.trim().replaceAll(',', '.').replaceAll(' ', '');
+              final value = double.tryParse(raw);
+              if (value == null || value < 0) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                      content: Text('Введите корректную сумму'),
+                      backgroundColor: Colors.orange),
+                );
+                return;
+              }
+              Navigator.pop(ctx, value);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1F2937),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Сохранить'),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    setState(() => _isUpdating = true);
+    try {
+      await SupabaseService.updatePartOrderTotal(_request.id, result);
+      _details['total_amount'] = result;
+      if (mounted) {
+        setState(() {});
+        widget.onStatusChanged?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result > 0
+                ? 'Сумма заказа: ${result.toStringAsFixed(0)} ₽'
+                : 'Сумма сброшена'),
+            backgroundColor: const Color(0xFF16A34A),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
+    }
   }
 
   Widget _itemsBlock() {
