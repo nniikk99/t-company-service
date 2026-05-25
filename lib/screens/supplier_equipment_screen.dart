@@ -27,11 +27,63 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
   List<EquipmentModel> _models = [];
   List<String> _approvedBrands = [];
 
+  // Поиск и UI-состояния
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _search = '';
+  final Set<String> _collapsed = <String>{}; // свёрнутые производители
+
   @override
   void initState() {
     super.initState();
     _loadModels();
   }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  // ─── Фильтрация и группировка ───────────────────────────────────────────
+
+  List<EquipmentModel> get _filteredModels {
+    if (_search.isEmpty) return _models;
+    final q = _search.toLowerCase();
+    return _models.where((m) {
+      return m.manufacturer.toLowerCase().contains(q) ||
+          m.model.toLowerCase().contains(q) ||
+          m.fullTitle.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  /// Группировка: {manufacturer: [model, ...]}, отсортировано по алфавиту.
+  Map<String, List<EquipmentModel>> get _grouped {
+    final map = <String, List<EquipmentModel>>{};
+    for (final m in _filteredModels) {
+      final key = m.manufacturer.isEmpty ? 'Без бренда' : m.manufacturer;
+      map.putIfAbsent(key, () => []).add(m);
+    }
+    // сортировка моделей внутри группы по названию
+    for (final list in map.values) {
+      list.sort((a, b) => a.model.toLowerCase().compareTo(b.model.toLowerCase()));
+    }
+    return Map.fromEntries(
+      map.entries.toList()
+        ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase())),
+    );
+  }
+
+  // Подсчёт полезных бейджей для модели
+  int _specsCount(EquipmentModel m) =>
+      m.specifications.keys.where((k) => !k.startsWith('_')).length;
+
+  bool _hasManual(EquipmentModel m) =>
+      (m.specifications['_manual_url'] ?? '').toString().isNotEmpty;
+  bool _hasInstruction(EquipmentModel m) =>
+      (m.specifications['_instruction_url'] ?? '').toString().isNotEmpty;
+  bool _hasMaintenance(EquipmentModel m) =>
+      (m.specifications['_maintenance_months'] ?? '').toString().isNotEmpty ||
+      (m.specifications['_maintenance_hours'] ?? '').toString().isNotEmpty;
 
   Future<void> _loadModels() async {
     setState(() => _isLoading = true);
@@ -510,20 +562,63 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
     );
   }
 
+  /// Заглушка для отсутствующего фото — градиент + иконка.
+  Widget _imagePlaceholder({double size = 72}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFEFF6FF), Color(0xFFE0E7FF)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Icon(Icons.precision_manufacturing_rounded,
+          color: Color(0xFF93C5FD), size: 32),
+    );
+  }
+
+  /// Маленький бейдж под названием модели.
+  Widget _miniBadge(IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildModelCard(EquipmentModel model) {
-    // Считаем количество заполненных характеристик (исключая служебные поля с _)
-    int specsCount = model.specifications.keys.where((k) => !k.startsWith('_')).length;
+    final specs = _specsCount(model);
+    final hasManual = _hasManual(model);
+    final hasInstr = _hasInstruction(model);
+    final hasMnt = _hasMaintenance(model);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            offset: const Offset(0, 4),
-            blurRadius: 10,
+            offset: const Offset(0, 2),
+            blurRadius: 8,
           ),
         ],
       ),
@@ -533,71 +628,192 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
           onTap: () => _showAddModelDialog(model: model),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Изображение
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: model.imageUrl != null && model.imageUrl!.isNotEmpty
+                // Фото 72×72
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: SizedBox(
+                    width: 72,
+                    height: 72,
+                    child: (model.imageUrl != null &&
+                            model.imageUrl!.isNotEmpty)
                         ? Image.network(
                             model.imageUrl!,
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_not_supported, color: Colors.grey),
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                            loadingBuilder: (_, child, progress) =>
+                                progress == null
+                                    ? child
+                                    : _imagePlaceholder(),
                           )
-                        : const Icon(Icons.image_outlined, color: Colors.grey),
+                        : _imagePlaceholder(),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 // Информация
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        model.fullTitle,
+                        model.manufacturer.isNotEmpty
+                            ? model.manufacturer.toUpperCase()
+                            : 'БРЕНД НЕ ЗАДАН',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF3B82F6),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        model.model.isNotEmpty
+                            ? model.model
+                            : '— без названия —',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           color: Color(0xFF1E293B),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Характеристик: $specsCount',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                      const SizedBox(height: 8),
+                      // Бейджи
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _miniBadge(Icons.list_alt_rounded, '$specs х-к',
+                              const Color(0xFF3B82F6)),
+                          if (hasMnt)
+                            _miniBadge(Icons.event_repeat_rounded, 'ТО',
+                                const Color(0xFF16A34A)),
+                          if (hasManual)
+                            _miniBadge(Icons.menu_book_rounded, 'Мануал',
+                                const Color(0xFF8B5CF6)),
+                          if (hasInstr)
+                            _miniBadge(Icons.description_outlined,
+                                'Инструкция', const Color(0xFFEA580C)),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                // Действия
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: Color(0xFF3B82F6), size: 22),
-                      onPressed: () => _showAddModelDialog(model: model),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
-                      onPressed: () => _deleteModel(model),
-                    ),
-                    const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-                  ],
-                ),
+                // Меню действий
+                _actionMenu(model),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _actionMenu(EquipmentModel model) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF94A3B8)),
+      offset: const Offset(0, 36),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) {
+        if (value == 'edit') _showAddModelDialog(model: model);
+        if (value == 'delete') _deleteModel(model);
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined,
+                  size: 18, color: Color(0xFF3B82F6)),
+              SizedBox(width: 10),
+              Text('Редактировать'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline,
+                  size: 18, color: Color(0xFFEF4444)),
+              SizedBox(width: 10),
+              Text('Удалить',
+                  style: TextStyle(color: Color(0xFFEF4444))),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _groupHeader(String manufacturer, int count) {
+    final collapsed = _collapsed.contains(manufacturer);
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (collapsed) {
+            _collapsed.remove(manufacturer);
+          } else {
+            _collapsed.add(manufacturer);
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 16, 4, 10),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.business_rounded,
+                  size: 18, color: Color(0xFF2563EB)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                manufacturer,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF475569),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            AnimatedRotation(
+              duration: const Duration(milliseconds: 200),
+              turns: collapsed ? -0.25 : 0,
+              child: const Icon(Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF94A3B8)),
+            ),
+          ],
         ),
       ),
     );
@@ -639,42 +855,202 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filtered = _filteredModels;
+    final grouped = _grouped;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(widget.isAdminMode ? 'Все оборудование' : 'Оборудование +'),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1E293B),
         elevation: 0,
+        foregroundColor: const Color(0xFF1E293B),
+        titleSpacing: 16,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.isAdminMode ? 'Каталог техники' : 'Модели техники',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                )),
+            if (!_isLoading)
+              Text(
+                _models.isEmpty
+                    ? 'Ничего не добавлено'
+                    : '${_models.length} ${_modelsWord(_models.length)} · '
+                        '${grouped.length} ${_brandsWord(grouped.length)}',
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF94A3B8),
+                    fontWeight: FontWeight.w500),
+              ),
+          ],
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadModels),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF64748B)),
+            tooltip: 'Обновить',
+            onPressed: _loadModels,
+          ),
+          const SizedBox(width: 4),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(58),
+          child: Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (v) => setState(() => _search = v),
+                decoration: InputDecoration(
+                  hintText: 'Поиск по модели или производителю',
+                  hintStyle: const TextStyle(
+                      color: Color(0xFF94A3B8), fontSize: 13),
+                  prefixIcon: const Icon(Icons.search_rounded,
+                      color: Color(0xFF94A3B8), size: 20),
+                  suffixIcon: _search.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close_rounded,
+                              color: Color(0xFF94A3B8), size: 18),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _search = '');
+                          },
+                        ),
+                  border: InputBorder.none,
+                  contentPadding:
+                      const EdgeInsets.symmetric(vertical: 12),
+                  isDense: true,
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
+        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _models.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey[300]),
-                      const SizedBox(height: 16),
-                      const Text('У вас пока нет созданных моделей', style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
+              ? _buildEmptyState(
+                  icon: Icons.precision_manufacturing_outlined,
+                  title: 'Нет моделей техники',
+                  subtitle: 'Добавьте первую модель — заполните характеристики,\nприкрепите мануал и инструкцию',
+                  cta: 'Добавить модель',
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _models.length,
-                  itemBuilder: (context, index) {
-                    return _buildModelCard(_models[index]);
-                  },
-                ),
-      floatingActionButton: FloatingActionButton(
+              : filtered.isEmpty
+                  ? _buildEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'Ничего не найдено',
+                      subtitle: 'Попробуйте изменить запрос',
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                      children: [
+                        for (final entry in grouped.entries) ...[
+                          _groupHeader(entry.key, entry.value.length),
+                          if (!_collapsed.contains(entry.key))
+                            ...entry.value.map(_buildModelCard),
+                        ],
+                      ],
+                    ),
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddModelDialog(),
-        backgroundColor: const Color(0xFF3B82F6),
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: const Color(0xFF1F2937),
+        foregroundColor: Colors.white,
+        elevation: 2,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Добавить модель',
+            style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    String? cta,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFFEFF6FF), Color(0xFFE0E7FF)],
+                ),
+                borderRadius: BorderRadius.circular(48),
+              ),
+              child: Icon(icon, size: 44, color: const Color(0xFF3B82F6)),
+            ),
+            const SizedBox(height: 20),
+            Text(title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                )),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                  height: 1.5),
+            ),
+            if (cta != null) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => _showAddModelDialog(),
+                icon: const Icon(Icons.add_rounded),
+                label: Text(cta,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1F2937),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _modelsWord(int n) {
+    if (n % 10 == 1 && n % 100 != 11) return 'модель';
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) {
+      return 'модели';
+    }
+    return 'моделей';
+  }
+
+  String _brandsWord(int n) {
+    if (n % 10 == 1 && n % 100 != 11) return 'бренд';
+    if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) {
+      return 'бренда';
+    }
+    return 'брендов';
   }
 }
