@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../models/user.dart';
 import '../models/equipment_model.dart';
 import '../services/supabase_service.dart';
+import '../services/image_service.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
@@ -562,6 +563,44 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
     );
   }
 
+  /// Рендер фото модели с цепочкой fallback'ов:
+  /// 1) URL фото, загруженный поставщиком (model.imageUrl)
+  /// 2) Локальный asset по производитель+модель (как видит клиент)
+  /// 3) Градиентная заглушка с иконкой
+  Widget _modelImage(EquipmentModel model) {
+    // 1. Загруженное в БД фото
+    final url = model.imageUrl;
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _localAssetImage(model),
+        loadingBuilder: (_, child, progress) =>
+            progress == null ? child : _imagePlaceholder(),
+      );
+    }
+    // 2. Локальный ассет (или 3. заглушка внутри _localAssetImage)
+    return _localAssetImage(model);
+  }
+
+  /// Пытается показать локальный ассет по (manufacturer, model).
+  /// Если ассета нет — fallback на градиентную заглушку.
+  Widget _localAssetImage(EquipmentModel model) {
+    if (model.manufacturer.isEmpty || model.model.isEmpty) {
+      return _imagePlaceholder();
+    }
+    final paths = ImageService.getPossibleImagePaths(
+      model.manufacturer,
+      model.model,
+    );
+    if (paths.isEmpty) return _imagePlaceholder();
+    return Image.asset(
+      paths.first,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _imagePlaceholder(),
+    );
+  }
+
   /// Заглушка для отсутствующего фото — градиент + иконка.
   Widget _imagePlaceholder({double size = 72}) {
     return Container(
@@ -632,24 +671,14 @@ class _SupplierEquipmentScreenState extends State<SupplierEquipmentScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Фото 72×72
+                // Фото 72×72.
+                // Приоритет: imageUrl из БД → локальный ассет (как у клиента) → градиент.
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: SizedBox(
                     width: 72,
                     height: 72,
-                    child: (model.imageUrl != null &&
-                            model.imageUrl!.isNotEmpty)
-                        ? Image.network(
-                            model.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                            loadingBuilder: (_, child, progress) =>
-                                progress == null
-                                    ? child
-                                    : _imagePlaceholder(),
-                          )
-                        : _imagePlaceholder(),
+                    child: _modelImage(model),
                   ),
                 ),
                 const SizedBox(width: 14),
