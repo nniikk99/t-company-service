@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_strategy/url_strategy.dart';
 import 'services/app_router.dart';
+import 'services/offline_queue_service.dart';
 import 'theme/app_theme.dart';
 import 'config/supabase_config.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -28,7 +29,15 @@ void main() async {
     );
     
     print('✅ Supabase initialized successfully');
-    
+
+    // Запускаем сервис офлайн-очереди — он слушает connectivity и при появлении
+    // сети автоматически отправит на сервер всё, что юзер сделал офлайн.
+    try {
+      await OfflineQueueService.instance.init();
+    } catch (e) {
+      print('⚠️ OfflineQueueService init error: $e');
+    }
+
     await initializeDateFormatting('ru');
     runApp(const MyApp());
   } catch (error) {

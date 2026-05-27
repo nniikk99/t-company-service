@@ -5,7 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/service_request.dart';
 import '../../models/user.dart' as AppUserModel;
+import '../../services/offline_queue_service.dart';
 import '../../services/supabase_service.dart';
+import '../offline_banner.dart';
 import 'chat_screen.dart';
 
 /// Экран детализации заказа запчастей.
@@ -271,32 +273,62 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
       if (ok != true) return;
     }
     setState(() => _isUpdating = true);
-    try {
-      await SupabaseService.updatePartOrderStatus(_request.id, newDbStatus);
-      if (!mounted) return;
-      setState(() {
-        _request = _request.copyWith(
-          status: RequestStatus.values.firstWhere(
-            (e) => e.toString() == 'RequestStatus.$newDbStatus',
-            orElse: () => _request.status,
+
+    // Локальное обновление UI сразу — независимо от того, есть сеть или нет.
+    final newStatus = RequestStatus.values.firstWhere(
+      (e) => e.toString() == 'RequestStatus.$newDbStatus',
+      orElse: () => _request.status,
+    );
+    setState(() {
+      _request = _request.copyWith(status: newStatus);
+    });
+
+    final online = OfflineQueueService.instance.isOnline;
+    if (online) {
+      // Пробуем сразу. Если упало — кладём в очередь.
+      try {
+        await SupabaseService.updatePartOrderStatus(_request.id, newDbStatus);
+        widget.onStatusChanged?.call();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Статус обновлён: ${_statusLabel(_request.status)}'),
+              backgroundColor: const Color(0xFF16A34A),
+            ),
+          );
+        }
+      } catch (e) {
+        // Сеть всё-таки отвалилась — сохраняем в очередь
+        await OfflineOp.partOrderStatus(
+            requestId: _request.id, status: newDbStatus);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Нет связи — изменение сохранено и отправится автоматически'),
+              backgroundColor: Color(0xFFEA580C),
+            ),
+          );
+        }
+      }
+    } else {
+      // Офлайн — сразу в очередь
+      await OfflineOp.partOrderStatus(
+          requestId: _request.id, status: newDbStatus);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Статус «${_statusLabel(_request.status)}» сохранён локально, отправим как только появится сеть'),
+            backgroundColor: const Color(0xFFEA580C),
+            duration: const Duration(seconds: 3),
           ),
         );
-      });
-      widget.onStatusChanged?.call();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Статус обновлён: ${_statusLabel(_request.status)}'),
-          backgroundColor: const Color(0xFF16A34A),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _isUpdating = false);
+      }
     }
+
+    if (mounted) setState(() => _isUpdating = false);
   }
 
   Future<bool?> _confirmDialog(String text) {
@@ -359,10 +391,14 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      body: Column(
         children: [
-          _statusBlock(),
+          const OfflineBanner(),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                _statusBlock(),
           const SizedBox(height: 12),
           _summaryBlock(),
           const SizedBox(height: 12),
@@ -379,6 +415,9 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
           _paymentBlock(),
           const SizedBox(height: 16),
           _actionsBlock(),
+              ],
+            ),
+          ),
         ],
       ),
     );
