@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pdf_iframe_view.dart';
 import 'doc_pages_viewer.dart';
 
@@ -22,6 +23,44 @@ class EquipmentSpecificationsWidget extends StatefulWidget {
 class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsWidget> {
   bool _isExpanded = false;
 
+  // Подгруженные из equipment_models документы — fallback когда в customSpecs их нет
+  List<String>? _modelManualPages;
+  List<String>? _modelInstructionPages;
+  String? _modelManualUrl;
+  String? _modelInstructionUrl;
+  bool _docsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadModelDocs();
+  }
+
+  /// Тянем _manual_pages / _instruction_pages из equipment_models по (manufacturer, model),
+  /// чтобы карточка клиента видела актуальные документы даже если equipment.specifications
+  /// были скопированы при создании и устарели.
+  Future<void> _loadModelDocs() async {
+    try {
+      final row = await Supabase.instance.client
+          .from('equipment_models')
+          .select('specifications')
+          .ilike('manufacturer', widget.manufacturer)
+          .eq('model', widget.model)
+          .maybeSingle();
+      final modelSpecs = row?['specifications'];
+      if (modelSpecs is Map) {
+        _modelManualPages = _asUrlList(modelSpecs['_manual_pages']);
+        _modelInstructionPages = _asUrlList(modelSpecs['_instruction_pages']);
+        _modelManualUrl = modelSpecs['_manual_url'] as String?;
+        _modelInstructionUrl = modelSpecs['_instruction_url'] as String?;
+      }
+    } catch (_) {
+      // не критично — оставим то, что есть в customSpecs
+    } finally {
+      if (mounted) setState(() => _docsLoaded = true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final rawSpecs = widget.customSpecs;
@@ -36,13 +75,26 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
       return const SizedBox.shrink();
     }
 
-    final instructionUrl = specs['_instruction_url'] as String?;
-    final manualUrl = specs['_manual_url'] as String?;
+    // Документы из текущих specs (приоритет)
+    String? instructionUrl = specs['_instruction_url'] as String?;
+    String? manualUrl = specs['_manual_url'] as String?;
+    List<String> instructionPages = _asUrlList(specs['_instruction_pages']);
+    List<String> manualPages = _asUrlList(specs['_manual_pages']);
 
-    // Если у документа есть набор страниц-картинок — используем его (приоритет).
-    // Это списки URL изображений в порядке страниц.
-    final instructionPages = _asUrlList(specs['_instruction_pages']);
-    final manualPages = _asUrlList(specs['_manual_pages']);
+    // Если в текущих specs документов нет — берём из equipment_models по модели
+    if (instructionPages.isEmpty && _modelInstructionPages != null) {
+      instructionPages = _modelInstructionPages!;
+    }
+    if (manualPages.isEmpty && _modelManualPages != null) {
+      manualPages = _modelManualPages!;
+    }
+    if ((instructionUrl == null || instructionUrl.isEmpty) &&
+        _modelInstructionUrl != null) {
+      instructionUrl = _modelInstructionUrl;
+    }
+    if ((manualUrl == null || manualUrl.isEmpty) && _modelManualUrl != null) {
+      manualUrl = _modelManualUrl;
+    }
 
     return Column(
       children: [
