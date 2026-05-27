@@ -159,16 +159,31 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
     ),
     // Приоритет страниц-картинок над PDF-URL
     if (instructionPages.isNotEmpty)
-      _buildPagesAccordion('Инструкция по эксплуатации', Icons.menu_book, instructionPages)
+      _buildPagesAccordion(
+        'Инструкция по эксплуатации',
+        Icons.menu_book,
+        instructionPages,
+        offlineKey: '${_modelKey()}_instruction',
+      )
     else if (instructionUrl != null && instructionUrl.isNotEmpty)
       _buildDocAccordion('Инструкция по эксплуатации', Icons.menu_book, instructionUrl),
     if (manualPages.isNotEmpty)
-      _buildPagesAccordion('Мануал', Icons.build_circle_outlined, manualPages)
+      _buildPagesAccordion(
+        'Мануал',
+        Icons.build_circle_outlined,
+        manualPages,
+        offlineKey: '${_modelKey()}_manual',
+      )
     else if (manualUrl != null && manualUrl.isNotEmpty)
       _buildDocAccordion('Мануал', Icons.build_circle_outlined, manualUrl),
     ],
     );
   }
+
+  /// Стабильный ключ модели для offline-кеша.
+  String _modelKey() =>
+      '${widget.manufacturer.toLowerCase()}_${widget.model.toLowerCase()}'
+          .replaceAll(RegExp(r'[^a-z0-9_а-я]'), '_');
 
   /// Приводит произвольное значение из specs к List<String> URL-ов.
   List<String> _asUrlList(dynamic raw) {
@@ -184,7 +199,8 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
 
   /// Аккордеон со страницами-картинками (новый формат).
   Widget _buildPagesAccordion(
-      String title, IconData iconData, List<String> pages) {
+      String title, IconData iconData, List<String> pages,
+      {String? offlineKey}) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(top: 8),
@@ -220,7 +236,11 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: DocPagesViewer(title: title, imageUrls: pages),
+              child: DocPagesViewer(
+                title: title,
+                imageUrls: pages,
+                offlineKey: offlineKey,
+              ),
             ),
           ],
         ),
