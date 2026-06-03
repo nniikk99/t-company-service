@@ -380,11 +380,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               position: _slideAnimation,
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 40.0),
-                child: Column(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    
+
                     // Main white card with logo and form
                     Container(
                       padding: const EdgeInsets.all(40),
@@ -570,6 +573,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       ),
                     ),
                   ],
+                ),
+                  ),
                 ),
               ),
             ),
