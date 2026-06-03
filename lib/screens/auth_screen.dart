@@ -403,30 +403,33 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                         ],
                       ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Фирменный логотип
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: Image.asset(
-                              'assets/icons/app_logo2.png',
-                              width: 88,
-                              height: 88,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                          // Фирменный логотип — всегда по центру
+                          Center(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.asset(
+                                'assets/icons/app_logo2.png',
                                 width: 88,
                                 height: 88,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF4A90E2),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    'AI',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 2,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Container(
+                                  width: 88,
+                                  height: 88,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF4A90E2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'AI',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 2,
+                                      ),
                                     ),
                                   ),
                                 ),
