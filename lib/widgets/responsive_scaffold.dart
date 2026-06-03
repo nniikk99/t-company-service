@@ -560,6 +560,8 @@ class ResponsiveScaffold extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        isAntiAlias: true,
         errorBuilder: (_, __, ___) => Container(
           width: size,
           height: size,
