@@ -26,6 +26,8 @@ import '../widgets/service_request_dialog.dart';
 import 'model_selection_screen.dart';
 import 'client_spare_parts_screen.dart';
 import 'market_screen.dart';
+import '../widgets/responsive_scaffold.dart';
+import '../widgets/offline_banner.dart';
 
 enum ViewType {
   equipment,
@@ -385,118 +387,60 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // telegram-background
-      appBar: widget.adminUser != null
-          ? AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              toolbarHeight: 60,
-              leading: Padding(
-                padding: const EdgeInsets.only(left: 12.0, top: 8.0, bottom: 8.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF2563EB), size: 20),
-                    tooltip: 'Вернуться',
-                  ),
-                ),
+    // Маппим внутренние NavigationTab → NavItem для адаптивной оболочки
+    final navItems = _navigationTabs
+        .map((t) => NavItem(
+              id: t.id,
+              label: t.label,
+              icon: t.icon,
+              customIconPath: t.customIconPath,
+            ))
+        .toList();
+
+    Widget? mobileLeading;
+    if (widget.adminUser != null) {
+      mobileLeading = Padding(
+        padding: const EdgeInsets.only(left: 12.0, top: 8.0, bottom: 8.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
-            )
-          : null,
-      extendBodyBehindAppBar: widget.adminUser != null,
+            ],
+          ),
+          child: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back,
+                color: Color(0xFF2563EB), size: 20),
+            tooltip: 'Вернуться',
+          ),
+        ),
+      );
+    }
+
+    return ResponsiveScaffold(
+      tabs: navItems,
+      activeTabId: _getActiveTabId(),
+      onTabSelected: _setCurrentView,
+      userName:
+          '${_currentUser.firstName} ${_currentUser.lastName}'.trim(),
+      userRoleLabel: _currentUser.roleDisplayName,
+      companyName: _currentUser.companyName,
+      unreadNotifications: _unreadNotifications,
+      onNotifications: _handleNotificationsClick,
+      onProfile: _handleProfileClick,
+      onLogout: _handleLogout,
+      mobileLeading: mobileLeading,
+      topBanner: const OfflineBanner(),
       body: Container(
         color: const Color(0xFFF8FAFC),
-        child: SafeArea(
-          child: _buildMainContent(),
-        ),
+        child: _buildMainContent(),
       ),
-      bottomNavigationBar: _currentView != ViewType.equipmentDetails 
-        ? Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: _navigationTabs.map((tab) {
-                    final isActive = _getActiveTabId() == tab.id;
-                    return Expanded(
-                      child: Tooltip(
-                        message: tab.label,
-                        child: InkWell(
-                          onTap: () => _setCurrentView(tab.id),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: isActive ? const Color(0xFFEFF6FF) : Colors.transparent,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                tab.customIconPath != null
-                                    ? ImageIcon(
-                                        AssetImage(tab.customIconPath!),
-                                        color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
-                                        size: 22,
-                                      )
-                                    : Icon(
-                                        tab.icon,
-                                        color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
-                                        size: 22,
-                                      ),
-                                const SizedBox(height: 2),
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    tab.label,
-                                    maxLines: 1,
-                                    softWrap: false,
-                                    overflow: TextOverflow.clip,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                                      color: isActive ? const Color(0xFF1D4ED8) : const Color(0xFF64748B),
-                                      letterSpacing: 0,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          )
-        : null,
     );
   }
 
