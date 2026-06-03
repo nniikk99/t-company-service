@@ -122,7 +122,7 @@ class _AuthScreenState extends State<AuthScreen> {
               Text(
                 _telegramUser != null
                   ? 'Добро пожаловать, $_telegramUser!'
-                  : 'T-Company Service',
+                  : 'AI Service',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],

@@ -1,11 +1,11 @@
 {
-    "name": "T-Company Service",
-    "short_name": "T-Company Service",
+    "name": "AI Service",
+    "short_name": "AI Service",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "T-Company Service Mini App",
+    "description": "AI Service",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

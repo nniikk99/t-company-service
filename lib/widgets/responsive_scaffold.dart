@@ -144,7 +144,7 @@ class ResponsiveScaffold extends StatelessWidget {
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
-                    'T-Company',
+                    'AI Service',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
