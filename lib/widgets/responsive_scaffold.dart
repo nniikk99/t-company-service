@@ -556,7 +556,7 @@ class ResponsiveScaffold extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(size * 0.26),
       child: Image.asset(
-        'assets/icons/app_logo.png',
+        'assets/icons/app_logo.jpg',
         width: size,
         height: size,
         fit: BoxFit.cover,
