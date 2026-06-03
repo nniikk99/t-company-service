@@ -129,18 +129,7 @@ class ResponsiveScaffold extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.cleaning_services_rounded,
-                      color: Colors.white, size: 20),
-                ),
+                _logoMark(38),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
@@ -349,18 +338,7 @@ class ResponsiveScaffold extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 20),
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.cleaning_services_rounded,
-                      color: Colors.white, size: 22),
-                ),
+                _logoMark(42),
                 const SizedBox(height: 20),
                 Expanded(
                   child: ListView(
@@ -569,6 +547,32 @@ class ResponsiveScaffold extends StatelessWidget {
       active ? (tab.activeIcon ?? tab.icon) : tab.icon,
       color: color,
       size: size,
+    );
+  }
+
+  /// Логотип приложения. Использует фирменную иконку из assets,
+  /// при её отсутствии — голубой бейдж с иконкой (fallback).
+  Widget _logoMark(double size) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.26),
+      child: Image.asset(
+        'assets/icons/app_logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+            ),
+            borderRadius: BorderRadius.circular(size * 0.26),
+          ),
+          child: Icon(Icons.cleaning_services_rounded,
+              color: Colors.white, size: size * 0.55),
+        ),
+      ),
     );
   }
 
