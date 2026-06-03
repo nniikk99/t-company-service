@@ -7,6 +7,7 @@ import '../services/storage_service.dart';
 import '../services/supabase_service.dart';
 import '../services/image_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 import '../widgets/tab_navigation.dart';
 import '../widgets/iframe_view_d.dart';
 import '../widgets/add_site_dialog.dart';
@@ -418,7 +419,8 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(
+      child: CenteredContent(
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Фильтры (только для определенных ролей)
@@ -550,8 +552,8 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
           
           
           const SizedBox(height: 16),
-          
-          // Список оборудования
+
+          // Список оборудования — адаптивная сетка на широких экранах
           _isLoading
               ? const SizedBox(
                   height: 200,
@@ -559,13 +561,48 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                 )
               : _equipment.isEmpty
                   ? _buildEmptyState()
-                  : Column(
-                      children: _equipment.map((equipment) => 
-                        _buildModernEquipmentCard(equipment)
-                      ).toList(),
-                    ),
+                  : _buildEquipmentGrid(),
         ],
       ),
+      ),
+    );
+  }
+
+  /// Сетка техники: 1 колонка на телефоне, 2 на планшете/ноутбуке, 3 на широком ПК.
+  Widget _buildEquipmentGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        int columns;
+        if (w >= 1100) {
+          columns = 3;
+        } else if (w >= 720) {
+          columns = 2;
+        } else {
+          columns = 1;
+        }
+
+        if (columns == 1) {
+          // На телефоне — обычная вертикальная лента (карточка во всю ширину)
+          return Column(
+            children:
+                _equipment.map((e) => _buildModernEquipmentCard(e)).toList(),
+          );
+        }
+
+        const gap = 12.0;
+        final cardWidth = (w - gap * (columns - 1)) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: _equipment
+              .map((e) => SizedBox(
+                    width: cardWidth,
+                    child: _buildModernEquipmentCard(e),
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 
