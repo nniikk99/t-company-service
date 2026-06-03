@@ -28,6 +28,7 @@ import 'client_spare_parts_screen.dart';
 import 'market_screen.dart';
 import '../widgets/responsive_scaffold.dart';
 import '../widgets/offline_banner.dart';
+import '../utils/responsive.dart';
 
 enum ViewType {
   equipment,
@@ -540,7 +541,9 @@ class _MainScreenState extends State<MainScreen> {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: Column(
+      child: CenteredContent(
+        maxWidth: 720,
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Основная карточка профиля
@@ -717,7 +720,7 @@ class _MainScreenState extends State<MainScreen> {
                   onTap: () {
                     showAboutDialog(
                       context: context,
-                      applicationName: 'T-Co Service',
+                      applicationName: 'AI Service',
                       applicationVersion: '1.0.0',
                       applicationIcon: const Icon(Icons.settings, size: 48, color: Color(0xFF2563EB)),
                     );
@@ -740,6 +743,7 @@ class _MainScreenState extends State<MainScreen> {
           
           const SizedBox(height: 100),
         ],
+      ),
       ),
     );
   }
