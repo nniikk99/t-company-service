@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../services/supabase_service.dart';
+import '../../utils/responsive.dart';
 import '../requests/equipment_parts_sheet.dart';
 
 /// Вкладка маркета: список моделей оборудования с заполненным каталогом
@@ -125,15 +126,61 @@ class _CatalogsTabState extends State<CatalogsTab> {
                 )
               : RefreshIndicator(
                   onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: list.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _buildModelCard(list[i]),
-                  ),
+                  child: _buildCatalogGrid(list),
                 ),
         ),
       ],
+    );
+  }
+
+  /// Сетка каталогов: 1 колонка на телефоне, 2-3 на широком экране, центрировано.
+  Widget _buildCatalogGrid(List<Map<String, dynamic>> list) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        int columns;
+        if (w >= 1100) {
+          columns = 3;
+        } else if (w >= 720) {
+          columns = 2;
+        } else {
+          columns = 1;
+        }
+
+        if (columns == 1) {
+          return ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (_, i) => _buildModelCard(list[i]),
+          );
+        }
+
+        const gap = 12.0;
+        // Ограничиваем рабочую ширину для аккуратной сетки на больших мониторах
+        final contentW = w > Breakpoints.maxContentWidth
+            ? Breakpoints.maxContentWidth
+            : w;
+        final cardW = (contentW - 24 - gap * (columns - 1)) / columns;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(12),
+          child: Center(
+            child: SizedBox(
+              width: contentW - 24,
+              child: Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: list
+                    .map((m) => SizedBox(
+                          width: cardW,
+                          child: _buildModelCard(m),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

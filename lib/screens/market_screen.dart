@@ -4,6 +4,7 @@ import '../services/supabase_service.dart';
 import '../widgets/market/catalogs_tab.dart';
 import '../widgets/market/delivery_checkout_sheet.dart';
 import '../widgets/requests/part_order_details_screen.dart';
+import '../utils/responsive.dart';
 
 class MarketScreen extends StatefulWidget {
   final User user;
@@ -600,9 +601,12 @@ class _CartTabState extends State<_CartTab> {
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: listChildren,
+          child: CenteredContent(
+            maxWidth: 820,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: listChildren,
+            ),
           ),
         ),
         // Итого + Оформить (вынесено в отдельный метод чтобы build был чище)
