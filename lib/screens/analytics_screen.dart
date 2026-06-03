@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/user.dart' as AppUserModel;
 import '../models/service_request.dart';
 import '../services/supabase_service.dart';
+import '../utils/responsive.dart';
 
 /// Аналитика — единая точка входа. Внутри роутит на нужный дашборд по роли.
 ///
@@ -265,6 +266,25 @@ class _KpiCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Адаптивная раскладка KPI-карточек.
+/// На широком экране — 4 в ряд, на узком — 2 в ряд. Высоту карточки задаёт сама.
+Widget _kpiGrid(List<Widget> cards) {
+  return LayoutBuilder(
+    builder: (context, c) {
+      final cols = c.maxWidth >= 760 ? 4 : 2;
+      const gap = 10.0;
+      final cardW = (c.maxWidth - gap * (cols - 1)) / cols;
+      return Wrap(
+        spacing: gap,
+        runSpacing: gap,
+        children: cards
+            .map((card) => SizedBox(width: cardW, child: card))
+            .toList(),
+      );
+    },
+  );
 }
 
 /// Заголовок секции с опциональной подписью.
@@ -653,57 +673,42 @@ class _ClientDashboardState extends State<_ClientDashboard> {
       );
     }
 
-    return ListView(
+    return CenteredContent(
+      maxWidth: 1100,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        // KPI 2x2
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.precision_manufacturing_outlined,
-                color: const Color(0xFF3B82F6),
-                label: 'Техника',
-                value: '$_equipmentCount',
-                subtitle: 'в эксплуатации',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.engineering_outlined,
-                color: const Color(0xFFEA580C),
-                label: 'Открытых заявок',
-                value: '${activeServices.length}',
-                subtitle: 'на сервис',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.inventory_2_outlined,
-                color: const Color(0xFF8B5CF6),
-                label: 'Заказы ЗЧ',
-                value: '${activeOrders.length}',
-                subtitle: 'в работе',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.payments_outlined,
-                color: const Color(0xFF16A34A),
-                label: 'Затраты',
-                value: totalSpend > 0 ? _money(totalSpend) : '—',
-                subtitle: 'за ${widget.period.label.toLowerCase()}',
-              ),
-            ),
-          ],
-        ),
+        // KPI — 4 в ряд на десктопе, 2x2 на мобильном
+        _kpiGrid([
+          _KpiCard(
+            icon: Icons.precision_manufacturing_outlined,
+            color: const Color(0xFF3B82F6),
+            label: 'Техника',
+            value: '$_equipmentCount',
+            subtitle: 'в эксплуатации',
+          ),
+          _KpiCard(
+            icon: Icons.engineering_outlined,
+            color: const Color(0xFFEA580C),
+            label: 'Открытых заявок',
+            value: '${activeServices.length}',
+            subtitle: 'на сервис',
+          ),
+          _KpiCard(
+            icon: Icons.inventory_2_outlined,
+            color: const Color(0xFF8B5CF6),
+            label: 'Заказы ЗЧ',
+            value: '${activeOrders.length}',
+            subtitle: 'в работе',
+          ),
+          _KpiCard(
+            icon: Icons.payments_outlined,
+            color: const Color(0xFF16A34A),
+            label: 'Затраты',
+            value: totalSpend > 0 ? _money(totalSpend) : '—',
+            subtitle: 'за ${widget.period.label.toLowerCase()}',
+          ),
+        ]),
 
         // Разбивка затрат
         if (totalSpend > 0) ...[
@@ -788,6 +793,7 @@ class _ClientDashboardState extends State<_ClientDashboard> {
         const SizedBox(height: 24),
         _FooterNote(period: widget.period),
       ],
+      ),
     );
   }
 }
@@ -853,57 +859,41 @@ class _EngineerDashboardState extends State<_EngineerDashboard> {
         .toList();
     final earned = _sumRevenue(completed);
 
-    return ListView(
+    return CenteredContent(
+      maxWidth: 1100,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.work_outline,
-                color: const Color(0xFFEA580C),
-                label: 'Активных заявок',
-                value: '${active.length}',
-                subtitle: 'в работе',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.task_alt_rounded,
-                color: const Color(0xFF16A34A),
-                label: 'Выполнено',
-                value: '${completed.length}',
-                subtitle: 'за ${widget.period.label.toLowerCase()}',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.payments_outlined,
-                color: const Color(0xFF3B82F6),
-                label: 'Заработано',
-                value: earned > 0 ? _money(earned) : '—',
-                subtitle: 'за период',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.star_rounded,
-                color: const Color(0xFFFACC15),
-                label: 'Рейтинг',
-                value: _rating > 0 ? _rating.toStringAsFixed(1) : '—',
-                subtitle:
-                    '$_ratingCount ${_ratingsWord(_ratingCount)}',
-              ),
-            ),
-          ],
-        ),
+        _kpiGrid([
+          _KpiCard(
+            icon: Icons.work_outline,
+            color: const Color(0xFFEA580C),
+            label: 'Активных заявок',
+            value: '${active.length}',
+            subtitle: 'в работе',
+          ),
+          _KpiCard(
+            icon: Icons.task_alt_rounded,
+            color: const Color(0xFF16A34A),
+            label: 'Выполнено',
+            value: '${completed.length}',
+            subtitle: 'за ${widget.period.label.toLowerCase()}',
+          ),
+          _KpiCard(
+            icon: Icons.payments_outlined,
+            color: const Color(0xFF3B82F6),
+            label: 'Заработано',
+            value: earned > 0 ? _money(earned) : '—',
+            subtitle: 'за период',
+          ),
+          _KpiCard(
+            icon: Icons.star_rounded,
+            color: const Color(0xFFFACC15),
+            label: 'Рейтинг',
+            value: _rating > 0 ? _rating.toStringAsFixed(1) : '—',
+            subtitle: '$_ratingCount ${_ratingsWord(_ratingCount)}',
+          ),
+        ]),
 
         if (inPeriod.isNotEmpty) ...[
           const _SectionHeader('Заявки по статусам',
@@ -959,6 +949,7 @@ class _EngineerDashboardState extends State<_EngineerDashboard> {
         const SizedBox(height: 24),
         _FooterNote(period: widget.period),
       ],
+      ),
     );
   }
 
@@ -1041,58 +1032,43 @@ class _SupplierDashboardState extends State<_SupplierDashboard> {
         .toSet()
         .length;
 
-    return ListView(
+    return CenteredContent(
+      maxWidth: 1100,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.payments_outlined,
-                color: const Color(0xFF16A34A),
-                label: 'Оборот',
-                value: revenue > 0 ? _money(revenue) : '—',
-                subtitle: 'за ${widget.period.label.toLowerCase()}',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.people_alt_outlined,
-                color: const Color(0xFF8B5CF6),
-                label: 'Клиентов',
-                value: '$uniqueClients',
-                subtitle: 'обратилось',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.engineering_outlined,
-                color: const Color(0xFFEA580C),
-                label: 'Сервис',
-                value:
-                    '${activeServices.length}/${_all.where((r) => r.type != RequestType.partsOrder).length}',
-                subtitle: 'активных / всего',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.inventory_2_outlined,
-                color: const Color(0xFF3B82F6),
-                label: 'Заказы ЗЧ',
-                value:
-                    '${activeOrders.length}/${_all.where((r) => r.type == RequestType.partsOrder).length}',
-                subtitle: 'активных / всего',
-              ),
-            ),
-          ],
-        ),
+        _kpiGrid([
+          _KpiCard(
+            icon: Icons.payments_outlined,
+            color: const Color(0xFF16A34A),
+            label: 'Оборот',
+            value: revenue > 0 ? _money(revenue) : '—',
+            subtitle: 'за ${widget.period.label.toLowerCase()}',
+          ),
+          _KpiCard(
+            icon: Icons.people_alt_outlined,
+            color: const Color(0xFF8B5CF6),
+            label: 'Клиентов',
+            value: '$uniqueClients',
+            subtitle: 'обратилось',
+          ),
+          _KpiCard(
+            icon: Icons.engineering_outlined,
+            color: const Color(0xFFEA580C),
+            label: 'Сервис',
+            value:
+                '${activeServices.length}/${_all.where((r) => r.type != RequestType.partsOrder).length}',
+            subtitle: 'активных / всего',
+          ),
+          _KpiCard(
+            icon: Icons.inventory_2_outlined,
+            color: const Color(0xFF3B82F6),
+            label: 'Заказы ЗЧ',
+            value:
+                '${activeOrders.length}/${_all.where((r) => r.type == RequestType.partsOrder).length}',
+            subtitle: 'активных / всего',
+          ),
+        ]),
 
         // Структура выручки
         if (revenue > 0) ...[
@@ -1174,6 +1150,7 @@ class _SupplierDashboardState extends State<_SupplierDashboard> {
         const SizedBox(height: 24),
         _FooterNote(period: widget.period),
       ],
+      ),
     );
   }
 }
@@ -1258,56 +1235,41 @@ class _AdminDashboardState extends State<_AdminDashboard> {
       );
     }
 
-    return ListView(
+    return CenteredContent(
+      maxWidth: 1100,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.groups_outlined,
-                color: const Color(0xFF3B82F6),
-                label: 'Пользователей',
-                value: '$totalUsers',
-                subtitle: 'на платформе',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.payments_outlined,
-                color: const Color(0xFF16A34A),
-                label: 'Оборот платформы',
-                value: totalRevenue > 0 ? _money(totalRevenue) : '—',
-                subtitle: 'за ${widget.period.label.toLowerCase()}',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.bolt_outlined,
-                color: const Color(0xFFEA580C),
-                label: 'Активных',
-                value: '$active',
-                subtitle: 'в работе',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _KpiCard(
-                icon: Icons.task_alt_rounded,
-                color: const Color(0xFF8B5CF6),
-                label: 'Завершено',
-                value: '$completed',
-                subtitle: 'за период',
-              ),
-            ),
-          ],
-        ),
+        _kpiGrid([
+          _KpiCard(
+            icon: Icons.groups_outlined,
+            color: const Color(0xFF3B82F6),
+            label: 'Пользователей',
+            value: '$totalUsers',
+            subtitle: 'на платформе',
+          ),
+          _KpiCard(
+            icon: Icons.payments_outlined,
+            color: const Color(0xFF16A34A),
+            label: 'Оборот платформы',
+            value: totalRevenue > 0 ? _money(totalRevenue) : '—',
+            subtitle: 'за ${widget.period.label.toLowerCase()}',
+          ),
+          _KpiCard(
+            icon: Icons.bolt_outlined,
+            color: const Color(0xFFEA580C),
+            label: 'Активных',
+            value: '$active',
+            subtitle: 'в работе',
+          ),
+          _KpiCard(
+            icon: Icons.task_alt_rounded,
+            color: const Color(0xFF8B5CF6),
+            label: 'Завершено',
+            value: '$completed',
+            subtitle: 'за период',
+          ),
+        ]),
 
         if (_usersByRole.isNotEmpty) ...[
           const _SectionHeader('Пользователи по ролям',
@@ -1378,6 +1340,7 @@ class _AdminDashboardState extends State<_AdminDashboard> {
         const SizedBox(height: 24),
         _FooterNote(period: widget.period),
       ],
+      ),
     );
   }
 
