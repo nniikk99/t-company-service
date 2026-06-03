@@ -504,47 +504,9 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                   ),
                   
                   const SizedBox(height: 20),
-                  
-                  // Кнопки добавления
-                  if (widget.user.canManageSites) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: widget.onAddSite ?? _showAddLocationDialog,
-                        icon: const Icon(Icons.add_location_alt_rounded, size: 20, color: Color(0xFF4285F4)),
-                        label: const Text('Добавить площадку'),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFF4285F4), width: 1.5),
-                          foregroundColor: const Color(0xFF4285F4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  
-                  if (_canManageEquipment()) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: widget.onAddEquipment ?? _showAddEquipmentDialog,
-                        icon: const Icon(Icons.add_rounded, size: 22),
-                        label: const Text('Добавить технику'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4285F4),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ],
+
+                  // Кнопки: на ПК компактные в ряд справа, на телефоне на всю ширину стопкой
+                  _buildAddButtons(),
                 ],
               ),
             ),
@@ -565,6 +527,71 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
         ],
       ),
       ),
+    );
+  }
+
+  /// Кнопки добавления: компактные в ряд справа на ПК, во всю ширину стопкой на телефоне.
+  Widget _buildAddButtons() {
+    final canSite = widget.user.canManageSites;
+    final canEquip = _canManageEquipment();
+    if (!canSite && !canEquip) return const SizedBox.shrink();
+
+    OutlinedButton siteBtn() => OutlinedButton.icon(
+          onPressed: widget.onAddSite ?? _showAddLocationDialog,
+          icon: const Icon(Icons.add_location_alt_rounded,
+              size: 20, color: Color(0xFF4285F4)),
+          label: const Text('Добавить площадку'),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFF4285F4), width: 1.5),
+            foregroundColor: const Color(0xFF4285F4),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+
+    ElevatedButton equipBtn() => ElevatedButton.icon(
+          onPressed: widget.onAddEquipment ?? _showAddEquipmentDialog,
+          icon: const Icon(Icons.add_rounded, size: 22),
+          label: const Text('Добавить технику'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF4285F4),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+        );
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        final wide = c.maxWidth >= 600;
+        if (wide) {
+          // Компактные кнопки, выровнены вправо
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (canSite) ...[
+                SizedBox(height: 48, child: siteBtn()),
+                const SizedBox(width: 12),
+              ],
+              if (canEquip) SizedBox(height: 48, child: equipBtn()),
+            ],
+          );
+        }
+        // Телефон — на всю ширину стопкой
+        return Column(
+          children: [
+            if (canSite) ...[
+              SizedBox(width: double.infinity, height: 50, child: siteBtn()),
+              if (canEquip) const SizedBox(height: 12),
+            ],
+            if (canEquip)
+              SizedBox(width: double.infinity, height: 50, child: equipBtn()),
+          ],
+        );
+      },
     );
   }
 
