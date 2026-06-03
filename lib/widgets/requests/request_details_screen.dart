@@ -29,12 +29,16 @@ class RequestDetailsScreen extends StatefulWidget {
   final ServiceRequest request;
   final AppUserModel.User currentUser;
   final Function() onStatusChanged;
-  
+
+  /// true — экран встроен в master-detail на десктопе (без кнопки «назад»).
+  final bool embedded;
+
   const RequestDetailsScreen({
-    super.key, 
+    super.key,
     required this.request,
     required this.currentUser,
     required this.onStatusChanged,
+    this.embedded = false,
   });
 
   @override
@@ -183,10 +187,13 @@ class _RequestDetailsScreenState extends State<RequestDetailsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: !widget.embedded,
+        leading: widget.embedded
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: Row(
           children: [
             Text(

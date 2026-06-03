@@ -24,11 +24,15 @@ class PartOrderDetailsScreen extends StatefulWidget {
   final AppUserModel.User currentUser;
   final VoidCallback? onStatusChanged;
 
+  /// true — экран встроен в master-detail на десктопе (без кнопки «назад»).
+  final bool embedded;
+
   const PartOrderDetailsScreen({
     super.key,
     required this.request,
     required this.currentUser,
     this.onStatusChanged,
+    this.embedded = false,
   });
 
   @override
@@ -366,6 +370,7 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: const Color(0xFF1E293B),
+        automaticallyImplyLeading: !widget.embedded,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

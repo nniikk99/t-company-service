@@ -9,6 +9,7 @@ import '../widgets/animated_status_badge.dart';
 import '../widgets/requests/request_details_screen.dart';
 import '../widgets/requests/part_order_details_screen.dart';
 import '../services/image_service.dart';
+import '../utils/responsive.dart';
 import 'package:flutter/cupertino.dart';
 
 class RequestsListScreen extends StatefulWidget {
@@ -32,6 +33,9 @@ class _RequestsListScreenState extends State<RequestsListScreen>
   String? _siteFilter;
   String? _modelFilter;
   bool _showFilters = false;
+
+  /// Выбранная заявка для master-detail на десктопе.
+  ServiceRequest? _selected;
 
   @override
   void initState() {
@@ -232,31 +236,107 @@ class _RequestsListScreenState extends State<RequestsListScreen>
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Поиск
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: CupertinoSearchTextField(
-                    controller: _searchController,
-                    placeholder: isPartsTab
-                        ? 'Поиск по номеру заказа или артикулу'
-                        : 'Поиск по названию, модели или ID',
-                    onChanged: (v) => setState(() {}),
-                  ),
+          : Breakpoints.useTwoPane(context)
+              ? _buildTwoPane(filteredService, filteredParts, isPartsTab)
+              : _buildListContent(filteredService, filteredParts, isPartsTab),
+    );
+  }
+
+  /// Левая колонка (список) — общая для мобильного body и desktop master-detail.
+  Widget _buildListContent(List<ServiceRequest> filteredService,
+      List<ServiceRequest> filteredParts, bool isPartsTab) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: CupertinoSearchTextField(
+            controller: _searchController,
+            placeholder: isPartsTab
+                ? 'Поиск по номеру заказа или артикулу'
+                : 'Поиск по названию, модели или ID',
+            onChanged: (v) => setState(() {}),
+          ),
+        ),
+        if (!isPartsTab && _showFilters) _buildFiltersSection(),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildServiceList(filteredService),
+              _buildPartsList(filteredParts),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Master-detail для десктопа: слева список (420px), справа детали выбранной.
+  Widget _buildTwoPane(List<ServiceRequest> filteredService,
+      List<ServiceRequest> filteredParts, bool isPartsTab) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 420,
+          child: _buildListContent(filteredService, filteredParts, isPartsTab),
+        ),
+        const VerticalDivider(width: 1, color: Color(0xFFE2E8F0)),
+        Expanded(child: _buildDetailPanel()),
+      ],
+    );
+  }
+
+  /// Правая панель: детали выбранной заявки/заказа, либо приглашение выбрать.
+  Widget _buildDetailPanel() {
+    final sel = _selected;
+    if (sel == null) {
+      return Container(
+        color: const Color(0xFFF8FAFC),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(40),
                 ),
-                if (!isPartsTab && _showFilters) _buildFiltersSection(),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildServiceList(filteredService),
-                      _buildPartsList(filteredParts),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+                child: const Icon(Icons.touch_app_outlined,
+                    size: 36, color: Color(0xFF3B82F6)),
+              ),
+              const SizedBox(height: 16),
+              const Text('Выберите заявку',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B))),
+              const SizedBox(height: 6),
+              const Text('Детали откроются в этой панели',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Ключ по id — пересоздаёт detail при смене выбора (сброс состояния)
+    if (sel.type == RequestType.partsOrder) {
+      return PartOrderDetailsScreen(
+        key: ValueKey('detail_${sel.id}'),
+        request: sel,
+        currentUser: widget.user,
+        embedded: true,
+        onStatusChanged: _loadRequests,
+      );
+    }
+    return RequestDetailsScreen(
+      key: ValueKey('detail_${sel.id}'),
+      request: sel,
+      currentUser: widget.user,
+      embedded: true,
+      onStatusChanged: _loadRequests,
     );
   }
 
@@ -303,9 +383,12 @@ class _RequestsListScreenState extends State<RequestsListScreen>
       itemCount: list.length,
       itemBuilder: (context, i) => Padding(
         padding: const EdgeInsets.only(bottom: 16),
-        child: AnimatedCard(
-          onTap: () => _openServiceDetails(list[i]),
-          child: _buildServiceCard(list[i]),
+        child: _selectionWrap(
+          list[i],
+          AnimatedCard(
+            onTap: () => _openServiceDetails(list[i]),
+            child: _buildServiceCard(list[i]),
+          ),
         ),
       ),
     );
@@ -324,11 +407,28 @@ class _RequestsListScreenState extends State<RequestsListScreen>
       itemCount: list.length,
       itemBuilder: (context, i) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
-        child: AnimatedCard(
-          onTap: () => _openPartOrderDetails(list[i]),
-          child: _buildPartOrderCard(list[i]),
+        child: _selectionWrap(
+          list[i],
+          AnimatedCard(
+            onTap: () => _openPartOrderDetails(list[i]),
+            child: _buildPartOrderCard(list[i]),
+          ),
         ),
       ),
+    );
+  }
+
+  /// Подсветка выбранной карточки в master-detail режиме.
+  Widget _selectionWrap(ServiceRequest request, Widget child) {
+    final selected =
+        Breakpoints.useTwoPane(context) && _selected?.id == request.id;
+    if (!selected) return child;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF3B82F6), width: 2),
+      ),
+      child: child,
     );
   }
 
@@ -824,6 +924,10 @@ class _RequestsListScreenState extends State<RequestsListScreen>
   // ── Навигация ─────────────────────────────────────────────────────────
 
   void _openServiceDetails(ServiceRequest request) {
+    if (Breakpoints.useTwoPane(context)) {
+      setState(() => _selected = request);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -837,6 +941,10 @@ class _RequestsListScreenState extends State<RequestsListScreen>
   }
 
   void _openPartOrderDetails(ServiceRequest request) {
+    if (Breakpoints.useTwoPane(context)) {
+      setState(() => _selected = request);
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
