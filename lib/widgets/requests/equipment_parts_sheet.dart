@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/equipment_part.dart';
 import '../../services/supabase_service.dart';
+import '../../utils/responsive.dart';
 
 /// Режим работы каталога:
 /// - recommendation: позиции собираются локально, "Готово" возвращает список в диалог
@@ -389,160 +390,201 @@ class _EquipmentPartsSheetState extends State<EquipmentPartsSheet> {
     final group = _currentGroup!;
     final figureNum = group['figure_number'] as int;
     final groupName = group['group_name'] as String;
-    final parts = _currentParts;
-
     final diagramUrl = group['diagram_image_url'] as String?;
 
+    // На широком экране: схема слева, список позиций справа.
+    if (Breakpoints.useTwoPane(context)) {
+      return Row(
+        children: [
+          // Левая панель — схема на всю высоту
+          Expanded(
+            flex: 5,
+            child: Container(
+              color: Colors.white,
+              child: Column(
+                children: [
+                  Expanded(child: _buildDiagram(diagramUrl, figureNum, groupName)),
+                ],
+              ),
+            ),
+          ),
+          const VerticalDivider(width: 1, color: Color(0xFFE2E8F0)),
+          // Правая панель — заголовок группы + таблица позиций
+          Expanded(
+            flex: 4,
+            child: Column(
+              children: [
+                _buildGroupTitle(figureNum, groupName),
+                _buildTableHeader(),
+                Expanded(child: _buildPartsListArea()),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Мобильный/узкий — вертикально (как было)
     return Column(
       children: [
-        // Схема сверху (статичная картинка, ~35% высоты)
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.32,
-          child: (diagramUrl == null || diagramUrl.isEmpty)
-              ? _placeholderDiagram(figureNum, groupName, reason: 'Схема не задана в БД')
-              : Container(
-                  color: Colors.white,
-                  width: double.infinity,
-                  child: InteractiveViewer(
-                    minScale: 1.0,
-                    maxScale: 4.0,
-                    child: Image.network(
-                      diagramUrl,
-                      fit: BoxFit.contain,
-                      loadingBuilder: (_, child, progress) {
-                        if (progress == null) return child;
-                        return const Center(child: CircularProgressIndicator());
-                      },
-                      errorBuilder: (_, error, ___) => _placeholderDiagram(
-                        figureNum,
-                        groupName,
-                        reason: 'Не удалось загрузить схему',
-                        debugUrl: diagramUrl,
-                        errorText: error.toString(),
-                      ),
-                    ),
-                  ),
-                ),
+          child: _buildDiagram(diagramUrl, figureNum, groupName),
         ),
-
-        // Заголовок группы
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text('ГР. $figureNum',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3B82F6))),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  groupName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Шапка таблицы
-        Container(
-          color: const Color(0xFFF8FAFC),
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Row(
-            children: const [
-              SizedBox(
-                width: 30,
-                child: Text('№',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF94A3B8),
-                        fontWeight: FontWeight.bold)),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text('АРТИКУЛ / НАИМЕНОВАНИЕ',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF94A3B8),
-                        fontWeight: FontWeight.bold)),
-              ),
-              Text('КОЛ-ВО',
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF94A3B8),
-                      fontWeight: FontWeight.bold)),
-              SizedBox(width: 50),
-            ],
-          ),
-        ),
-
-        // Список позиций
-        Expanded(
-          child: Builder(builder: (context) {
-            final groupId = _currentGroup!['id'] as String;
-            final isLoaded = _partsByGroup.containsKey(groupId);
-
-            if (!isLoaded) {
-              // Реальная загрузка с сервера
-              return const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(strokeWidth: 2),
-                    SizedBox(height: 12),
-                    Text('Загрузка позиций...',
-                        style: TextStyle(color: Colors.grey, fontSize: 13)),
-                  ],
-                ),
-              );
-            }
-
-            if (parts.isEmpty) {
-              // Загрузили, но группа пуста в БД
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[300]),
-                      const SizedBox(height: 12),
-                      const Text('Позиции не найдены',
-                          style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 4),
-                      Text('Данные по этой группе ещё не загружены в базу',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return ListView.separated(
-              itemCount: parts.length,
-              separatorBuilder: (_, __) =>
-                  Divider(height: 1, color: Colors.grey[200]),
-              itemBuilder: (context, i) => _buildPartRow(parts[i]),
-            );
-          }),
-        ),
+        _buildGroupTitle(figureNum, groupName),
+        _buildTableHeader(),
+        Expanded(child: _buildPartsListArea()),
       ],
+    );
+  }
+
+  /// Схема группы (картинка с зумом или плейсхолдер).
+  Widget _buildDiagram(String? diagramUrl, int figureNum, String groupName) {
+    if (diagramUrl == null || diagramUrl.isEmpty) {
+      return _placeholderDiagram(figureNum, groupName,
+          reason: 'Схема не задана в БД');
+    }
+    return Container(
+      color: Colors.white,
+      width: double.infinity,
+      child: InteractiveViewer(
+        minScale: 1.0,
+        maxScale: 4.0,
+        child: Image.network(
+          diagramUrl,
+          fit: BoxFit.contain,
+          loadingBuilder: (_, child, progress) {
+            if (progress == null) return child;
+            return const Center(child: CircularProgressIndicator());
+          },
+          errorBuilder: (_, error, ___) => _placeholderDiagram(
+            figureNum,
+            groupName,
+            reason: 'Не удалось загрузить схему',
+            debugUrl: diagramUrl,
+            errorText: error.toString(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Заголовок группы.
+  Widget _buildGroupTitle(int figureNum, String groupName) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text('ГР. $figureNum',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF3B82F6))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              groupName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Шапка таблицы позиций.
+  Widget _buildTableHeader() {
+    return Container(
+      color: const Color(0xFFF8FAFC),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(
+        children: const [
+          SizedBox(
+            width: 30,
+            child: Text('№',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF94A3B8),
+                    fontWeight: FontWeight.bold)),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text('АРТИКУЛ / НАИМЕНОВАНИЕ',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF94A3B8),
+                    fontWeight: FontWeight.bold)),
+          ),
+          Text('КОЛ-ВО',
+              style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.bold)),
+          SizedBox(width: 50),
+        ],
+      ),
+    );
+  }
+
+  /// Область списка позиций (загрузка / пусто / список).
+  Widget _buildPartsListArea() {
+    final parts = _currentParts;
+    final groupId = _currentGroup!['id'] as String;
+    final isLoaded = _partsByGroup.containsKey(groupId);
+
+    if (!isLoaded) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(strokeWidth: 2),
+            SizedBox(height: 12),
+            Text('Загрузка позиций...',
+                style: TextStyle(color: Colors.grey, fontSize: 13)),
+          ],
+        ),
+      );
+    }
+
+    if (parts.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.inbox_outlined, size: 48, color: Colors.grey[300]),
+              const SizedBox(height: 12),
+              const Text('Позиции не найдены',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500)),
+              const SizedBox(height: 4),
+              Text('Данные по этой группе ещё не загружены в базу',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: parts.length,
+      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200]),
+      itemBuilder: (context, i) => _buildPartRow(parts[i]),
     );
   }
 
