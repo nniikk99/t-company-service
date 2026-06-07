@@ -20,6 +20,7 @@ import 'supplier_spare_parts_screen.dart';
 import 'supplier_brands_screen.dart';
 import 'supplier_fleet_screen.dart';
 import 'my_organizations_screen.dart';
+import 'database_management_screen.dart';
 import '../widgets/add_site_dialog.dart';
 import '../widgets/add_equipment_dialog.dart';
 import '../widgets/service_request_dialog.dart';
@@ -66,6 +67,10 @@ class _MainScreenState extends State<MainScreen> {
   int _requestsCount = 0;
   int _ordersCount = 0;
   bool _isLoadingStats = true;
+
+  // Вложенный навигатор вкладки «Профиль»: разделы открываются в области
+  // контента (рядом с боковым меню) на ПК/планшете, а не на весь экран.
+  final GlobalKey<NavigatorState> _profileNavKey = GlobalKey<NavigatorState>();
   
   // Модальные окна
   final bool _serviceModalOpen = false;
@@ -191,6 +196,24 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  /// Есть ли боковое меню (ПК/планшет). На телефоне — нижняя навигация.
+  bool get _hasSideNav =>
+      MediaQuery.of(context).size.width >= Breakpoints.tablet;
+
+  /// Открывает раздел профиля: внутри области контента (рядом с меню) на
+  /// ПК/планшете и на весь экран — на телефоне. Кнопки «назад» в под-экранах
+  /// при этом работают штатно (pop вложенного навигатора).
+  void _openProfileSection(Widget screen, {VoidCallback? onReturn}) {
+    final navigator = _hasSideNav && _profileNavKey.currentState != null
+        ? _profileNavKey.currentState!
+        : Navigator.of(context);
+    navigator
+        .push(MaterialPageRoute(builder: (_) => screen))
+        .then((_) {
+      if (onReturn != null) onReturn();
+    });
+  }
+
   void _handleProfileClick() {
     Navigator.push(
       context,
@@ -209,75 +232,37 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   void _handleSiteManagement() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SiteManagementScreen(user: _currentUser),
-      ),
-    );
+    _openProfileSection(SiteManagementScreen(user: _currentUser));
   }
 
   void _handleClientManagement() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ClientManagementScreen(adminUser: _currentUser),
-      ),
-    );
+    _openProfileSection(ClientManagementScreen(adminUser: _currentUser));
   }
 
   void _handleEngineerManagement() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EngineerManagementScreen(adminUser: _currentUser),
-      ),
-    );
+    _openProfileSection(EngineerManagementScreen(adminUser: _currentUser));
   }
 
   void _handleEmployeeManagement() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EmployeeManagementScreen(responsibleUser: _currentUser),
-      ),
-    );
+    _openProfileSection(
+        EmployeeManagementScreen(responsibleUser: _currentUser));
   }
 
   void _handleSupplierEquipment() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SupplierEquipmentScreen(supplier: _currentUser),
-      ),
-    );
+    _openProfileSection(SupplierEquipmentScreen(supplier: _currentUser));
   }
 
   void _handleAdminEquipment() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SupplierEquipmentScreen(supplier: _currentUser, isAdminMode: true),
-      ),
-    );
+    _openProfileSection(
+        SupplierEquipmentScreen(supplier: _currentUser, isAdminMode: true));
   }
 
   void _handleSupplierClients() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SupplierClientsScreen(supplier: _currentUser),
-      ),
-    );
+    _openProfileSection(SupplierClientsScreen(supplier: _currentUser));
   }
 
   void _handleSupplierPartners() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SupplierPartnersScreen(supplier: _currentUser),
-      ),
-    );
+    _openProfileSection(SupplierPartnersScreen(supplier: _currentUser));
   }
 
   void _handleSettingsClick() {
@@ -533,6 +518,16 @@ class _MainScreenState extends State<MainScreen> {
       case ViewType.cart:
         return MarketScreen(user: _currentUser);
       case ViewType.profile:
+        // На ПК/планшете разделы профиля открываются во вложенном навигаторе,
+        // чтобы боковое меню слева оставалось видимым.
+        if (_hasSideNav) {
+          return Navigator(
+            key: _profileNavKey,
+            onGenerateRoute: (_) => MaterialPageRoute(
+              builder: (_) => _buildProfileTabContent(),
+            ),
+          );
+        }
         return _buildProfileTabContent();
     }
   }
@@ -684,29 +679,37 @@ class _MainScreenState extends State<MainScreen> {
                   icon: Icons.notifications_none,
                   title: 'Уведомления',
                   badge: _unreadNotifications > 0 ? '$_unreadNotifications' : null,
-                  onTap: _handleNotificationsClick,
+                  onTap: () => _openProfileSection(
+                    NotificationsScreen(user: _currentUser),
+                    onReturn: _loadUnreadNotifications,
+                  ),
                 ),
                 const Divider(color: Color(0xFFF1F5F9), height: 1, indent: 24, endIndent: 24),
-                
+
                 // Редактирование профиля
                 _buildMenuItem(
                   icon: Icons.person_outline,
                   title: 'Личные данные',
-                  onTap: _handleProfileClick,
+                  onTap: () => _openProfileSection(
+                    ProfileScreen(
+                      user: _currentUser,
+                      adminUser: widget.adminUser,
+                      onUserUpdated: (updatedUser) {
+                        setState(() => _currentUser = updatedUser);
+                      },
+                    ),
+                    onReturn: _loadUnreadNotifications,
+                  ),
                 ),
                 const Divider(color: Color(0xFFF1F5F9), height: 1, indent: 24, endIndent: 24),
-                
+
                 // Мои организации (для Клиентов, Админов и Поставщиков)
                 if (_currentUser.role != UserRole.engineer) ...[
                   _buildMenuItem(
                     icon: Icons.apartment_outlined,
                     title: 'Мои организации',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => MyOrganizationsScreen(user: _currentUser)),
-                      );
-                    },
+                    onTap: () =>
+                        _openProfileSection(MyOrganizationsScreen(user: _currentUser)),
                   ),
                   const Divider(color: Color(0xFFF1F5F9), height: 1, indent: 24, endIndent: 24),
                 ],
@@ -799,7 +802,8 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     if (_currentUser.role == UserRole.administrator) {
-      add(Icons.security, 'Роли и доступ БД', () => Navigator.pushNamed(context, '/database-check', arguments: _currentUser));
+      add(Icons.security, 'Роли и доступ БД',
+          () => _openProfileSection(DatabaseManagementScreen(adminUser: _currentUser)));
     }
     if (_currentUser.canManageSites) {
       add(Icons.map_outlined, 'Управление площадками', _handleSiteManagement);
@@ -818,18 +822,10 @@ class _MainScreenState extends State<MainScreen> {
       add(Icons.add_box_outlined, 'Оборудование +', _handleSupplierEquipment);
       add(Icons.domain, 'Клиенты', _handleSupplierClients);
       add(Icons.handshake_outlined, 'Партнеры', _handleSupplierPartners);
-      add(Icons.branding_watermark_outlined, 'Товарные знаки', () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => SupplierBrandsScreen(supplier: _currentUser)),
-        );
-      });
-      add(Icons.build_circle_outlined, 'Запчасти', () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => SupplierSparePartsScreen(supplier: _currentUser)),
-        );
-      });
+      add(Icons.branding_watermark_outlined, 'Товарные знаки',
+          () => _openProfileSection(SupplierBrandsScreen(supplier: _currentUser)));
+      add(Icons.build_circle_outlined, 'Запчасти',
+          () => _openProfileSection(SupplierSparePartsScreen(supplier: _currentUser)));
     }
 
     return items;
