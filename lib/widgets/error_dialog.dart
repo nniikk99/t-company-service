@@ -18,7 +18,9 @@ class ErrorDialog extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Container(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -119,6 +121,7 @@ class ErrorDialog extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

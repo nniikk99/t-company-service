@@ -237,10 +237,13 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
               children: [
                 const SizedBox(height: 40),
-                
+
                 // Заголовок
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -437,6 +440,8 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                   ),
                 ),
               ],
+            ),
+              ),
             ),
           ),
         ),
