@@ -4,6 +4,7 @@ import '../models/user.dart' as AppUserModel;
 import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../services/password_service.dart';
+import '../services/dadata_service.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/phone_input_field.dart';
 import '../theme/app_theme.dart';
@@ -33,6 +34,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+
+  // Поиск организации по ИНН (DaData)
+  bool _innLoading = false;
+  CompanyInfo? _foundCompany;
+  String? _innError;
   
   // Тип организации
   String _selectedOrgType = 'customer'; // customer | supplier | service_partner
@@ -85,6 +91,129 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
 
   String _hashPassword(String password) {
     return PasswordService.hashPassword(password);
+  }
+
+  /// Поиск организации по ИНН через DaData и автозаполнение названия.
+  Future<void> _lookupCompanyByInn() async {
+    final inn = _companyInnController.text.trim();
+    if (inn.length != 10 && inn.length != 12) {
+      setState(() {
+        _innError = 'ИНН должен содержать 10 или 12 цифр';
+        _foundCompany = null;
+      });
+      return;
+    }
+    setState(() {
+      _innLoading = true;
+      _innError = null;
+    });
+    final info = await DadataService.findByInn(inn);
+    if (!mounted) return;
+    setState(() {
+      _innLoading = false;
+      if (info == null) {
+        _innError = 'Организация с таким ИНН не найдена';
+        _foundCompany = null;
+      } else {
+        _foundCompany = info;
+        _companyNameController.text = info.shortName;
+      }
+    });
+  }
+
+  /// Карточка найденной организации из ЕГРЮЛ.
+  Widget _buildCompanyCard(CompanyInfo c) {
+    final active = c.isActive;
+    final statusColor =
+        active ? const Color(0xFF16A34A) : const Color(0xFFEF4444);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.check_circle_rounded,
+                  color: Color(0xFF2563EB), size: 18),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text('Найдено в ЕГРЮЛ',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2563EB))),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(c.statusLabel,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(c.shortName,
+              style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B))),
+          const SizedBox(height: 6),
+          if (c.kpp != null)
+            _cardRow('КПП', c.kpp!),
+          if (c.ogrn != null) _cardRow('ОГРН', c.ogrn!),
+          if (c.address != null && c.address!.isNotEmpty)
+            _cardRow('Адрес', c.address!),
+          if (c.management != null && c.management!.isNotEmpty)
+            _cardRow('Руководитель', c.management!),
+          if (!active) ...[
+            const SizedBox(height: 8),
+            const Text(
+              '⚠ Организация не действующая — проверьте ИНН',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFEF4444),
+                  fontWeight: FontWeight.w500),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _cardRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 96,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12, color: Color(0xFF94A3B8))),
+          ),
+          Expanded(
+            child: Text(value,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF475569))),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _register() async {
@@ -483,36 +612,73 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
           ),
           const SizedBox(height: 16),
           
-          TextFormField(
-            controller: _companyNameController,
-            decoration: const InputDecoration(
-              labelText: 'Название организации',
-              prefixIcon: Icon(Icons.business),
-              hintText: 'ООО "Рога и копыта"',
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Введите название организации';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: 16),
-          
+          // ИНН первым — по нему подтянем данные организации из ЕГРЮЛ
           TextFormField(
             controller: _companyInnController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'ИНН организации',
-              prefixIcon: Icon(Icons.numbers),
+              prefixIcon: const Icon(Icons.numbers),
               hintText: '1234567890',
+              helperText: 'Введите ИНН — данные подтянутся автоматически',
+              errorText: _innError,
+              suffixIcon: _innLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.search, color: Color(0xFF2563EB)),
+                      tooltip: 'Найти по ИНН',
+                      onPressed: _lookupCompanyByInn,
+                    ),
             ),
             keyboardType: TextInputType.number,
+            onChanged: (v) {
+              final t = v.trim();
+              // Автопоиск как только введён валидный ИНН
+              if (t.length == 10 || t.length == 12) {
+                _lookupCompanyByInn();
+              } else if (_foundCompany != null || _innError != null) {
+                setState(() {
+                  _foundCompany = null;
+                  _innError = null;
+                });
+              }
+            },
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Введите ИНН организации';
               }
               if (value.trim().length != 10 && value.trim().length != 12) {
                 return 'ИНН должен содержать 10 или 12 цифр';
+              }
+              return null;
+            },
+          ),
+
+          // Карточка найденной организации
+          if (_foundCompany != null) ...[
+            const SizedBox(height: 12),
+            _buildCompanyCard(_foundCompany!),
+          ],
+
+          const SizedBox(height: 16),
+
+          TextFormField(
+            controller: _companyNameController,
+            decoration: const InputDecoration(
+              labelText: 'Название организации',
+              prefixIcon: Icon(Icons.business),
+              hintText: 'ООО "Рога и копыта"',
+              helperText: 'Заполнится автоматически по ИНН (можно изменить)',
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Введите название организации';
               }
               return null;
             },
