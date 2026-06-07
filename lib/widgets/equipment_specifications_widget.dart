@@ -157,25 +157,49 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
         ),
       ),
     ),
-    // Приоритет страниц-картинок над PDF-URL
+    // Приоритет страниц-картинок над PDF-URL.
+    // Плитки открывают документ на весь экран (моб.) / крупным окном (ПК).
     if (instructionPages.isNotEmpty)
-      _buildPagesAccordion(
-        'Инструкция по эксплуатации',
-        Icons.menu_book,
-        instructionPages,
-        offlineKey: '${_modelKey()}_instruction',
+      _buildDocTile(
+        title: 'Инструкция по эксплуатации',
+        icon: Icons.menu_book,
+        subtitle:
+            '${instructionPages.length} ${_pagesWord(instructionPages.length)} · открыть',
+        onTap: () => showDocViewer(
+          context,
+          title: 'Инструкция по эксплуатации',
+          imageUrls: instructionPages,
+          offlineKey: '${_modelKey()}_instruction',
+        ),
       )
     else if (instructionUrl != null && instructionUrl.isNotEmpty)
-      _buildDocAccordion('Инструкция по эксплуатации', Icons.menu_book, instructionUrl),
+      _buildDocTile(
+        title: 'Инструкция по эксплуатации',
+        icon: Icons.menu_book,
+        subtitle: 'Открыть документ',
+        onTap: () =>
+            _openUrlDoc('Инструкция по эксплуатации', instructionUrl!),
+      ),
     if (manualPages.isNotEmpty)
-      _buildPagesAccordion(
-        'Мануал',
-        Icons.build_circle_outlined,
-        manualPages,
-        offlineKey: '${_modelKey()}_manual',
+      _buildDocTile(
+        title: 'Мануал',
+        icon: Icons.build_circle_outlined,
+        subtitle:
+            '${manualPages.length} ${_pagesWord(manualPages.length)} · открыть',
+        onTap: () => showDocViewer(
+          context,
+          title: 'Мануал',
+          imageUrls: manualPages,
+          offlineKey: '${_modelKey()}_manual',
+        ),
       )
     else if (manualUrl != null && manualUrl.isNotEmpty)
-      _buildDocAccordion('Мануал', Icons.build_circle_outlined, manualUrl),
+      _buildDocTile(
+        title: 'Мануал',
+        icon: Icons.build_circle_outlined,
+        subtitle: 'Открыть документ',
+        onTap: () => _openUrlDoc('Мануал', manualUrl!),
+      ),
     ],
     );
   }
@@ -197,10 +221,14 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
     return const [];
   }
 
-  /// Аккордеон со страницами-картинками (новый формат).
-  Widget _buildPagesAccordion(
-      String title, IconData iconData, List<String> pages,
-      {String? offlineKey}) {
+  /// Тапаемая плитка-раздел: открывает документ на весь экран (моб.) или
+  /// крупным модальным окном (ПК) — вместо встроенного мелкого просмотрщика.
+  Widget _buildDocTile({
+    required String title,
+    required IconData icon,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(top: 8),
@@ -208,44 +236,124 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(color: Colors.grey.withOpacity(0.2)),
       ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: false,
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3B82F6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF94A3B8)),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.fullscreen_rounded,
+                    color: Color(0xFF94A3B8), size: 22),
+              ],
             ),
-            child: Icon(iconData,
-                color: const Color(0xFF3B82F6), size: 20),
           ),
-          title: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          subtitle: Text(
-            '${pages.length} ${_pagesWord(pages.length)}',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: DocPagesViewer(
-                title: title,
-                imageUrls: pages,
-                offlineKey: offlineKey,
-              ),
-            ),
-          ],
         ),
       ),
     );
+  }
+
+  /// Открывает PDF/документ по URL (fallback-формат) на весь экран / в окне.
+  void _openUrlDoc(String title, String url) {
+    final isWide = MediaQuery.of(context).size.width >= 700;
+    if (isWide) {
+      showDialog(
+        context: context,
+        barrierColor: Colors.black.withOpacity(0.6),
+        builder: (_) => Dialog(
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+          clipBehavior: Clip.antiAlias,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 920),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.9,
+              child: Column(
+                children: [
+                  Container(
+                    color: const Color(0xFF1E293B),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(title,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        IconButton(
+                          tooltip: 'Закрыть',
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(child: PdfIframeView(url: url, label: title)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => Scaffold(
+            appBar: AppBar(
+              backgroundColor: const Color(0xFF111827),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              title: Text(title,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.bold)),
+            ),
+            body: PdfIframeView(url: url, label: title),
+          ),
+        ),
+      );
+    }
   }
 
   String _pagesWord(int n) {
@@ -254,49 +362,6 @@ class _EquipmentSpecificationsWidgetState extends State<EquipmentSpecificationsW
       return 'страницы';
     }
     return 'страниц';
-  }
-
-  Widget _buildDocAccordion(String title, IconData iconData, String url) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(top: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.withOpacity(0.2)),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: false,
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              iconData,
-              color: const Color(0xFF3B82F6),
-              size: 20,
-            ),
-          ),
-          title: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: PdfIframeView(url: url, label: title),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// Простая строка без иконки для остальных характеристик

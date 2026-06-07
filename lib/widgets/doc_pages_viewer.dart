@@ -4,44 +4,87 @@ import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Постраничный просмотр документа в виде картинок (мануал, инструкция).
+/// Открывает просмотрщик многостраничного документа (мануал/инструкция),
+/// где каждая страница — отдельная картинка.
 ///
-/// Принимает список URL-ов изображений (каждая — отдельная страница PDF).
+///   • Телефон (узкий экран) → полноэкранный маршрут (как нативный просмотр).
+///   • ПК/планшет            → крупный модальный диалог по центру.
 ///
-/// Возможности:
-///   - Зум pinch-to-zoom через InteractiveViewer
-///   - Индикатор страницы обновляется при скролле
-///   - Кнопка «На весь экран» (полноэкранный режим)
-///   - Кнопка **«Сохранить для офлайна»** — загружает все страницы в локальный кеш
-///     (IndexedDB на Web, файловая система на мобильных). После сохранения
-///     документ доступен без интернета.
-class DocPagesViewer extends StatefulWidget {
+/// [offlineKey] — стабильный ключ документа для запоминания факта
+/// офлайн-сохранения в SharedPreferences.
+Future<void> showDocViewer(
+  BuildContext context, {
+  required String title,
+  required List<String> imageUrls,
+  String? offlineKey,
+}) {
+  if (imageUrls.isEmpty) return Future.value();
+
+  final isWide = MediaQuery.of(context).size.width >= 700;
+
+  if (isWide) {
+    return showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.9,
+            child: _DocViewer(
+              title: title,
+              imageUrls: imageUrls,
+              offlineKey: offlineKey,
+              asDialog: true,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  return Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => _DocViewer(
+        title: title,
+        imageUrls: imageUrls,
+        offlineKey: offlineKey,
+        asDialog: false,
+      ),
+    ),
+  );
+}
+
+/// Просмотрщик: общий для полноэкранного маршрута и десктопного диалога.
+/// Сам рисует свою «шапку» (AppBar-подобную полосу) с заголовком, счётчиком
+/// страниц, кнопкой офлайн-сохранения и закрытием.
+class _DocViewer extends StatefulWidget {
   final String title;
   final List<String> imageUrls;
-  final double initialHeight;
-
-  /// Уникальный ключ документа (например, `manual_<modelId>` или `instruction_<modelId>`).
-  /// Используется чтобы запомнить факт оффлайн-сохранения в SharedPreferences.
   final String? offlineKey;
+  final bool asDialog;
 
-  const DocPagesViewer({
-    super.key,
+  const _DocViewer({
     required this.title,
     required this.imageUrls,
-    this.offlineKey,
-    this.initialHeight = 480,
+    required this.offlineKey,
+    required this.asDialog,
   });
 
   @override
-  State<DocPagesViewer> createState() => _DocPagesViewerState();
+  State<_DocViewer> createState() => _DocViewerState();
 }
 
-class _DocPagesViewerState extends State<DocPagesViewer> {
-  final ScrollController _scrollController = ScrollController();
+class _DocViewerState extends State<_DocViewer> {
+  final ScrollController _scroll = ScrollController();
   int _currentPage = 1;
-  static const double _pageHeight = 600;
+  double _pageExtent = 1; // высота одной страницы + отступ (заполняется в build)
 
-  // Состояние офлайн-загрузки
+  // Состояние офлайн-кеша
   bool _savedOffline = false;
   bool _saving = false;
   int _savedPages = 0;
@@ -49,28 +92,27 @@ class _DocPagesViewerState extends State<DocPagesViewer> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_onScroll);
+    _scroll.addListener(_onScroll);
     _restoreOfflineFlag();
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
     super.dispose();
   }
 
   void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final pos = _scrollController.offset;
-    final page = (pos / _pageHeight).floor() + 1;
+    if (!_scroll.hasClients || _pageExtent <= 0) return;
+    final page = (_scroll.offset / _pageExtent).floor() + 1;
     final clamped = page.clamp(1, widget.imageUrls.length);
     if (clamped != _currentPage) {
       setState(() => _currentPage = clamped);
     }
   }
 
-  // ── Офлайн-кеш ──────────────────────────────────────────────────────────
+  // ── Офлайн-кеш ────────────────────────────────────────────────────────────
 
   String? get _flagKey =>
       widget.offlineKey == null ? null : 'doc_offline_${widget.offlineKey}';
@@ -98,18 +140,15 @@ class _DocPagesViewerState extends State<DocPagesViewer> {
         try {
           await manager.downloadFile(widget.imageUrls[i]);
         } catch (e) {
-          // отдельная страница может не загрузиться — продолжаем
           debugPrint('Не удалось скачать страницу ${i + 1}: $e');
         }
         if (mounted) setState(() => _savedPages = i + 1);
       }
-
       final key = _flagKey;
       if (key != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(key, widget.imageUrls.length);
       }
-
       if (mounted) {
         setState(() {
           _saving = false;
@@ -117,7 +156,8 @@ class _DocPagesViewerState extends State<DocPagesViewer> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.imageUrls.length} страниц сохранено для офлайна'),
+            content: Text(
+                '${widget.imageUrls.length} страниц сохранено для офлайна'),
             backgroundColor: const Color(0xFF16A34A),
           ),
         );
@@ -174,212 +214,139 @@ class _DocPagesViewerState extends State<DocPagesViewer> {
     } catch (_) {}
   }
 
+  /// Иконка-кнопка офлайн-кеша (для шапки).
+  Widget _offlineAction({required Color iconColor}) {
+    if (widget.offlineKey == null) return const SizedBox.shrink();
+    if (_saving) {
+      final pct = (_savedPages / widget.imageUrls.length).clamp(0.0, 1.0);
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+              strokeWidth: 2.2, value: pct == 0 ? null : pct, color: iconColor),
+        ),
+      );
+    }
+    if (_savedOffline) {
+      return IconButton(
+        tooltip: 'Доступно офлайн — нажмите, чтобы удалить копию',
+        icon: const Icon(Icons.cloud_done_rounded, color: Color(0xFF16A34A)),
+        onPressed: _clearOffline,
+      );
+    }
+    return IconButton(
+      tooltip: 'Сохранить для офлайна',
+      icon: Icon(Icons.cloud_download_outlined, color: iconColor),
+      onPressed: _saveForOffline,
+    );
+  }
+
   // ── UI ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    if (widget.imageUrls.isEmpty) {
-      return _emptyState();
+    final counter = 'Стр. $_currentPage из ${widget.imageUrls.length}';
+
+    final header = widget.asDialog
+        ? _dialogHeader(counter)
+        : null; // на телефоне шапку даёт AppBar ниже
+
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        // Страница PDF ~ A4 (соотношение 1:1.41). Ограничиваем разумной высотой.
+        final pageHeight = (constraints.maxWidth * 1.41).clamp(200.0, 1400.0);
+        const gap = 8.0;
+        _pageExtent = pageHeight + gap;
+        return ListView.separated(
+          controller: _scroll,
+          padding: const EdgeInsets.all(8),
+          itemCount: widget.imageUrls.length,
+          separatorBuilder: (_, __) => const SizedBox(height: gap),
+          itemBuilder: (_, i) => _PageImage(
+            url: widget.imageUrls[i],
+            pageNumber: i + 1,
+            height: pageHeight,
+          ),
+        );
+      },
+    );
+
+    if (widget.asDialog) {
+      return Column(
+        children: [
+          header!,
+          const Divider(height: 1),
+          Expanded(
+            child: Container(color: const Color(0xFF111827), child: body),
+          ),
+        ],
+      );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _toolbar(),
-        const SizedBox(height: 8),
-        _offlineBar(),
-        Container(
-          height: widget.initialHeight,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: ListView.separated(
-            controller: _scrollController,
-            padding: const EdgeInsets.all(8),
-            itemCount: widget.imageUrls.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 6),
-            itemBuilder: (_, i) => _PageImage(
-              url: widget.imageUrls[i],
-              pageNumber: i + 1,
-              height: _pageHeight,
-            ),
-          ),
+
+    // Телефон — полноэкранный Scaffold
+    return Scaffold(
+      backgroundColor: const Color(0xFF111827),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF111827),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(widget.title,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            Text(counter,
+                style: const TextStyle(
+                    fontSize: 11, color: Color(0xFF94A3B8))),
+          ],
         ),
-      ],
+        actions: [_offlineAction(iconColor: Colors.white)],
+      ),
+      body: body,
     );
   }
 
-  Widget _toolbar() {
+  /// Шапка для десктопного диалога: иконка, заголовок, счётчик, офлайн, закрыть.
+  Widget _dialogHeader(String counter) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      color: const Color(0xFF1E293B),
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
       child: Row(
         children: [
           const Icon(Icons.menu_book_outlined,
-              size: 16, color: Color(0xFF64748B)),
-          const SizedBox(width: 6),
-          Text(
-            'Стр. $_currentPage из ${widget.imageUrls.length}',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
+              color: Color(0xFF93C5FD), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(widget.title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text(counter,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF94A3B8))),
+              ],
             ),
           ),
-          const Spacer(),
+          _offlineAction(iconColor: Colors.white),
           IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            icon: const Icon(Icons.fullscreen_rounded,
-                size: 20, color: Color(0xFF3B82F6)),
-            tooltip: 'Открыть на весь экран',
-            onPressed: _openFullscreen,
+            tooltip: 'Закрыть',
+            icon: const Icon(Icons.close_rounded, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ],
-      ),
-    );
-  }
-
-  /// Полоса управления офлайн-кешем: кнопка «Сохранить» или статус «✓ Доступно офлайн».
-  Widget _offlineBar() {
-    if (widget.offlineKey == null) return const SizedBox.shrink();
-
-    if (_saving) {
-      final pct = (_savedPages / widget.imageUrls.length).clamp(0.0, 1.0);
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Сохранение... $_savedPages / ${widget.imageUrls.length}',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: pct,
-                  minHeight: 4,
-                  backgroundColor:
-                      const Color(0xFF3B82F6).withOpacity(0.15),
-                  valueColor: const AlwaysStoppedAnimation(
-                      Color(0xFF3B82F6)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_savedOffline) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFECFDF5),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.cloud_done_rounded,
-                  size: 16, color: Color(0xFF16A34A)),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Доступно офлайн',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF16A34A)),
-                ),
-              ),
-              TextButton(
-                onPressed: _clearOffline,
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF94A3B8),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 30),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text('Удалить',
-                    style: TextStyle(fontSize: 11)),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: _saveForOffline,
-          icon: const Icon(Icons.cloud_download_outlined, size: 18),
-          label: const Text('Сохранить для офлайна',
-              style: TextStyle(fontSize: 13)),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF3B82F6),
-            side: const BorderSide(color: Color(0xFFBFDBFE)),
-            padding: const EdgeInsets.symmetric(vertical: 11),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _emptyState() {
-    return Container(
-      height: 120,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: Text('Страницы не загружены',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
-      ),
-    );
-  }
-
-  void _openFullscreen() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _FullscreenDocViewer(
-          title: widget.title,
-          imageUrls: widget.imageUrls,
-          initialPage: _currentPage - 1,
-        ),
       ),
     );
   }
@@ -402,13 +369,6 @@ class _PageImage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          )
-        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -418,7 +378,7 @@ class _PageImage extends StatelessWidget {
             width: double.infinity,
             child: InteractiveViewer(
               minScale: 1.0,
-              maxScale: 4.0,
+              maxScale: 5.0,
               child: CachedNetworkImage(
                 imageUrl: url,
                 fit: BoxFit.contain,
@@ -455,110 +415,6 @@ class _PageImage extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Полноэкранный режим — большие страницы с тем же CachedNetworkImage.
-class _FullscreenDocViewer extends StatefulWidget {
-  final String title;
-  final List<String> imageUrls;
-  final int initialPage;
-
-  const _FullscreenDocViewer({
-    required this.title,
-    required this.imageUrls,
-    this.initialPage = 0,
-  });
-
-  @override
-  State<_FullscreenDocViewer> createState() => _FullscreenDocViewerState();
-}
-
-class _FullscreenDocViewerState extends State<_FullscreenDocViewer> {
-  final ScrollController _ctrl = ScrollController();
-  int _currentPage = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentPage = widget.initialPage + 1;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ctrl.jumpTo(widget.initialPage * _approxPageHeight(context));
-    });
-    _ctrl.addListener(() {
-      if (!_ctrl.hasClients) return;
-      final page =
-          (_ctrl.offset / _approxPageHeight(context)).floor() + 1;
-      final clamped = page.clamp(1, widget.imageUrls.length);
-      if (clamped != _currentPage) {
-        setState(() => _currentPage = clamped);
-      }
-    });
-  }
-
-  double _approxPageHeight(BuildContext context) {
-    return MediaQuery.of(context).size.width * 1.41;
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF111827),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF111827),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.title,
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.bold)),
-            Text('Стр. $_currentPage из ${widget.imageUrls.length}',
-                style: const TextStyle(
-                    fontSize: 11, color: Color(0xFF94A3B8))),
-          ],
-        ),
-      ),
-      body: ListView.separated(
-        controller: _ctrl,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        itemCount: widget.imageUrls.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, i) => Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InteractiveViewer(
-            minScale: 1.0,
-            maxScale: 5.0,
-            child: CachedNetworkImage(
-              imageUrl: widget.imageUrls[i],
-              fit: BoxFit.contain,
-              placeholder: (_, __) => SizedBox(
-                height: _approxPageHeight(context),
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-              errorWidget: (_, __, ___) => SizedBox(
-                height: 120,
-                child: Center(
-                  child: Icon(Icons.broken_image_outlined,
-                      size: 40, color: Colors.grey[400]),
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

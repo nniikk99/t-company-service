@@ -969,6 +969,42 @@ class SupabaseService {
         .eq('id', equipmentId);
   }
 
+  /// История статусов оборудования (для статистики по машине).
+  /// Возвращает список {status, started_at} по возрастанию времени.
+  /// Если таблицы/истории нет — пустой список (статистика деградирует мягко).
+  static Future<List<Map<String, dynamic>>> getEquipmentStatusHistory(
+      String equipmentId) async {
+    try {
+      final rows = await _client
+          .from('equipment_status_history')
+          .select('status, started_at')
+          .eq('equipment_id', equipmentId)
+          .order('started_at', ascending: true);
+      return List<Map<String, dynamic>>.from(rows);
+    } catch (e) {
+      print('⚠️ Не удалось загрузить историю статусов ($equipmentId): $e');
+      return [];
+    }
+  }
+
+  /// Все сервисные заявки по конкретной единице оборудования (для статистики).
+  static Future<List<ServiceRequest>> getEquipmentServiceRequests(
+      String equipmentId) async {
+    try {
+      final rows = await _client
+          .from('service_requests')
+          .select('*')
+          .eq('equipment_id', equipmentId)
+          .order('created_at', ascending: false);
+      return (rows as List)
+          .map((j) => ServiceRequest.fromJson(j as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      print('⚠️ Не удалось загрузить заявки по оборудованию ($equipmentId): $e');
+      return [];
+    }
+  }
+
   // === AUTHENTICATION & USERS ===
 
   static Future<AppUserModel.User> createUser(AppUserModel.User user) async {

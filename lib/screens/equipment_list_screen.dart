@@ -14,6 +14,8 @@ import '../widgets/add_site_dialog.dart';
 import '../widgets/edit_equipment_dialog.dart';
 import '../widgets/equipment_specifications_widget.dart';
 import '../widgets/equipment_maintenance_widget.dart';
+import '../widgets/equipment_status_control.dart';
+import '../widgets/equipment_stats_section.dart';
 
 class EquipmentListScreen extends StatefulWidget {
   final User user;
@@ -723,8 +725,13 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                             _buildDetailRow(Icons.numbers, 'Серийный номер', equipment.serialNumber ?? 'Не указан'),
                             const SizedBox(height: 8),
                             _buildDetailRow(Icons.location_on, 'Площадка', equipment.address.isNotEmpty ? equipment.address : equipment.location),
-                            const SizedBox(height: 8),
-                            _buildDetailRow(Icons.info_outline, 'Статус', _getEquipmentStatusText(equipment.status)),
+                            const SizedBox(height: 12),
+                            // Интерактивный статус: тумблер вкл/выкл + длительность в днях
+                            EquipmentStatusControl(
+                              equipment: equipment,
+                              canChange: _canChangeStatus(),
+                              onChanged: (_) => _loadEquipment(),
+                            ),
                             if (equipment.siteManagerContact != null && equipment.siteManagerContact!.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               _buildDetailRow(Icons.person_outline, 'Менеджер', equipment.siteManagerContact!),
@@ -828,7 +835,10 @@ class _EquipmentListScreenState extends State<EquipmentListScreen> {
                               model: equipment.model,
                               customSpecs: equipment.specifications,
                             ),
-                            
+
+                            // Статистика по машине (наработка, затраты, заявки)
+                            EquipmentStatsSection(equipment: equipment),
+
                             // График ТО
                             EquipmentMaintenanceWidget(
                               equipment: equipment,

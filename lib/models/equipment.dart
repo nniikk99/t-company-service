@@ -30,6 +30,7 @@ class Equipment {
   final DateTime? nextServiceDate;    // Дата следующего обслуживания
   final String? type;                 // Тип оборудования (например, поломоечная машина)
   final DateTime? purchaseDate;       // Дата реализации (покупки)
+  final DateTime? statusChangedAt;    // Момент последней смены статуса (для подсчёта дней)
   final Map<String, dynamic>? specifications; // Технические характеристики
   final List<String>? manuals;        // Инструкции/мануалы
   final List<String>? photos;         // Фотографии оборудования
@@ -62,6 +63,7 @@ class Equipment {
     this.photos,
     this.type,
     this.purchaseDate,
+    this.statusChangedAt,
     this.siteManagerContact,
     this.operatorContact,
   });
@@ -92,6 +94,39 @@ class Equipment {
   }
 
   bool get isOperational => status == EquipmentStatus.active;
+
+  /// Сколько полных дней оборудование находится в текущем статусе.
+  /// null — если момент смены статуса неизвестен (старые записи без бэкофилла).
+  int? get daysInCurrentStatus {
+    if (statusChangedAt == null) return null;
+    final diff = DateTime.now().difference(statusChangedAt!);
+    return diff.inDays < 0 ? 0 : diff.inDays;
+  }
+
+  /// Текст вида «Активно · 23 дня» / «На обслуживании · 50 дней».
+  /// Если длительность неизвестна — возвращает только название статуса.
+  String get statusDurationText {
+    final days = daysInCurrentStatus;
+    if (days == null) return statusDisplayName;
+    return '$statusDisplayName · ${daysWord(days)}';
+  }
+
+  /// Русское склонение слова «день» по числу: 1 день, 2 дня, 5 дней.
+  static String daysWord(int n) {
+    final mod100 = n % 100;
+    final mod10 = n % 10;
+    String word;
+    if (mod100 >= 11 && mod100 <= 14) {
+      word = 'дней';
+    } else if (mod10 == 1) {
+      word = 'день';
+    } else if (mod10 >= 2 && mod10 <= 4) {
+      word = 'дня';
+    } else {
+      word = 'дней';
+    }
+    return '$n $word';
+  }
 
   factory Equipment.fromJson(Map<String, dynamic> json) {
     return Equipment(
@@ -137,6 +172,9 @@ class Equipment {
       purchaseDate: json['purchase_date'] != null
           ? DateTime.parse(json['purchase_date'])
           : null,
+      statusChangedAt: json['status_changed_at'] != null
+          ? DateTime.parse(json['status_changed_at'])
+          : null,
       siteManagerContact: json['site_manager_contact'],
       operatorContact: json['operator_contact'],
     );
@@ -171,6 +209,7 @@ class Equipment {
       'photos': photos,
       'type': type,
       'purchase_date': purchaseDate?.toIso8601String(),
+      'status_changed_at': statusChangedAt?.toIso8601String(),
       'site_manager_contact': siteManagerContact,
       'operator_contact': operatorContact,
     };
@@ -204,6 +243,7 @@ class Equipment {
     List<String>? photos,
     String? type,
     DateTime? purchaseDate,
+    DateTime? statusChangedAt,
     String? siteManagerContact,
     String? operatorContact,
   }) {
@@ -235,6 +275,7 @@ class Equipment {
       photos: photos ?? this.photos,
       type: type ?? this.type,
       purchaseDate: purchaseDate ?? this.purchaseDate,
+      statusChangedAt: statusChangedAt ?? this.statusChangedAt,
       siteManagerContact: siteManagerContact ?? this.siteManagerContact,
       operatorContact: operatorContact ?? this.operatorContact,
     );
