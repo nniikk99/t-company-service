@@ -60,7 +60,8 @@ async function sendEmail(to: string, code: string) {
   await client.send({
     from: `AI Service <${from}>`,
     to,
-    subject: `Код подтверждения: ${code}`,
+    // Короткая тема — корректно отображается во всех клиентах
+    subject: `Код ${code} - AI Service`,
     content: `Ваш код подтверждения: ${code}\n\nКод действует ${CODE_TTL_MIN} минут.\nЕсли вы не регистрировались — проигнорируйте это письмо.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
