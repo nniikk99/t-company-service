@@ -5,6 +5,7 @@ import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../services/password_service.dart';
 import '../services/dadata_service.dart';
+import '../utils/responsive.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/phone_input_field.dart';
 import '../theme/app_theme.dart';
@@ -412,7 +413,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
           child: SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: Form(
+              child: CenteredContent(
+                maxWidth: 640,
+                child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -420,28 +423,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
                     // Заголовок
                     _buildHeader(),
                     const SizedBox(height: 32),
-                    
+
                     // Персональные данные
                     _buildPersonalInfoSection(),
                     const SizedBox(height: 24),
-                    
+
                     // Данные компании
                     _buildCompanyInfoSection(),
                     const SizedBox(height: 24),
-                    
+
                     // Пароль
                     _buildPasswordSection(),
                     const SizedBox(height: 24),
-                    
+
                     // Согласие
                     _buildConsentSection(),
                     const SizedBox(height: 32),
-                    
+
                     // Кнопка регистрации
                     _buildRegisterButton(),
                     const SizedBox(height: 24),
                   ],
                 ),
+              ),
               ),
             ),
           ),
