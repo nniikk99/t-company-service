@@ -195,6 +195,12 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
   String get _contactPhone => (_details['contact_phone'] ?? '').toString();
   String get _notes => (_details['notes'] ?? '').toString();
 
+  // Заказчик (для счёта на юр.лицо)
+  String get _clientCompany => (_details['client_company'] ?? '').toString();
+  String get _clientInn => (_details['client_inn'] ?? '').toString();
+  String get _clientPerson => (_details['client_person'] ?? '').toString();
+  String get _clientPhone => (_details['client_phone'] ?? '').toString();
+
   bool get _isSupplier =>
       widget.currentUser.role == AppUserModel.UserRole.supplier ||
       widget.currentUser.role == AppUserModel.UserRole.administrator;
@@ -404,6 +410,12 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
                 _statusBlock(),
+          // Блок заказчика — поставщику/админу важно видеть юр.лицо для счёта
+          if (_isSupplier && (_clientCompany.isNotEmpty ||
+              _clientPerson.isNotEmpty)) ...[
+            const SizedBox(height: 12),
+            _clientBlock(),
+          ],
           const SizedBox(height: 12),
           _summaryBlock(),
           const SizedBox(height: 12),
@@ -480,6 +492,81 @@ class _PartOrderDetailsScreenState extends State<PartOrderDetailsScreen> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// Блок «Заказчик» — для поставщика/админа (нужен для счёта на юр.лицо).
+  Widget _clientBlock() {
+    final hasCompany = _clientCompany.isNotEmpty;
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.business_rounded,
+                  size: 18, color: Color(0xFF94A3B8)),
+              const SizedBox(width: 8),
+              const Text('Заказчик',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1E293B))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Название юр.лица крупно
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasCompany ? _clientCompany : 'Физическое лицо',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                if (_clientInn.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Text('ИНН ',
+                          style: TextStyle(
+                              fontSize: 13, color: Color(0xFF64748B))),
+                      SelectableText(
+                        _clientInn,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2563EB)),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (_clientPerson.isNotEmpty || _clientPhone.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            if (_clientPerson.isNotEmpty)
+              _contactRow(Icons.person_outline_rounded, 'Контактное лицо',
+                  _clientPerson),
+            if (_clientPhone.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _contactRow(Icons.phone_outlined, 'Телефон', _clientPhone,
+                  isPhone: true),
+            ],
+          ],
         ],
       ),
     );

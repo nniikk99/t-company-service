@@ -1580,6 +1580,13 @@ class SupabaseService {
         'contact_phone': order['contact_phone'],
         'notes': order['notes'],
         'items': items,
+        // Заказчик (для счёта на юр.лицо)
+        'client_company': client?['company_name'],
+        'client_inn': client?['company_inn'],
+        'client_person': client != null
+            ? '${client['first_name'] ?? ''} ${client['last_name'] ?? ''}'.trim()
+            : null,
+        'client_phone': client?['phone'],
         // Оплата
         'invoice_pdf_url': order['invoice_pdf_url'],
         'invoice_file_name': order['invoice_file_name'],
@@ -1606,7 +1613,7 @@ class SupabaseService {
 
   static const String _partOrdersSelect = '''
     *,
-    client:user_profiles!part_orders_client_id_fkey(first_name, last_name, phone, role, company_name),
+    client:user_profiles!part_orders_client_id_fkey(first_name, last_name, phone, role, company_name, company_inn),
     part_order_items(
       id, quantity, price_at_order, article, name,
       part_id, equipment_part_id
