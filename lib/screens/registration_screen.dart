@@ -5,6 +5,8 @@ import '../services/supabase_service.dart';
 import '../services/storage_service.dart';
 import '../services/password_service.dart';
 import '../services/dadata_service.dart';
+import '../services/email_verification_service.dart';
+import 'email_verification_screen.dart';
 import '../utils/responsive.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/phone_input_field.dart';
@@ -92,6 +94,34 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
 
   String _hashPassword(String password) {
     return PasswordService.hashPassword(password);
+  }
+
+  /// Отправляет код на email и открывает экран подтверждения.
+  /// Возвращает true если почта подтверждена.
+  Future<bool> _confirmEmail() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      _showErrorSnackBar('Укажите корректный email');
+      return false;
+    }
+
+    setState(() => _isLoading = true);
+    final err = await EmailVerificationService.sendCode(email);
+    if (!mounted) return false;
+    setState(() => _isLoading = false);
+
+    if (err != null) {
+      _showErrorSnackBar('Не удалось отправить код: $err');
+      return false;
+    }
+
+    final verified = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EmailVerificationScreen(email: email),
+      ),
+    );
+    return verified == true;
   }
 
   /// Поиск организации по ИНН через DaData и автозаполнение названия.
@@ -224,6 +254,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       return;
     }
 
+    // ── Шаг 1: подтверждение email кодом ──────────────────────────────
+    final emailOk = await _confirmEmail();
+    if (!emailOk) return; // пользователь не подтвердил почту
+
     setState(() => _isLoading = true);
 
     try {
@@ -267,6 +301,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> with TickerProv
       // Сохраняем пользователя в Supabase
       await SupabaseService.createUser(user);
       print('User saved to Supabase successfully');
+
+      // Email уже подтверждён кодом — проставляем флаг
+      try {
+        await SupabaseService.markEmailVerified(user.id);
+      } catch (e) {
+        print('Не удалось проставить email_verified: $e');
+      }
       
       // Создаем связку с компанией в user_companies (для отображения в "Мои организации")
       final isNewCompany = existingCompanyId == null;

@@ -181,6 +181,14 @@ class SupabaseService {
     await _client.from('user_profiles').delete().eq('id', userId);
   }
 
+  /// Пометить email пользователя подтверждённым.
+  static Future<void> markEmailVerified(String userId) async {
+    await _client
+        .from('user_profiles')
+        .update({'email_verified': true})
+        .eq('id', userId);
+  }
+
   static Future<List<Map<String, dynamic>>> getAllUsers() async {
     final response = await _client
         .from('user_profiles')
