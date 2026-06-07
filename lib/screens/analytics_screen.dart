@@ -212,58 +212,258 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, color.withOpacity(0.06)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withOpacity(0.12)),
+        boxShadow: [
           BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 8,
-              offset: Offset(0, 2)),
+              color: color.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 18, color: color),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color, color.withOpacity(0.7)],
               ),
-              const Spacer(),
-            ],
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3)),
+              ],
+            ),
+            child: Icon(icon, size: 22, color: Colors.white),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1E293B),
+              color: Color(0xFF0F172A),
               height: 1.1,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(label,
               style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w500)),
+                  fontSize: 12,
+                  color: Color(0xFF475569),
+                  fontWeight: FontWeight.w600)),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(subtitle!,
                 style: const TextStyle(
-                    fontSize: 10, color: Color(0xFF94A3B8))),
+                    fontSize: 10.5, color: Color(0xFF94A3B8))),
           ]
         ],
       ),
+    );
+  }
+}
+
+/// Кольцевая диаграмма (donut) — рисуется через CustomPainter, без библиотек.
+class _DonutChart extends StatelessWidget {
+  final List<_BreakdownItem> items;
+  final double size;
+  final String? centerValue;
+  final String? centerLabel;
+  const _DonutChart({
+    required this.items,
+    this.size = 140,
+    this.centerValue,
+    this.centerLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final total = items.fold<double>(0, (s, i) => s + i.value);
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: Size(size, size),
+            painter: _DonutPainter(items: items, total: total),
+          ),
+          if (centerValue != null)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(centerValue!,
+                    style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A))),
+                if (centerLabel != null)
+                  Text(centerLabel!,
+                      style: const TextStyle(
+                          fontSize: 10, color: Color(0xFF94A3B8))),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DonutPainter extends CustomPainter {
+  final List<_BreakdownItem> items;
+  final double total;
+  _DonutPainter({required this.items, required this.total});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = size.width * 0.16;
+    final rect = Offset.zero & size;
+    final center = rect.center;
+    final radius = (size.width - stroke) / 2;
+
+    if (total <= 0) {
+      final bg = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..color = const Color(0xFFF1F5F9);
+      canvas.drawCircle(center, radius, bg);
+      return;
+    }
+
+    double startAngle = -1.5708; // -90° сверху
+    const gap = 0.04; // зазор между сегментами в радианах
+    for (final item in items) {
+      final sweep = (item.value / total) * 6.2832 - gap;
+      if (sweep <= 0) continue;
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.round
+        ..color = item.color;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweep,
+        false,
+        paint,
+      );
+      startAngle += sweep + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DonutPainter old) =>
+      old.items != items || old.total != total;
+}
+
+/// Распределение с кольцевой диаграммой + легендой.
+/// На широком экране — donut слева, легенда справа; на узком — donut сверху.
+class _DonutBreakdown extends StatelessWidget {
+  final List<_BreakdownItem> items;
+  final String? centerLabel;
+  const _DonutBreakdown({required this.items, this.centerLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text('Нет данных',
+            style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+      );
+    }
+    final total = items.fold<double>(0, (s, i) => s + i.value);
+    final donut = _DonutChart(
+      items: items,
+      size: 132,
+      centerValue: total == total.roundToDouble()
+          ? total.toInt().toString()
+          : total.toStringAsFixed(0),
+      centerLabel: centerLabel,
+    );
+    final legend = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < items.length; i++) ...[
+          _legendRow(items[i], total),
+          if (i < items.length - 1) const SizedBox(height: 8),
+        ]
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, c) {
+        if (c.maxWidth >= 380) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              donut,
+              const SizedBox(width: 20),
+              Expanded(child: legend),
+            ],
+          );
+        }
+        return Column(
+          children: [
+            donut,
+            const SizedBox(height: 16),
+            legend,
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _legendRow(_BreakdownItem item, double total) {
+    final pct = total > 0 ? (item.value / total * 100) : 0;
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: item.color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(item.label,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1E293B)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ),
+        const SizedBox(width: 8),
+        Text(item.valueLabel,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: item.color)),
+        const SizedBox(width: 6),
+        Text('${pct.toStringAsFixed(0)}%',
+            style: const TextStyle(
+                fontSize: 11, color: Color(0xFF94A3B8))),
+      ],
     );
   }
 }
@@ -715,7 +915,7 @@ class _ClientDashboardState extends State<_ClientDashboard> {
           const _SectionHeader('Структура затрат',
               icon: Icons.donut_small_outlined),
           _Card(
-            child: _BreakdownList(items: [
+            child: _DonutBreakdown(items: [
               _BreakdownItem(
                 label: 'Сервис и выезды',
                 value: servicesSpend,
@@ -740,7 +940,8 @@ class _ClientDashboardState extends State<_ClientDashboard> {
               subtitle: 'за выбранный период',
               icon: Icons.pie_chart_outline_rounded),
           _Card(
-            child: _BreakdownList(items: _statusBreakdown(inPeriod)),
+            child: _DonutBreakdown(
+                items: _statusBreakdown(inPeriod), centerLabel: 'всего'),
           ),
         ],
 
@@ -900,7 +1101,8 @@ class _EngineerDashboardState extends State<_EngineerDashboard> {
               subtitle: 'за выбранный период',
               icon: Icons.pie_chart_outline_rounded),
           _Card(
-            child: _BreakdownList(items: _statusBreakdown(inPeriod)),
+            child: _DonutBreakdown(
+                items: _statusBreakdown(inPeriod), centerLabel: 'всего'),
           ),
         ],
 
@@ -1075,7 +1277,7 @@ class _SupplierDashboardState extends State<_SupplierDashboard> {
           const _SectionHeader('Структура выручки',
               icon: Icons.donut_small_outlined),
           _Card(
-            child: _BreakdownList(items: [
+            child: _DonutBreakdown(items: [
               _BreakdownItem(
                 label: 'Сервис и выезды',
                 value: servicesRevenue,
@@ -1100,7 +1302,8 @@ class _SupplierDashboardState extends State<_SupplierDashboard> {
               subtitle: 'за выбранный период',
               icon: Icons.pie_chart_outline_rounded),
           _Card(
-            child: _BreakdownList(items: _statusBreakdown(inPeriod)),
+            child: _DonutBreakdown(
+                items: _statusBreakdown(inPeriod), centerLabel: 'всего'),
           ),
         ],
 
@@ -1275,7 +1478,8 @@ class _AdminDashboardState extends State<_AdminDashboard> {
           const _SectionHeader('Пользователи по ролям',
               icon: Icons.groups_2_outlined),
           _Card(
-            child: _BreakdownList(
+            child: _DonutBreakdown(
+              centerLabel: 'польз.',
               items: _usersByRole.entries
                   .map((e) => _BreakdownItem(
                         label: _roleLabel(e.key),
@@ -1294,7 +1498,8 @@ class _AdminDashboardState extends State<_AdminDashboard> {
               subtitle: 'за выбранный период',
               icon: Icons.pie_chart_outline_rounded),
           _Card(
-            child: _BreakdownList(items: _statusBreakdown(inPeriod)),
+            child: _DonutBreakdown(
+                items: _statusBreakdown(inPeriod), centerLabel: 'всего'),
           ),
         ],
 
